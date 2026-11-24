@@ -1,4 +1,9 @@
-# Kapture 0.2.1
+# Kapture 0.2.2
+
+Nieuw in 0.2.2:
+- **Geen flits meer** voor het scherm donker wordt: de verschijn-animatie van Windows staat uit voor Kapture, en het stilstaande beeld wordt eerst getekend en dan pas getoond.
+- **Menu bij de klok reageert meteen** als je met de muis over de regels gaat.
+- In Instellingen is **Terug naar de standaardmap** weggehaald; met Wijzig kies je zelf een map.
 
 Nieuw in 0.2.1:
 - **Bijwerken met een klik**, zoals in NexusPen. Staat er een nieuwe versie op GitHub, dan zegt Kapture dat bij het starten (en in het menu bij de klok). Klik op Bijwerken: Kapture haalt hem op, controleert hem, installeert hem en start daarna vanzelf weer. Ook in Instellingen, Over en bijwerken: Nu zoeken.

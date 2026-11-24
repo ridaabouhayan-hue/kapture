@@ -41,6 +41,9 @@ namespace Kapture
         RectangleF card;
         int hot = -1;
         bool showing;
+        // Kant-en-klare plaatjes per regel onder de muis: bewegen is dan alleen nog wisselen (meteen, geen vertraging)
+        readonly Dictionary<int, IntPtr> frames = new Dictionary<int, IntPtr>();
+        static Bitmap logo; static int logoSize;
 
         protected override CreateParams CreateParams
         {
@@ -57,7 +60,16 @@ namespace Kapture
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None; KeyPreview = true;
             Text = "Kapture menu";
+            W.NoAnimation(Handle);
         }
+
+        void ClearFrames()
+        {
+            foreach (IntPtr hb in frames.Values) W.DeleteObject(hb);
+            frames.Clear();
+        }
+
+        protected override void Dispose(bool disposing) { ClearFrames(); base.Dispose(disposing); }
 
         public void Clear() { entries.Clear(); }
         public void Add(string text, string icon, Action click) { Entry e = new Entry(); e.Text = text; e.Icon = icon; e.Click = click; entries.Add(e); }
@@ -189,12 +201,10 @@ namespace Kapture
 
         void DrawHeader(Graphics g, Entry e, RectangleF r)
         {
-            RectangleF logo = new RectangleF(r.X + P(Inset) - P(2), (float)Math.Round(r.Y + (r.Height - P(20)) / 2), P(20), P(20));
-            using (Bitmap lb = Logo.Bitmap((int)logo.Width))
-            {
-                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-                g.DrawImage(lb, logo);
-            }
+            RectangleF logoR = new RectangleF(r.X + P(Inset) - P(2), (float)Math.Round(r.Y + (r.Height - P(20)) / 2), P(20), P(20));
+            int ls = (int)logoR.Width;
+            if (TrayMenu.logo == null || logoSize != ls) { if (TrayMenu.logo != null) TrayMenu.logo.Dispose(); TrayMenu.logo = Logo.Bitmap(ls); logoSize = ls; }
+            g.DrawImageUnscaled(TrayMenu.logo, (int)logoR.X, (int)logoR.Y);
             StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
             sf.FormatFlags |= StringFormatFlags.NoWrap; sf.LineAlignment = StringAlignment.Center;
             float tx = r.X + P(Inset) + P(IconS) + P(Gap);
@@ -212,17 +222,21 @@ namespace Kapture
 
         void Render()
         {
-            using (Bitmap b = RenderBitmap())
+            IntPtr hb;
+            if (!frames.TryGetValue(hot, out hb))
+            {
+                using (Bitmap b = RenderBitmap()) hb = b.GetHbitmap(Color.FromArgb(0));
+                frames[hot] = hb;
+            }
             {
                 IntPtr scr = W.GetDC(IntPtr.Zero);
                 IntPtr mem = W.CreateCompatibleDC(scr);
-                IntPtr hb = b.GetHbitmap(Color.FromArgb(0));
                 IntPtr old = W.SelectObject(mem, hb);
                 W.POINT pt = new W.POINT(Left, Top), src = new W.POINT(0, 0);
                 W.SIZE sz = new W.SIZE(Width, Height);
                 W.BLENDFUNCTION bf = new W.BLENDFUNCTION { BlendOp = 0, BlendFlags = 0, SourceConstantAlpha = 255, AlphaFormat = 1 };
                 W.UpdateLayeredWindow(Handle, scr, ref pt, ref sz, mem, ref src, 0, ref bf, W.ULW_ALPHA);
-                W.SelectObject(mem, old); W.DeleteObject(hb); W.DeleteDC(mem); W.ReleaseDC(IntPtr.Zero, scr);
+                W.SelectObject(mem, old); W.DeleteDC(mem); W.ReleaseDC(IntPtr.Zero, scr);
             }
         }
 
@@ -232,6 +246,7 @@ namespace Kapture
             t = Theme.Current;
             s = W.ScaleAt(cursor.X, cursor.Y);
             hot = -1;
+            ClearFrames();
             Arrange();
             Rectangle wa = Screen.FromPoint(cursor).WorkingArea;
             int m = (int)P(ShadowM);

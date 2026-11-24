@@ -60,6 +60,7 @@ namespace Kapture
             BackColor = Color.Black; AutoScaleMode = AutoScaleMode.None;
             IntPtr h = Handle;
             W.SetLayeredWindowAttributes(h, 0, Alpha, W.LWA_ALPHA);
+            W.NoAnimation(h);
             Excluded = W.SetWindowDisplayAffinity(h, W.WDA_EXCLUDEFROMCAPTURE);
             if (!Excluded) Log.Info("Donker venster kan niet onzichtbaar voor de opname: het scherm wordt pas donker met het stilstaande beeld");
         }

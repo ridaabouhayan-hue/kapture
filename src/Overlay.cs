@@ -161,6 +161,7 @@ namespace Kapture
             DoubleBuffered = false;
             Cursor = Cursors.Cross;
             IntPtr h = Handle;
+            W.NoAnimation(h);
             note.Changed += delegate { if (noteMode) RelayoutNote(); };
             blink.Tick += delegate { if (noteMode) Invalidate(noteBar); };
         }
@@ -197,8 +198,12 @@ namespace Kapture
         {
             active = true;
             Rectangle b = Bounds;
+            // eerst onzichtbaar tonen en tekenen, dan pas laten zien: zo is er nooit een leeg venster of flits
+            W.Cloak(Handle, true);
             W.SetWindowPos(Handle, W.HWND_TOPMOST, b.X, b.Y, b.Width, b.Height, W.SWP_SHOWWINDOW);
             Refresh();
+            W.Cloak(Handle, false);
+            W.DwmFlush();   // het beeld staat op het scherm voordat het donkere venster weggaat
             W.SetForegroundWindow(Handle);
             Activate();
             Focus();

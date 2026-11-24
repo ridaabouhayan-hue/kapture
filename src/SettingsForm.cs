@@ -238,14 +238,6 @@ namespace Kapture
             inboxRow.Buttons.Add(new Btn { Label = "Wijzig...", Icon = "folder", Click = ChooseInbox });
             inboxRow.Buttons.Add(new Btn { Label = "Openen", Icon = "external-link", Click = delegate { OpenFolder(InboxFolder.Resolve(work)); } });
             inbox.Rows.Add(inboxRow);
-            Row standaard = new Row
-            {
-                Id = "inbox-standaard", Title = "Terug naar de standaardmap", Keywords = "standaard onedrive herstellen",
-                Sub = delegate { return InboxFolder.Default(); }, MonoSub = true, Kind = RowKind.Buttons,
-                Enabled = delegate { return !string.IsNullOrEmpty(work.Inbox); }
-            };
-            standaard.Buttons.Add(new Btn { Label = "Standaard", Icon = "rotate-ccw", Click = delegate { work.Inbox = ""; inboxChecked = false; Edited(); } });
-            inbox.Rows.Add(standaard);
             inbox.Rows.Add(new Row
             {
                 Id = "maand", Title = "Elke maand een eigen map", Keywords = "maand submap ordenen structuur mappen",

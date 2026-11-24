@@ -67,6 +67,7 @@ namespace Kapture
             tick.Interval = 33;
             tick.Tick += delegate { OnTick(); };
             field.Changed += delegate { if (c != null) { Arrange(workArea); Render(); } };
+            W.NoAnimation(Handle);
         }
 
         public ToastContent Content { get { return Visible && !closing ? c : null; } }

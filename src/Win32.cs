@@ -83,6 +83,18 @@ namespace Kapture
             return 1f;
         }
 
+        // Geen verschijn-animatie van Windows: die gaf een korte flits voor het scherm donker werd
+        public static void NoAnimation(IntPtr h)
+        {
+            try { int v = 1; DwmSetWindowAttribute(h, 3, ref v, 4); } catch { }   // DWMWA_TRANSITIONS_FORCEDISABLED
+        }
+
+        // Onzichtbaar houden voor DWM terwijl het venster zijn eerste beeld tekent (geen lege of witte flits)
+        public static void Cloak(IntPtr h, bool on)
+        {
+            try { int v = on ? 1 : 0; DwmSetWindowAttribute(h, 13, ref v, 4); } catch { }   // DWMWA_CLOAK
+        }
+
         // Ronde hoeken van Windows 11 voor een gewoon venster of menu
         public static void RoundCorners(IntPtr h)
         {
