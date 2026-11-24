@@ -58,13 +58,34 @@ namespace Kapture
             return s + n;
         }
 
-        // Mag deze toets een eigen sneltoets zijn? Met Ctrl of Alt erbij, of een F-toets. Gewone letters niet (dan kun je niet meer typen).
-        public static bool UsableKey(int keys)
+        // Mag deze toets een eigen sneltoets zijn? Geeft null als het mag, anders de reden.
+        // Een sneltoets van Kapture werkt overal en pakt de toets af van elk ander programma. Daarom niet:
+        // gewone letters, Ctrl+letter (kopiëren, plakken, opslaan...), Ctrl+Alt+letter (dat is AltGr: é, ë, ß),
+        // Alt+F4 en andere vaste toetsen van Windows.
+        public static string WhyNotKey(int keys)
         {
             Keys k = (Keys)keys, code = k & Keys.KeyCode;
-            if (code == Keys.ControlKey || code == Keys.ShiftKey || code == Keys.Menu || code == Keys.None || code == Keys.LWin || code == Keys.RWin) return false;
-            if (code >= Keys.F1 && code <= Keys.F24) return true;
-            return (k & (Keys.Control | Keys.Alt)) != 0;
+            bool ctrl = (k & Keys.Control) != 0, alt = (k & Keys.Alt) != 0, shift = (k & Keys.Shift) != 0;
+            if (code == Keys.ControlKey || code == Keys.ShiftKey || code == Keys.Menu || code == Keys.None || code == Keys.LWin || code == Keys.RWin) return "";
+            if (code == Keys.Snapshot) return "Print Screen is al de gewone toets. Kies een andere.";
+            if (code == Keys.Escape || code == Keys.Tab || code == Keys.Delete || code == Keys.Back || code == Keys.Enter || code == Keys.Space)
+                return "Die toets heeft Windows zelf nodig. Kies bijvoorbeeld Ctrl+Shift+K.";
+            if (code == Keys.F4 && alt) return "Alt+F4 sluit vensters. Kies een andere.";
+            if (code >= Keys.F13 && code <= Keys.F24) return null;
+            if (code >= Keys.F1 && code <= Keys.F12) return ctrl || alt || shift ? null : "Een F-toets alleen gebruiken programma's zelf. Zet Ctrl, Alt of Shift erbij.";
+            if (!ctrl && !alt) return "Gebruik Ctrl+Shift of Alt+Shift erbij, bijvoorbeeld Ctrl+Shift+K. Gewone letters gaan niet: dan kun je niet meer typen.";
+            if (ctrl && alt && !shift) return "Ctrl+Alt met een letter is ook AltGr (é, ë, ß). Kies Ctrl+Shift+letter, bijvoorbeeld Ctrl+Shift+K.";
+            if (!shift) return "Alleen Ctrl of Alt met een letter gebruiken programma's zelf (kopiëren, plakken, opslaan). Zet Shift erbij, bijvoorbeeld Ctrl+Shift+K.";
+            return null;
+        }
+
+        public static bool UsableKey(int keys) { return WhyNotKey(keys) == null; }
+
+        // Tijdens het opnemen van een eigen sneltoets: alle sneltoetsen van Kapture even los, zodat de toetsen in Instellingen aankomen
+        public void SuspendHotkeys()
+        {
+            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote, HotkeyCustom }) W.UnregisterHotKey(hot.Handle, id);
+            retry.Stop();
         }
 
         readonly Settings cfg;

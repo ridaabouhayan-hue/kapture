@@ -221,26 +221,40 @@ namespace Kapture
 
         void Regain()
         {
+            if (!(active || noteMode) || !W.IsWindowVisible(Handle)) return;   // al dicht: niets terugpakken
             regains++;
-            string who = "";
             IntPtr fg = W.GetForegroundWindow();
+            uint pid = 0, fgThread = fg != IntPtr.Zero ? W.GetWindowThreadProcessId(fg, out pid) : 0;
+            string who = "";
             try
             {
-                uint pid; uint fgThread = W.GetWindowThreadProcessId(fg, out pid);
+                // alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel
                 if (pid != 0 && pid != (uint)System.Diagnostics.Process.GetCurrentProcess().Id)
                     using (System.Diagnostics.Process p = System.Diagnostics.Process.GetProcessById((int)pid)) who = p.ProcessName;
-                // alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel
-                Log.Info("Overlay: focus kwijt aan " + (who.Length > 0 ? who : "onbekend") + " vlak na het openen; teruggepakt");
-                LastThief = who;
-                uint me = W.GetCurrentThreadId();
-                bool attached = fgThread != 0 && fgThread != me && W.AttachThreadInput(me, fgThread, true);
-                W.SetForegroundWindow(Handle);
-                W.BringWindowToTop(Handle);
-                if (attached) W.AttachThreadInput(me, fgThread, false);
             }
-            catch (Exception ex) { Log.Error("Focus terugpakken mislukt", ex); }
+            catch { }   // het programma is al weg: dan weten we de naam niet, maar terugpakken gaat gewoon door
+            LastThief = who;
+            uint me = W.GetCurrentThreadId();
+            bool attached = fgThread != 0 && fgThread != me && W.AttachThreadInput(me, fgThread, true);
+            try { W.SetForegroundWindow(Handle); W.BringWindowToTop(Handle); }
+            finally { if (attached) W.AttachThreadInput(me, fgThread, false); }
             Activate();
             Focus();
+            bool ok = W.GetForegroundWindow() == Handle;
+            Log.Info("Overlay: focus kwijt aan " + (who.Length > 0 ? who : "onbekend") + " vlak na het openen; " + (ok ? "teruggepakt" : "terugpakken lukte niet"));
+            if (ok) return;
+            // nog een keer proberen; lukt het dan nog niet, dan sluiten: het donkere scherm mag nooit blijven staan
+            Timer again = new Timer { Interval = 250 };
+            again.Tick += delegate
+            {
+                again.Stop(); again.Dispose();
+                if (!(active || noteMode) || W.GetForegroundWindow() == Handle) return;
+                W.SetForegroundWindow(Handle); Activate();
+                if (W.GetForegroundWindow() == Handle) return;
+                Log.Info("Overlay: focus bleef weg, overlay gesloten");
+                if (noteMode) FinishNote(true); else Cancel();
+            };
+            again.Start();
         }
 
         public void End()

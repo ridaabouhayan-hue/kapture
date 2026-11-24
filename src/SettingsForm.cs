@@ -74,7 +74,7 @@ namespace Kapture
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             if (AppIcon.Get() != null) Icon = AppIcon.Get();
             search.BorderStyle = BorderStyle.None;
-            search.TextChanged += delegate { scrollY = 0; Invalidate(); };
+            search.TextChanged += delegate { StopRecording(); scrollY = 0; Invalidate(); };
             search.KeyDown += delegate(object o, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) { search.Text = ""; e.Handled = true; e.SuppressKeyPress = true; } };
             Controls.Add(search);
             savedTimer.Tick += delegate { savedTimer.Stop(); saved = null; Invalidate(); };
@@ -87,6 +87,7 @@ namespace Kapture
         // ---- werkkopie
         void Reload()
         {
+            StopRecording();
             work = cfg.Clone();
             autostartNow = Autostart.IsOn; autostartWork = autostartNow;
             inboxChecked = false;
@@ -215,8 +216,8 @@ namespace Kapture
                 Id = "eigen-toets", Title = "Eigen sneltoets voor een screenshot", Keywords = "eigen toets kiezen touchpad gebaar vier vingers laptop sneltoets",
                 Sub = delegate
                 {
-                    if (recording) return recordHint ?? "Druk nu de toetsen in die je wilt, bijvoorbeeld Ctrl+Alt+S. Esc = stoppen.";
-                    if (work.CustomKey == 0) return "Geen. Naast Print Screen kun je een eigen toets kiezen. Koppel die in Windows aan een tik met vier vingers op het touchpad: Instellingen, Bluetooth en apparaten, Touchpad, Geavanceerde bewegingen.";
+                    if (recording) return recordHint ?? "Druk nu de toetsen in die je wilt, bijvoorbeeld Ctrl+Shift+K. Esc = stoppen.";
+                    if (work.CustomKey == 0) return "Geen. Naast Print Screen kun je een eigen toets kiezen, bijvoorbeeld Ctrl+Shift+K. Koppel die in Windows aan een tik met vier vingers op het touchpad: Instellingen, Bluetooth en apparaten, Touchpad, Geavanceerde bewegingen.";
                     if (app != null && app.HotkeyTaken.ContainsKey(App.HotkeyCustom) && work.CustomKey == cfg.CustomKey) return App.KeyName(work.CustomKey) + ". Bezet: een ander programma gebruikt deze toets. Kies een andere.";
                     return App.KeyName(work.CustomKey) + " maakt een screenshot, net als Print Screen." + (work.CustomKey != cfg.CustomKey ? " Klik op Opslaan om hem te gebruiken." : "");
                 },
@@ -224,7 +225,7 @@ namespace Kapture
                 Kind = RowKind.Buttons
             };
             eigen.Buttons.Add(new Btn { LabelNow = delegate { return recording ? "Stop" : (work.CustomKey == 0 ? "Kies toets..." : "Andere toets..."); }, Icon = "keyboard", Primary = true,
-                Click = delegate { recording = !recording; recordHint = null; Invalidate(); } });
+                Click = delegate { if (recording) StopRecording(); else StartRecording(); } });
             eigen.Buttons.Add(new Btn { Label = "Weg", Icon = "x", Show = delegate { return work.CustomKey != 0 && !recording; }, Click = delegate { work.CustomKey = 0; Edited(); } });
             keys.Rows.Add(eigen);
             keys.Rows.Add(new Row
@@ -842,6 +843,7 @@ namespace Kapture
 
         void GoTo(int i)
         {
+            StopRecording();
             navIndex = i;
             scrollY = 0;
             if (search.Text.Length > 0) search.Text = "";
@@ -908,16 +910,30 @@ namespace Kapture
         bool recording;
         string recordHint;
 
+        void StartRecording()
+        {
+            recording = true; recordHint = null;
+            if (app != null) app.SuspendHotkeys();   // anders komt bijvoorbeeld Ctrl+PrtSc niet hier aan
+            Invalidate();
+        }
+
+        void StopRecording()
+        {
+            if (!recording) return;
+            recording = false; recordHint = null;
+            if (app != null) app.RegisterHotkeys(false);
+            Invalidate();
+        }
+
         protected override bool ProcessCmdKey(ref Message msg, Keys key)
         {
             if (recording)
             {
-                Keys code = key & Keys.KeyCode;
-                if (key == Keys.Escape) { recording = false; recordHint = null; Invalidate(); return true; }
-                if (code == Keys.ControlKey || code == Keys.ShiftKey || code == Keys.Menu) return true;   // wacht op de echte toets
-                if (!App.UsableKey((int)key)) { recordHint = "Gebruik Ctrl of Alt erbij (bijvoorbeeld Ctrl+Alt+S), of een F-toets. Gewone letters gaan niet: dan kun je niet meer typen."; Invalidate(); return true; }
-                if (code == Keys.Snapshot) { recordHint = "Print Screen is al de gewone toets. Kies een andere."; Invalidate(); return true; }
-                work.CustomKey = (int)key; recording = false; recordHint = null; Edited();
+                if (key == Keys.Escape) { StopRecording(); return true; }
+                string why = App.WhyNotKey((int)key);
+                if (why == "") return true;   // alleen Ctrl, Alt of Shift: wacht op de echte toets
+                if (why != null) { recordHint = App.KeyName((int)key) + " gaat niet. " + why; Invalidate(); return true; }
+                work.CustomKey = (int)key; StopRecording(); Edited();
                 return true;
             }
             if (key == (Keys.Control | Keys.F)) { search.Focus(); search.SelectAll(); return true; }
@@ -946,6 +962,7 @@ namespace Kapture
         // Sluiten met wijzigingen die nog niet bewaard zijn: eerst vragen. Daarna verbergen (zoekterm en pagina blijven).
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
+            StopRecording();
             if (e.CloseReason == CloseReason.UserClosing && !quitting)
             {
                 if (Dirty)

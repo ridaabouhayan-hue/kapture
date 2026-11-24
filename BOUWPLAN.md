@@ -93,7 +93,7 @@ PrtSc -> Sneltoetsen -> Vastleggen (variant C) -> Overlay (kader trekken)
 | Ctrl+Shift+PrtSc | paneel Laatste screenshots |
 | In de overlay: 1 tot 4 | preset kiezen |
 | In de overlay: Esc | annuleren |
-Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; met Ctrl of Alt, of een F-toets), te koppelen aan een touchpad-gebaar in Windows (Rida 24-11). Win+Shift+S blijft van Windows. Rida zet in Windows eenmalig "Print Screen opent Knipprogramma" uit; het eerste-keer-scherm helpt daarbij (knop naar de instelling, en controle of PrtSc vrij is).
+Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; bijvoorbeeld Ctrl+Shift+K; geen Ctrl+letter of Ctrl+Alt+letter, want die hebben andere programma's en AltGr nodig), te koppelen aan een touchpad-gebaar in Windows (Rida 24-11). Win+Shift+S blijft van Windows. Rida zet in Windows eenmalig "Print Screen opent Knipprogramma" uit; het eerste-keer-scherm helpt daarbij (knop naar de instelling, en controle of PrtSc vrij is).
 
 ## Notities
 - Het opgeslagen bestand blijft schoon. Er wordt nooit iets op de afbeelding geschreven.

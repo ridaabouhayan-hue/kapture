@@ -89,13 +89,18 @@ namespace Kapture
             Is(live.MonthFolders && !live.UpdateCheck && !copy.DiffersFrom(live), "opslaan neemt de kopie over");
 
             // eigen sneltoets
-            int cas = (int)(System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.S);
-            Eq(App.KeyName(cas), "Ctrl+Alt+S", "naam van een eigen sneltoets");
-            Is(App.UsableKey(cas) && App.UsableKey((int)System.Windows.Forms.Keys.F9), "Ctrl+Alt+S en F9 mogen");
-            Is(!App.UsableKey((int)System.Windows.Forms.Keys.S) && !App.UsableKey((int)(System.Windows.Forms.Keys.Shift | System.Windows.Forms.Keys.S)), "gewone letter (ook met Shift) mag niet");
-            Is(App.ModsOf(cas) == (W.MOD_NOREPEAT | W.MOD_CONTROL | W.MOD_ALT), "Ctrl en Alt gaan mee naar Windows");
-            Settings ck = new Settings { CustomKey = cas };
-            Is(ck.Clone().CustomKey == cas && new Settings().DiffersFrom(ck), "eigen sneltoets in de werkkopie");
+            System.Windows.Forms.Keys C = System.Windows.Forms.Keys.Control, A = System.Windows.Forms.Keys.Alt, S = System.Windows.Forms.Keys.Shift;
+            int csk = (int)(C | S | System.Windows.Forms.Keys.K);
+            Eq(App.KeyName(csk), "Ctrl+Shift+K", "naam van een eigen sneltoets");
+            Is(App.UsableKey(csk) && App.UsableKey((int)(A | S | System.Windows.Forms.Keys.K)) && App.UsableKey((int)(C | System.Windows.Forms.Keys.F9)) && App.UsableKey((int)System.Windows.Forms.Keys.F13), "Ctrl+Shift+K, Alt+Shift+K, Ctrl+F9 en F13 mogen");
+            Is(!App.UsableKey((int)System.Windows.Forms.Keys.S) && !App.UsableKey((int)(S | System.Windows.Forms.Keys.S)), "gewone letter (ook met Shift) mag niet");
+            Is(!App.UsableKey((int)(C | System.Windows.Forms.Keys.C)) && !App.UsableKey((int)(C | System.Windows.Forms.Keys.S)), "Ctrl+C en Ctrl+S mogen niet (andere programma's)");
+            Is(!App.UsableKey((int)(C | A | System.Windows.Forms.Keys.E)), "Ctrl+Alt+E mag niet (AltGr: é)");
+            Is(!App.UsableKey((int)(A | System.Windows.Forms.Keys.F4)) && !App.UsableKey((int)System.Windows.Forms.Keys.F5), "Alt+F4 en F5 alleen mogen niet");
+            Is(!App.UsableKey((int)(C | S | System.Windows.Forms.Keys.Snapshot)), "Print Screen kan geen eigen toets zijn");
+            Is(App.ModsOf(csk) == (W.MOD_NOREPEAT | W.MOD_CONTROL | W.MOD_SHIFT), "Ctrl en Shift gaan mee naar Windows");
+            Settings ck = new Settings { CustomKey = csk };
+            Is(ck.Clone().CustomKey == csk && new Settings().DiffersFrom(ck), "eigen sneltoets in de werkkopie");
 
             // bijwerken: versies vergelijken en het antwoord van GitHub lezen
             Is(Updates.IsNewer("0.2.1", "0.2.0") && Updates.IsNewer("v1.0", "0.9.9") && !Updates.IsNewer("0.2.0", "0.2.0") && !Updates.IsNewer("0.1.9", "0.2.0"), "nieuwere versie herkennen");
