@@ -18,7 +18,7 @@ namespace Kapture
         public class Host
         {
             public Func<Bitmap, bool> SaveImage;          // de bewerkte afbeelding over het bestand heen zetten
-            public Func<Bitmap, string, bool> Copy;       // naar het klembord, met de notitie (strook volgens de instelling)
+            public Func<Bitmap, string, bool, bool> Copy; // naar het klembord, met de notitie; derde: is dit precies het bestand (opgeslagen)
             public Action<string> NoteChanged;            // de notitie is anders: bestandsnaam bijwerken
         }
 
@@ -69,7 +69,7 @@ namespace Kapture
             AutoScaleMode = AutoScaleMode.None;
             KeyPreview = true;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-            try { using (Bitmap b = Logo.Bitmap(32)) Icon = Icon.FromHandle(b.GetHicon()); } catch { }
+            if (AppIcon.Get() != null) Icon = AppIcon.Get();
             noteBox.Multiline = true; noteBox.BorderStyle = BorderStyle.None; noteBox.ScrollBars = ScrollBars.None;
             noteBox.Text = noteAtOpen;
             noteBox.TextChanged += delegate { Invalidate(); };
@@ -226,8 +226,7 @@ namespace Kapture
             string[] lines = m.Text.Split('\n');
             using (Font f = new Font(MarkRender.TextFont(m.FontSize).FontFamily, m.FontSize, FontStyle.Bold, GraphicsUnit.Pixel))
             {
-                StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
-                sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+                StringFormat sf = MarkRender.TextFormat;
                 float lh = f.FontFamily.GetLineSpacing(FontStyle.Bold) * m.FontSize / f.FontFamily.GetEmHeight(FontStyle.Bold);
                 float w = g.MeasureString(lines[lines.Length - 1], f, PointF.Empty, sf).Width;
                 float x = m.A.X + w + 2, y = m.A.Y + lh * (lines.Length - 1);
@@ -538,6 +537,7 @@ namespace Kapture
             }
             if (pressed != null) return;
             if (!imgRect.Contains(e.Location)) { CommitTyping(); return; }
+            ActiveControl = null;   // anders gaat het toetsenbord terug naar het notitievak (Delete, Ctrl+Z, letters)
             Focus();
             PointF ip = ToImage(e.Location);
             switch (tool)
@@ -692,7 +692,11 @@ namespace Kapture
             Mark m = typing; typing = null; caretTimer.Stop();
             m.Text = m.Text.TrimEnd();
             if (typingNew) { if (m.Text.Length > 0) doc.Add(m); }
-            else if (m.Text.Length == 0) doc.Remove(m);
+            else if (m.Text.Length == 0)
+            {
+                if (typingBefore != null) { m.Text = typingBefore.Text; m.Color = typingBefore.Color; m.FontSize = typingBefore.FontSize; }
+                doc.Remove(m);
+            }
             else if (typingBefore != null && (typingBefore.Text != m.Text || typingBefore.Color != m.Color || typingBefore.FontSize != m.FontSize)) doc.Changed1(m, typingBefore);
             typingBefore = null;
             UpdateTitle();
@@ -767,7 +771,7 @@ namespace Kapture
         {
             CommitTyping();
             bool ok;
-            using (Bitmap b = doc.Export()) ok = host.Copy != null && host.Copy(b, Note);
+            using (Bitmap b = doc.Export()) ok = host.Copy != null && host.Copy(b, Note, !doc.Dirty);
             Say(ok ? "Gekopieerd naar het klembord" : "Kopiëren lukte niet");
         }
 
@@ -778,9 +782,31 @@ namespace Kapture
             Close();
         }
 
+        bool closedForQuit;
+
+        // Kapture stopt (Afsluiten of bijwerken): vragen of bewaren. Geeft false bij Annuleren.
+        public bool PrepareQuit()
+        {
+            CommitTyping();
+            if (doc.Dirty)
+            {
+                if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+                Activate();
+                DialogResult a = MessageBox.Show(this, "Kapture stopt. Wil je de bewerkte screenshot eerst opslaan?", "Kapture", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                if (a == DialogResult.Cancel) return false;
+                if (a == DialogResult.Yes && !SaveNow()) return false;
+            }
+            ApplyNote();
+            closedForQuit = true;
+            return true;
+        }
+
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             CommitTyping();
+            if (closedForQuit) { base.OnFormClosing(e); return; }
+            // Windows sluit af: niet vragen (dat kan niet), wel bewaren
+            if (e.CloseReason != CloseReason.UserClosing && doc.Dirty) SaveNow();
             if (e.CloseReason == CloseReason.UserClosing && doc.Dirty)
             {
                 DialogResult a = MessageBox.Show(this, "Je hebt de screenshot bewerkt. Wil je de wijzigingen opslaan?", "Kapture", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
@@ -801,6 +827,8 @@ namespace Kapture
             }
             base.Dispose(disposing);
         }
+
+        protected override void OnShown(EventArgs e) { base.OnShown(e); ActiveControl = null; Focus(); }
 
         // ---- voor de zelftest: het venster als plaatje
         public Bitmap RenderForTest(Theme theme, float scale, EditTool tl, Size size)

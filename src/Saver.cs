@@ -236,8 +236,10 @@ namespace Kapture
                 {
                     try
                     {
+                        // het bestand moet er nog zijn: nooit een hernoemd of verwijderd bestand terugzetten
+                        if (!File.Exists(path)) { Log.Info("Bewerkte screenshot: bestand niet meer op die plek"); return false; }
                         File.WriteAllBytes(tmp, png);
-                        if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
+                        File.Replace(tmp, path, null);
                         return true;
                     }
                     catch (IOException)

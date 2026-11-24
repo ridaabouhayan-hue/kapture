@@ -40,6 +40,7 @@ namespace Kapture
         readonly TrayMenu menu = new TrayMenu();
         readonly ICapture capture = new GdiCapture();
         SettingsForm settingsForm;
+        readonly System.Collections.Generic.Dictionary<Shot, EditorForm> editors = new System.Collections.Generic.Dictionary<Shot, EditorForm>();
         Dib shot;                 // het vastgelegde scherm, alleen zolang de overlay open is
         Rectangle shotOrigin;
         string shotApp = "";
@@ -365,10 +366,10 @@ namespace Kapture
             c.Title = note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
             c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png" : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
             c.ActionLabel = "Bewerken"; c.ActionIcon = "pencil";
-            c.OnAction = delegate { OpenEditor(entry); };
+            c.OnAction = delegate { OpenEditor(entry, c.Note); };   // c.Note: net getypt in de melding
             c.Action2Label = "Map openen"; c.Action2Icon = "folder-open";
             c.OnAction2 = delegate { ShowInFolder(entry.Path); };
-            c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry); else Open(entry.Path); };
+            c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry, c.Note); else Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
             c.NoteField = true; c.Note = note; c.Tag = entry;
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
@@ -377,33 +378,51 @@ namespace Kapture
         }
 
         // ---- de editor (Stitch-scherm 5)
-        public void OpenEditor(Shot entry)
+        public void OpenEditor(Shot entry) { OpenEditor(entry, null); }
+
+        // 'note': de notitie zoals je hem net zag (kan nog aan het hernoemen zijn)
+        public void OpenEditor(Shot entry, string note)
         {
-            if (entry == null || entry.Path == null || !File.Exists(entry.Path))
+            EditorForm open;
+            if (entry != null && editors.TryGetValue(entry, out open) && !open.IsDisposed)
+            {
+                // één editor per screenshot: anders overschrijft de ene het werk van de andere
+                if (open.WindowState == FormWindowState.Minimized) open.WindowState = FormWindowState.Normal;
+                W.SetForegroundWindow(open.Handle); open.Activate();
+                return;
+            }
+            string path;
+            lock (noteGate) path = entry != null ? entry.Path : null;
+            if (path == null || !File.Exists(path))
             {
                 Notify("Screenshot niet gevonden", "Het bestand is verplaatst of verwijderd.", null, null, null, false);
                 return;
             }
             try
             {
-                Bitmap img = Saver.Load(entry.Path);
+                Bitmap img = Saver.Load(path);
                 EditorForm.Host h = new EditorForm.Host();
                 h.SaveImage = delegate(Bitmap b)
                 {
-                    bool ok = Saver.Replace(b, entry.Path);
+                    bool ok;
+                    // onder hetzelfde slot als hernoemen: nooit opslaan terwijl het bestand van naam wisselt
+                    lock (noteGate) ok = Saver.Replace(b, entry.Path);
                     if (ok) Log.Info("Screenshot bewerkt en opgeslagen");
                     return ok;
                 };
-                h.Copy = delegate(Bitmap b, string note)
+                h.Copy = delegate(Bitmap b, string n, bool sameAsFile)
                 {
                     bool ok;
-                    if (cfg.NoteStrip && !string.IsNullOrEmpty(note)) using (Bitmap withNote = Notes.WithStrip(b, note)) ok = Saver.Copy(withNote, null);
+                    if (cfg.NoteStrip && !string.IsNullOrEmpty(n)) using (Bitmap withNote = Notes.WithStrip(b, n)) ok = Saver.Copy(withNote, null);
                     else ok = Saver.Copy(b, null);
-                    if (ok) { entry.Copied = true; entry.ClipboardSeq = W.GetClipboardSequenceNumber(); }
+                    // alleen als het klembord precies het bestand is, mag een latere notitie het klembord bijwerken
+                    if (ok) { entry.Copied = sameAsFile; entry.ClipboardSeq = W.GetClipboardSequenceNumber(); }
                     return ok;
                 };
-                h.NoteChanged = delegate(string note) { ApplyNote(entry, note); };
-                EditorForm f = new EditorForm(img, entry.Path, entry.Note, h);
+                h.NoteChanged = delegate(string changed) { ApplyNote(entry, changed); };
+                EditorForm f = new EditorForm(img, path, note ?? entry.Note, h);
+                editors[entry] = f;
+                f.FormClosed += delegate { editors.Remove(entry); };
                 f.Show();
                 W.SetForegroundWindow(f.Handle);
                 f.Activate();
@@ -568,9 +587,10 @@ namespace Kapture
                             Process.Start(psi);
                         }, delegate(Exception ex)
                         {
+                            updating = false;
+                            if (ex == null) { PendingUpdate = info; return; }   // je koos Annuleren in de editor: later bijwerken
                             Log.Error("Installer starten", ex);
                             try { File.Delete(Updates.FlagPath); } catch { }
-                            updating = false;
                             Notify("Bijwerken lukte niet", "Probeer het later nog eens, of download hem zelf van de downloadpagina.", "Downloadpagina", "external-link", delegate { Open(Updates.Page); }, true);
                         });
                     });
@@ -660,6 +680,9 @@ namespace Kapture
         {
             if (quitting) return;   // al bezig met stoppen (bijvoorbeeld twee keer op Afsluiten geklikt)
             quitting = true;
+            // open editors: eerst vragen of bewaren (Annuleren = niet stoppen)
+            foreach (EditorForm ef in new System.Collections.Generic.List<EditorForm>(editors.Values))
+                if (!ef.IsDisposed && !ef.PrepareQuit()) { quitting = false; if (failed != null) failed(null); return; }
             // een open notitiebalk of notitie in de melding afronden, en wachten tot opslaan en hernoemen klaar zijn (hooguit 5 seconden)
             if (overlay.InNoteMode) overlay.FinishNoteNow();
             if (toast.IsEditing) toast.Dismiss();
@@ -679,6 +702,7 @@ namespace Kapture
             tray.Dispose();
             SafeReset();
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.CloseForQuit();
+            foreach (EditorForm ef in new System.Collections.Generic.List<EditorForm>(editors.Values)) if (!ef.IsDisposed) ef.Close();
             ExitThread();
         }
 

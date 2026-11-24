@@ -72,7 +72,7 @@ namespace Kapture
             ShowInTaskbar = true;
             KeyPreview = true;
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
-            try { using (Bitmap b = Logo.Bitmap(32)) Icon = Icon.FromHandle(b.GetHicon()); } catch { }
+            if (AppIcon.Get() != null) Icon = AppIcon.Get();
             search.BorderStyle = BorderStyle.None;
             search.TextChanged += delegate { scrollY = 0; Invalidate(); };
             search.KeyDown += delegate(object o, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) { search.Text = ""; e.Handled = true; e.SuppressKeyPress = true; } };

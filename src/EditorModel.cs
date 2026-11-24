@@ -59,6 +59,15 @@ namespace Kapture
 
         public static Font TextFont(float px) { return Fonts.Ui(px, 1); }
 
+        // Eén keer maken: TextPath draait bij elke keer tekenen en bij elke muisbeweging (raken)
+        public static readonly StringFormat TextFormat = MakeTextFormat();
+        static StringFormat MakeTextFormat()
+        {
+            StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
+            sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
+            return sf;
+        }
+
         // Een vloeiende lijn door de punten (de pen en de markeerstift)
         static void Free(Graphics g, List<PointF> pts, Color c, float w)
         {
@@ -96,9 +105,7 @@ namespace Kapture
             if (string.IsNullOrEmpty(m.Text)) return gp;
             using (Font f = new Font(TextFont(m.FontSize).FontFamily, m.FontSize, FontStyle.Bold, GraphicsUnit.Pixel))
             {
-                StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
-                sf.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces;
-                gp.AddString(m.Text, f.FontFamily, (int)FontStyle.Bold, m.FontSize, m.A, sf);
+                gp.AddString(m.Text, f.FontFamily, (int)FontStyle.Bold, m.FontSize, m.A, TextFormat);
             }
             return gp;
         }
