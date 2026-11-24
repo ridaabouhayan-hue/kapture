@@ -212,6 +212,7 @@ namespace Kapture
         public Bitmap Image;                         // de screenshot zelf (vervagen verandert echte pixels)
         public readonly List<Mark> Marks = new List<Mark>();
         public Rectangle Crop;                       // wat er overblijft; standaard de hele afbeelding
+        public int ImageVersion;                     // telt op als de pixels zelf veranderen (vervagen), niet bij markeringen
         public event Action Changed;
 
         abstract class Step
@@ -337,12 +338,14 @@ namespace Kapture
             if (r.Width < 2 || r.Height < 2) return;
             Bitmap before = Image.Clone(r, PixelFormat.Format32bppArgb);
             Pixelate(Image, r, BlockSize(r));
+            ImageVersion++;
             Bitmap after = Image.Clone(r, PixelFormat.Format32bppArgb);
             Push(new BlurStep { R = r, Before = before, After = after });
         }
 
         void Paste(Bitmap piece, Rectangle r)
         {
+            ImageVersion++;
             using (Graphics g = Graphics.FromImage(Image))
             {
                 g.CompositingMode = CompositingMode.SourceCopy;

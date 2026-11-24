@@ -60,6 +60,8 @@ namespace Kapture
         // De afbeelding met alle markeringen, bewaard als plaatje. Tijdens het tekenen komt alleen de nieuwe lijn erbovenop:
         // zo hoeft niet bij elke muisbeweging alles opnieuw (dat maakte het stroef).
         Bitmap layer; int layerVersion = -1; Mark layerSkip; Size layerSize; Rectangle layerCrop;
+        // in het plaatje: de markeringen onder het losse ding; die erboven tekenen we los, dan blijft de volgorde kloppen
+        int FloatIndex { get { Mark f = Floating; int i = f == null ? -1 : doc.Marks.IndexOf(f); return i < 0 ? doc.Marks.Count : i; } }
         string hot, pressed;
         string dragSlider;            // "dikte", "dekking" of "tekst" tijdens het slepen van een schuifje
         Mark sliderBefore;            // hoe het gekozen ding was voor het slepen (één stap ongedaan maken)
@@ -150,7 +152,7 @@ namespace Kapture
         void EnsureView()
         {
             Size want = new Size(Math.Max(1, (int)imgRect.Width), Math.Max(1, (int)imgRect.Height));
-            if (view != null && viewSize == want && viewCrop == doc.Crop && viewVersion == docVersion) return;
+            if (view != null && viewSize == want && viewCrop == doc.Crop && viewVersion == doc.ImageVersion) return;
             if (view != null) view.Dispose();
             view = new Bitmap(want.Width, want.Height, PixelFormat.Format32bppPArgb);
             using (Graphics g = Graphics.FromImage(view))
@@ -159,7 +161,7 @@ namespace Kapture
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.DrawImage(doc.Image, new Rectangle(0, 0, want.Width, want.Height), doc.Crop, GraphicsUnit.Pixel);
             }
-            viewSize = want; viewCrop = doc.Crop; viewVersion = docVersion;
+            viewSize = want; viewCrop = doc.Crop; viewVersion = doc.ImageVersion; layerVersion = -1;
         }
 
         // ---- tekenen
@@ -185,7 +187,8 @@ namespace Kapture
                 g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
                 g.ScaleTransform(K, K);
                 g.TranslateTransform(-doc.Crop.X, -doc.Crop.Y);
-                foreach (Mark m in doc.Marks) if (m != skip) MarkRender.Draw(g, m);
+                int upto = FloatIndex;
+                for (int i = 0; i < upto && i < doc.Marks.Count; i++) MarkRender.Draw(g, doc.Marks[i]);
             }
             layerVersion = docVersion; layerSkip = skip; layerSize = viewSize; layerCrop = doc.Crop;
         }
@@ -229,6 +232,7 @@ namespace Kapture
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             Mark floating = Floating;
             if (floating != null && floating != typing) MarkRender.Draw(g, floating);
+            for (int i = FloatIndex + 1; i < doc.Marks.Count; i++) MarkRender.Draw(g, doc.Marks[i]);   // wat erboven ligt
             if (drawing != null) MarkRender.Draw(g, drawing);
             if (typing != null) DrawTyping(g);
             if (selected != null && doc.Marks.Contains(selected))
@@ -670,7 +674,7 @@ namespace Kapture
                 RectangleF r = MarkRender.Norm(rectStart, ip);
                 dragRect = Rectangle.Round(r);
                 dragRect.Intersect(doc.Crop);
-                Invalidate(Rectangle.Ceiling(imgRect));   // het bewaarde plaatje maakt dit goedkoop
+                Invalidate(Rectangle.Inflate(Rectangle.Ceiling(imgRect), P(3), P(3)));   // het bewaarde plaatje maakt dit goedkoop; ook de rand van het kader
                 return;
             }
             if (moving && selected != null)
@@ -799,8 +803,8 @@ namespace Kapture
             }
             if (key == (Keys.Control | Keys.S)) { SaveNow(); return true; }
             if (noteBox.Focused) return base.ProcessCmdKey(ref msg, key);
-            if (key == (Keys.Control | Keys.Z)) { doc.Undo(); selected = null; UpdateTitle(); return true; }
-            if (key == (Keys.Control | Keys.Y) || key == (Keys.Control | Keys.Shift | Keys.Z)) { doc.Redo(); selected = null; UpdateTitle(); return true; }
+            if (key == (Keys.Control | Keys.Z)) { doc.Undo(); selected = null; UpdateTitle(); Invalidate(); return true; }
+            if (key == (Keys.Control | Keys.Y) || key == (Keys.Control | Keys.Shift | Keys.Z)) { doc.Redo(); selected = null; UpdateTitle(); Invalidate(); return true; }
             if (key == (Keys.Control | Keys.C)) { CopyNow(); return true; }
             if (key == Keys.Delete && selected != null) { Mark m = selected; selected = null; doc.Remove(m); UpdateTitle(); return true; }
             if (key == Keys.Escape) { if (selected != null) { selected = null; Invalidate(); } else Close(); return true; }
