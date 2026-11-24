@@ -44,6 +44,7 @@ namespace Kapture
         bool hovering, closing, editing;
         byte alpha;
         readonly TextField field = new TextField();
+        IntPtr prevForeground;          // het venster dat het toetsenbord had voor je in de melding ging typen
 
         public const int NoteMaxLines = 4;
 
@@ -96,6 +97,15 @@ namespace Kapture
         {
             if (c == null) return;
             c.Title = title; c.Sub = sub;
+            Arrange(workArea); Render();
+        }
+
+        // De notitie is ergens anders veranderd (bijvoorbeeld in de notitiebalk): het veld laat hem zien
+        public void UpdateNote(string note)
+        {
+            if (c == null) return;
+            c.Note = note ?? "";
+            if (!editing) field.Set(c.Note);
             Arrange(workArea); Render();
         }
 
@@ -353,6 +363,8 @@ namespace Kapture
                 field.Set(c.Note);
                 field.AllSelected = c.Note.Length > 0;
             }
+            IntPtr fg = W.GetForegroundWindow();
+            if (fg != Handle && fg != IntPtr.Zero) prevForeground = fg;
             int ex = W.GetWindowLong(Handle, W.GWL_EXSTYLE);
             W.SetWindowLong(Handle, W.GWL_EXSTYLE, ex & ~W.WS_EX_NOACTIVATE);
             Arrange(workArea);
@@ -363,7 +375,10 @@ namespace Kapture
         }
 
         // Klaar met typen. save = de notitie bewaren (Enter of wegklikken), anders weggooien (Esc).
-        void EndEdit(bool save)
+        // giveBack = het toetsenbord teruggeven aan het venster waar je mee bezig was (niet als je zelf wegklikte).
+        void EndEdit(bool save) { EndEdit(save, false); }
+
+        void EndEdit(bool save, bool giveBack)
         {
             if (!editing) return;
             editing = false;
@@ -380,6 +395,8 @@ namespace Kapture
             elapsedMs = Math.Min(elapsedMs, Math.Max(0, totalMs - 4000));   // nog even laten staan
             Arrange(workArea);
             Render();
+            IntPtr prev = prevForeground; prevForeground = IntPtr.Zero;
+            if (giveBack && prev != IntPtr.Zero && W.IsWindow(prev)) W.SetForegroundWindow(prev);
         }
 
         protected override void OnDeactivate(EventArgs e)
@@ -391,8 +408,8 @@ namespace Kapture
         protected override bool ProcessCmdKey(ref Message msg, Keys key)
         {
             if (!editing) return base.ProcessCmdKey(ref msg, key);
-            if (key == Keys.Escape) { EndEdit(false); Dismiss(); return true; }
-            if (key == Keys.Enter) { EndEdit(true); return true; }
+            if (key == Keys.Escape) { EndEdit(false, true); Dismiss(); return true; }
+            if (key == Keys.Enter) { EndEdit(true, true); return true; }
             if (key == (Keys.Enter | Keys.Shift)) { field.NewLine(); return true; }
             if (field.OnKey(key)) { Render(); return true; }
             return base.ProcessCmdKey(ref msg, key);

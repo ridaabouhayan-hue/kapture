@@ -50,6 +50,9 @@ namespace Kapture
         int navIndex;
         float scrollY, contentH;
         readonly List<float> sectionY = new List<float>();
+        int pendingNav = -1;               // na het leegmaken van het zoekvak: naar deze sectie scrollen zodra de opmaak klopt
+        string inboxProblem;               // uitkomst van de laatste controle van de inbox (niet bij elke keer tekenen controleren)
+        bool inboxChecked;
 
         // klikvlakken, opnieuw berekend bij elke keer tekenen
         class Zone { public RectangleF R; public string Id; public Action Click; }
@@ -100,6 +103,7 @@ namespace Kapture
 
         public void ShowAndFocus()
         {
+            CheckInbox();
             RefreshValues();
             if (!Visible) Show();
             if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
@@ -112,9 +116,15 @@ namespace Kapture
 
         protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplyTheme(); }
 
+        // De inbox controleren (map aanmaken, proefbestand schrijven): alleen bij openen en na een wijziging
+        void CheckInbox() { inboxProblem = InboxFolder.Check(InboxFolder.Resolve(cfg)); inboxChecked = true; }
+
+        string InboxProblem { get { if (!inboxChecked) CheckInbox(); return inboxProblem; } }
+
         void Changed()
         {
             cfg.Save();
+            CheckInbox();
             if (app != null) app.SettingsChanged();
             ApplyTheme();
             Invalidate();
@@ -183,10 +193,10 @@ namespace Kapture
                 Sub = delegate
                 {
                     string f = InboxFolder.Resolve(cfg);
-                    string problem = InboxFolder.Check(f);
+                    string problem = InboxProblem;
                     return f + (problem != null ? "\n" + problem : (string.IsNullOrEmpty(cfg.Inbox) ? "\nStandaardmap" : ""));
                 },
-                Warn = delegate { return InboxFolder.Check(InboxFolder.Resolve(cfg)) != null; },
+                Warn = delegate { return InboxProblem != null; },
                 MonoSub = true, Kind = RowKind.Buttons
             };
             inboxRow.Buttons.Add(new Btn { Label = "Wijzig...", Icon = "folder", Click = ChooseInbox });
@@ -358,6 +368,16 @@ namespace Kapture
             GraphicsState st = g.Save();
             g.SetClip(content);
             DrawContent(g, content);
+            if (pendingNav >= 0 && pendingNav < sectionY.Count)
+            {
+                // nu kloppen de posities: naar de gekozen sectie en nog een keer tekenen
+                scrollY = sectionY[pendingNav]; pendingNav = -1;
+                float max = Math.Max(0, contentH - content.Height);
+                scrollY = Math.Max(0, Math.Min(max, scrollY));
+                zones.Clear();
+                using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, content);
+                DrawContent(g, content);
+            }
             g.Restore(st);
 
             // bovenbalk met zoekvak
@@ -663,7 +683,14 @@ namespace Kapture
         void GoTo(int i)
         {
             navIndex = i;
-            if (search.Text.Length > 0) search.Text = "";
+            if (search.Text.Length > 0)
+            {
+                // de posities horen nog bij de gefilterde lijst: na het tekenen van de volledige lijst scrollen
+                pendingNav = i;
+                search.Text = "";
+                Invalidate();
+                return;
+            }
             if (i < sectionY.Count) scrollY = sectionY[i];
             ClampScroll();
             Invalidate();
@@ -687,7 +714,14 @@ namespace Kapture
         string HitTest(Point p)
         {
             if (!thumbR.IsEmpty && thumbR.Contains(p)) return "thumb";
-            for (int i = zones.Count - 1; i >= 0; i--) if (zones[i].R.Contains(p)) return zones[i].Id;
+            bool inContent = Content.Contains(p);
+            for (int i = zones.Count - 1; i >= 0; i--)
+            {
+                if (!zones[i].R.Contains(p)) continue;
+                // knoppen van de inhoud die onder de bovenbalk of het menu weggescrold zijn, tellen niet
+                if (!zones[i].Id.StartsWith("nav", StringComparison.Ordinal) && !inContent) continue;
+                return zones[i].Id;
+            }
             return null;
         }
 

@@ -124,30 +124,37 @@ namespace Kapture
             string baseName = Naming.Base(s.Time, s.App, note);
             string current = s.Path;
             int[] waits = { 0, 400, 1000, 2000 };
+            string origTxt = TextPath(current);       // het tekstbestand hoort bij de naam van voor het hernoemen
+            string caseTmp = current + ".hernoem";
             for (int attempt = 0; ; attempt++)
             {
                 try
                 {
                     if (waits[attempt] > 0) Thread.Sleep(waits[attempt]);
-                    string target = current;
+                    // een vorige poging bleef halverwege de hoofdletter-route steken: eerst terugzetten
+                    if (!File.Exists(current) && File.Exists(caseTmp)) { File.Move(caseTmp, current); }
                     string wanted = System.IO.Path.Combine(folder, baseName + ".png");
                     if (!HasName(current, baseName))
                     {
-                        target = string.Equals(wanted, current, StringComparison.OrdinalIgnoreCase) ? wanted : Naming.Unique(folder, baseName, ".png");
+                        string target = string.Equals(wanted, current, StringComparison.OrdinalIgnoreCase) ? wanted : Naming.Unique(folder, baseName, ".png");
                         if (string.Equals(target, current, StringComparison.OrdinalIgnoreCase))
                         {
                             // alleen hoofdletters anders: via een tijdelijke naam
-                            string tmp = current + ".hernoem";
-                            File.Move(current, tmp); File.Move(tmp, target);
+                            File.Move(current, caseTmp);
+                            File.Move(caseTmp, target);
                         }
                         else File.Move(current, target);
+                        // meteen bijwerken: mislukt hierna het tekstbestand, dan weet de volgende poging waar het bestand staat
+                        current = target; s.Path = target;
                     }
-                    // tekstbestand: oude weg, nieuwe erbij als dat nodig is
-                    string oldTxt = TextPath(current), newTxt = TextPath(target);
-                    if (File.Exists(oldTxt)) File.Delete(oldTxt);
-                    if (textFile && NeedsTextFile(s.Time, s.App, note)) WriteText(newTxt, note);
-                    s.Path = target; s.Note = note;
-                    return target;
+                    // tekstbestand: het oude weg (als het een andere naam had), het nieuwe schrijven of weghalen
+                    string newTxt = TextPath(current);
+                    bool needs = textFile && NeedsTextFile(s.Time, s.App, note);
+                    if (needs) WriteText(newTxt, note);
+                    else if (File.Exists(newTxt)) File.Delete(newTxt);
+                    if (!string.Equals(origTxt, newTxt, StringComparison.OrdinalIgnoreCase) && File.Exists(origTxt)) File.Delete(origTxt);
+                    s.Path = current; s.Note = note;
+                    return current;
                 }
                 catch (IOException)
                 {

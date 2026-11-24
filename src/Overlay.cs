@@ -438,10 +438,12 @@ namespace Kapture
 
         // ---- de notitiebalk onder het kader (Stitch-scherm 2)
         // 'namePreview' geeft bij een notitie de bestandsnaam die ontstaat, zodat je ziet wat Claude straks ziet.
-        public void BeginNote(Rectangle r, Func<string, string> namePreview)
+        // 'pasteText': wat er voor de screenshot op het klembord stond (daarna staat de screenshot er zelf op)
+        public void BeginNote(Rectangle r, Func<string, string> namePreview, string pasteText)
         {
             sel = r; preview = namePreview;
             note.Set(""); note.AllowNewLine = true;
+            note.PasteText = delegate { return pasteText; };
             noteMode = true;
             RelayoutNote();
             blink.Start();
@@ -541,6 +543,9 @@ namespace Kapture
                     g.DrawString(esc, uf, eb, new RectangleF(pill.Right - P(12) - ew, pill.Y, ew + 2, pill.Height), mid);
             }
         }
+
+        // Kapture sluit af terwijl de notitiebalk openstaat: wat er getypt is, bewaren
+        public void FinishNoteNow() { FinishNote(true); }
 
         void FinishNote(bool save)
         {

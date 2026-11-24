@@ -15,6 +15,7 @@ namespace Kapture
         public int Caret;
         public bool AllSelected;          // na Ctrl+A: de volgende toets vervangt alles
         public bool AllowNewLine = true;  // Shift+Enter = nieuwe regel
+        public Func<string> PasteText;    // waar Ctrl+V uit plakt; null = het klembord
         DateTime blinkFrom = DateTime.Now;
 
         public event Action Changed;
@@ -80,7 +81,12 @@ namespace Kapture
                 case Keys.V:
                     if (ctrl)
                     {
-                        try { if (Clipboard.ContainsText()) Insert(Clipboard.GetText()); } catch (Exception ex) { Log.Error("Plakken mislukt", ex); }
+                        try
+                        {
+                            if (PasteText != null) { string p = PasteText(); if (!string.IsNullOrEmpty(p)) Insert(p); }
+                            else if (Clipboard.ContainsText()) Insert(Clipboard.GetText());
+                        }
+                        catch (Exception ex) { Log.Error("Plakken mislukt", ex); }
                         return true;
                     }
                     return false;

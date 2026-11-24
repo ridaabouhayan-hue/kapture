@@ -47,6 +47,8 @@ namespace Kapture
         Shot noteShot;            // de screenshot waar de notitiebalk bij hoort
         SaveResult noteResult;    // al opgeslagen terwijl de notitiebalk nog openstond
         readonly object noteGate = new object();
+        string clipText;          // tekst die op het klembord stond voor een screenshot met notitie (om te plakken in de notitiebalk)
+        int running;              // opslaan of hernoemen dat nog bezig is op de achtergrond
 
         // Welke sneltoetsen niet lukten (bezet door een ander programma); voor Instellingen
         public readonly System.Collections.Generic.Dictionary<int, bool> HotkeyTaken = new System.Collections.Generic.Dictionary<int, bool>();
@@ -184,6 +186,8 @@ namespace Kapture
             {
                 toast.Dismiss();
                 menu.HideMenu();
+                clipText = null;
+                if (withNote) { try { if (Clipboard.ContainsText()) clipText = Clipboard.GetText(); } catch { } }
                 shotApp = Naming.ForegroundApp();
                 Rectangle v = VirtualScreen.Bounds;
                 if (dim.Excluded) dim.ShowOver(v);
@@ -237,9 +241,15 @@ namespace Kapture
                 if (note)
                 {
                     noteShot = entry; noteResult = null;
-                    overlay.BeginNote(r, delegate(string n) { return Naming.Base(entry.Time, entry.App, n) + ".png"; });
+                    string paste = clipText; clipText = null;
+                    overlay.BeginNote(r, delegate(string n) { return Naming.Base(entry.Time, entry.App, n) + ".png"; }, paste);
                 }
-                Saver.SaveAndCopy(piece, entry, folder, true, cfg.NoteStrip, cfg.NoteTextFile, overlay, OnSaved);
+                System.Threading.Interlocked.Increment(ref running);
+                Saver.SaveAndCopy(piece, entry, folder, true, cfg.NoteStrip, cfg.NoteTextFile, overlay, delegate(SaveResult sr)
+                {
+                    System.Threading.Interlocked.Decrement(ref running);
+                    OnSaved(sr);
+                });
             }
             catch (Exception ex)
             {
@@ -253,12 +263,9 @@ namespace Kapture
             Trim();
             if (!r.Failed) history.Add(r.Shot);
             if (noteShot == r.Shot && overlay.InNoteMode) { noteResult = r; return; }   // de melding komt na de notitie
-            if (!r.Failed && r.Shot.PendingNote != null)
-            {
-                string n = r.Shot.PendingNote; r.Shot.PendingNote = null;
-                if (n.Length > 0) ApplyNote(r.Shot, n);
-            }
-            ShowSaved(r);
+            string pending = r.Shot.PendingNote; r.Shot.PendingNote = null;
+            if (!r.Failed && !string.IsNullOrEmpty(pending)) ApplyNote(r.Shot, pending);
+            ShowSaved(r, pending);
         }
 
         // Notitiebalk klaar: Enter (tekst), Esc (null) of weggeklikt
@@ -273,7 +280,7 @@ namespace Kapture
             if (entry == null) return;
             if (r == null) { entry.PendingNote = text ?? ""; return; }   // nog aan het opslaan: OnSaved doet de rest
             if (!r.Failed && !string.IsNullOrEmpty(text)) ApplyNote(entry, text);
-            ShowSaved(r);
+            ShowSaved(r, text);
         }
 
         void OnCancelled()
@@ -297,30 +304,35 @@ namespace Kapture
 
         void FreeShot() { if (shot != null) { shot.Dispose(); shot = null; } }
 
-        void ShowSaved(SaveResult r)
+        // 'note' = de notitie die net getypt is (wordt misschien nog in de naam gezet)
+        void ShowSaved(SaveResult r, string note)
         {
             if (r.Failed)
             {
                 if (r.Thumb != null) r.Thumb.Dispose();
-                Notify(r.Copied ? "Gekopieerd, niet opgeslagen" : "Opslaan lukte niet", "De inbox-map was niet bereikbaar. Staat OneDrive aan? Je kunt een andere map kiezen in Instellingen.",
-                    "Instellingen", "settings", delegate { OpenSettings(); }, true);
+                string sub = "De inbox-map was niet bereikbaar. Staat OneDrive aan? Je kunt een andere map kiezen in Instellingen.";
+                if (!string.IsNullOrEmpty(note)) sub += " Je notitie was: " + note;
+                Notify(r.Copied ? "Gekopieerd, niet opgeslagen" : "Opslaan lukte niet", sub, "Instellingen", "settings", delegate { OpenSettings(); }, true);
                 return;
             }
-            ShowShotToast(r.Shot, r.Thumb, r.Copied, false);
+            ShowShotToast(r.Shot, r.Thumb, r.Copied, false, note);
         }
 
         // Melding met notitieveld voor een screenshot. edit = meteen het toetsenbord in het notitieveld (Ctrl+PrtSc).
-        void ShowShotToast(Shot entry, Bitmap thumb, bool copied, bool edit)
+        void ShowShotToast(Shot entry, Bitmap thumb, bool copied, bool edit) { ShowShotToast(entry, thumb, copied, edit, null); }
+
+        void ShowShotToast(Shot entry, Bitmap thumb, bool copied, bool edit, string typed)
         {
+            string note = !string.IsNullOrEmpty(typed) ? typed.Trim() : (entry.Note ?? "");
             ToastContent c = new ToastContent();
             c.Thumb = thumb;
-            c.Title = entry.Note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
-            c.Sub = entry.Note.Length > 0 ? Path.GetFileName(entry.Path) : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
+            c.Title = note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
+            c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png" : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
             c.ActionLabel = "Map openen"; c.ActionIcon = "folder-open";
             c.OnAction = delegate { ShowInFolder(entry.Path); };
             c.OnThumb = delegate { Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
-            c.NoteField = true; c.Note = entry.Note ?? ""; c.Tag = entry;
+            c.NoteField = true; c.Note = note; c.Tag = entry;
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
             toast.ShowToast(c, Theme.Current);
             if (edit) toast.BeginEdit();
@@ -346,6 +358,7 @@ namespace Kapture
             note = (note ?? "").Trim();
             if (entry.Path == null) { entry.PendingNote = note; return; }
             bool textFile = cfg.NoteTextFile;
+            System.Threading.Interlocked.Increment(ref running);
             System.Threading.ThreadPool.QueueUserWorkItem(delegate
             {
                 Exception fail = null;
@@ -354,6 +367,7 @@ namespace Kapture
                     try { Notes.Apply(entry, note, textFile); }
                     catch (Exception ex) { fail = ex; }
                 }
+                System.Threading.Interlocked.Decrement(ref running);
                 try { overlay.BeginInvoke((Action)delegate { NoteApplied(entry, note, fail); }); }
                 catch (Exception ex) { Log.Error("Terug naar de UI mislukt", ex); }
             });
@@ -386,7 +400,10 @@ namespace Kapture
             }
             ToastContent cur = toast.Content;
             if (cur != null && cur.Tag == entry)
+            {
+                toast.UpdateNote(note);
                 toast.UpdateText(note.Length > 0 ? "Notitie bewaard" : "Notitie weggehaald", Path.GetFileName(entry.Path));
+            }
         }
 
         void Notify(string title, string sub, string action, string icon, Action onAction, bool stay)
@@ -460,6 +477,14 @@ namespace Kapture
 
         void Quit()
         {
+            // een open notitiebalk afronden, en wachten tot opslaan en hernoemen klaar zijn (hooguit 5 seconden)
+            if (overlay.InNoteMode) overlay.FinishNoteNow();
+            Stopwatch wait = Stopwatch.StartNew();
+            while (System.Threading.Thread.VolatileRead(ref running) > 0 && wait.ElapsedMilliseconds < 5000)
+            {
+                Application.DoEvents();
+                System.Threading.Thread.Sleep(30);
+            }
             foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
             if (toast.IsEditing) toast.Dismiss();
             tray.Visible = false;
