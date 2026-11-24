@@ -373,7 +373,7 @@ namespace Kapture
                     if (cfg.HotkeysPaused) return "Op pauze";
                     if (!get()) return "Uit";
                     if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return "Gaat nu naar het Knipprogramma. Zie hierboven: Zet uit.";
-                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet: een ander programma gebruikt deze toets, bijvoorbeeld ShareX.";
+                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet. " + App.BusyHelp + " Kapture probeert het zelf opnieuw.";
                     return "Aan";
                 },
                 Warn = delegate

@@ -65,6 +65,7 @@ namespace Kapture
             overlay.Cancelled += OnCancelled;
             overlay.NoteDone += OnNoteDone;
             BuildTray();
+            if (!retryHooked) { retry.Tick += delegate { RetryTaken(); }; retryHooked = true; }
             RegisterHotkeys(true);
             CheckSnippingSetting();
             string inboxProblem = InboxFolder.Check(InboxFolder.Resolve(cfg));
@@ -142,10 +143,33 @@ namespace Kapture
                 {
                     Log.Info(bad.Count + " sneltoets(en) konden niet vastgelegd worden");
                     if (tell) Notify(string.Join(", ", bad.ToArray()) + (bad.Count == 1 ? " is bezet" : " zijn bezet"),
-                        "Een ander programma gebruikt deze toets, bijvoorbeeld ShareX. Sluit dat en klik op Opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
+                        BusyHelp + " Kapture probeert het zelf elke 15 seconden opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
                 }
             }
             UpdateTrayText();
+            if (HotkeyTaken.Count > 0) retry.Start(); else retry.Stop();
+        }
+
+        public const string BusyHelp = "Een ander programma gebruikt deze toets. Vaak is dat OneDrive (instelling \"Schermafbeeldingen opslaan in OneDrive\") of ShareX.";
+
+        // Bezette sneltoetsen stil opnieuw proberen: komt Print Screen vrij (OneDrive of ShareX dicht), dan werkt hij meteen
+        readonly Timer retry = new Timer { Interval = 15000 };
+        bool retryHooked;
+
+        void RetryTaken()
+        {
+            if (cfg.HotkeysPaused || HotkeyTaken.Count == 0) { retry.Stop(); return; }
+            bool freed = false;
+            if (HotkeyTaken.ContainsKey(HotkeyCapture) && W.RegisterHotKey(hot.Handle, HotkeyCapture, W.MOD_NOREPEAT, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyCapture); freed = true; }
+            if (HotkeyTaken.ContainsKey(HotkeyNote) && W.RegisterHotKey(hot.Handle, HotkeyNote, W.MOD_NOREPEAT | W.MOD_SHIFT, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyNote); freed = true; }
+            if (HotkeyTaken.ContainsKey(HotkeyLastNote) && W.RegisterHotKey(hot.Handle, HotkeyLastNote, W.MOD_NOREPEAT | W.MOD_CONTROL, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyLastNote); freed = true; }
+            if (freed)
+            {
+                Log.Info("Sneltoets weer vrij en vastgelegd");
+                Info(HotkeyTaken.Count == 0 ? "Sneltoetsen werken weer" : "Een sneltoets werkt weer", "Het andere programma gebruikt de toets niet meer. Druk op Print Screen om het te proberen.", "check");
+                if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
+            }
+            if (HotkeyTaken.Count == 0) retry.Stop();
         }
 
         void TogglePause() { SetPaused(!cfg.HotkeysPaused); }
