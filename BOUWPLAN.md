@@ -21,8 +21,8 @@ Dit document legt alle afspraken vast. Bij twijfel gaat dit bouwplan voor.
 - Sneltoetsen alleen via RegisterHotKey. Geen toetsenbordhooks.
 - Schermafbeelding met GDI (BitBlt van het bureaublad). Schermopname (video) later: dan Windows.Graphics.Capture en mogelijk een nieuwere .NET. Het ontwerp houdt daar ruimte voor (de vorm "Opname" past als vijfde knop in de werkbalk).
 - Gaat zelf niet het internet op, behalve de optionele check op een nieuwe versie (GitHub Releases).
-- Lettertypes: voor nu Segoe UI en Cascadia Mono, die in Windows zitten (geen download nodig), net als NexusPen. Tekst op een dichte achtergrond met ClearType, zodat hij scherp is. Niet Segoe UI Variable: die gaf gekartelde letters (Rida 24-11). Inter en JetBrains Mono uit het Stitch-ontwerp komen erbij zodra Rida het downloaden goedkeurt. Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static.
-- Licenties van Lucide, Inter en JetBrains Mono meeleveren.
+- Lettertypes: voor nu Segoe UI en Cascadia Mono, die in Windows zitten (geen download nodig), net als NexusPen. Tekst op een dichte achtergrond met ClearType, zodat hij scherp is. Niet Segoe UI Variable: die gaf gekartelde letters (Rida 24-11). Inter en JetBrains Mono uit het Stitch-ontwerp komen erbij zodra Rida het downloaden goedkeurt. Icoontjes: Phosphor duotone (MIT): een vorm met een zachte kobalt vulling, gekozen door Rida (24-11) uit vier voorbeelden. Lucide (ISC) blijft als reserve.
+- Licenties van Phosphor, Lucide, Inter en JetBrains Mono meeleveren.
 
 ### Hergebruik uit NexusPen
 Overnemen en aanpassen (niet als gedeelde bibliotheek, maar als kopie in deze repo):

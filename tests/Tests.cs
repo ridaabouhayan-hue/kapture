@@ -150,6 +150,18 @@ namespace Kapture
                     Is(any, "icoon " + name + " tekent iets");
                 }
 
+            // Phosphor-icoontjes: elke naam is te lezen en heeft een vorm
+            foreach (string name in PhosphorData.All.Keys)
+                using (Bitmap ib = new Bitmap(32, 32))
+                using (Graphics g = Graphics.FromImage(ib))
+                {
+                    Icons.Draw(g, name, new RectangleF(0, 0, 32, 32), 24, Color.Black, 2);
+                    int n = 0;
+                    for (int x = 0; x < 32; x++) for (int y = 0; y < 32; y++) if (ib.GetPixel(x, y).A > 128) n++;
+                    Is(n > 8, "phosphor " + name + " tekent een vorm (" + n + ")");
+                }
+            foreach (string name in IconData.All.Keys) Is(PhosphorData.All.ContainsKey(name), "phosphor heeft " + name);
+
             // inboxmap
             Is(!string.IsNullOrEmpty(InboxFolder.Default()), "er is altijd een inboxmap");
 

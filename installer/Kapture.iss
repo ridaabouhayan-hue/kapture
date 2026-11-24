@@ -39,6 +39,7 @@ Name: "autostart"; Description: "Starten met Windows"
 [Files]
 Source: "..\out\Kapture.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\LICENSE-Lucide.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
+Source: "..\assets\LICENSE-Phosphor.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\Kapture"; Filename: "{app}\Kapture.exe"

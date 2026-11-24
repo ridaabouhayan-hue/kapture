@@ -4,6 +4,8 @@ Nieuw in 0.3.1:
 - **Editor soepeler**: tijdens het tekenen wordt alleen het nieuwe stukje opnieuw getekend, niet het hele venster. Pen, pijl, kader en verplaatsen volgen de muis nu direct.
 - **Beter leesbaar**: blauwe knoppen en het gekozen gereedschap zijn kobalt met witte tekst, ook in donker (eerst was de tekst daar zwart).
 - **Instellingen duidelijker**: witte kaarten op een grijze pagina, het gekozen onderdeel in het menu helder blauw met witte tekst, grotere koppen.
+- **Nieuwe icoontjes** (Phosphor duotone): een vorm met een zachte blauwe vulling, beter herkenbaar in het menu, de editor en Instellingen.
+- **Print Screen bezet?** Kapture probeert het nu zelf elke 15 seconden opnieuw en meldt het als het weer werkt. De uitleg noemt ook OneDrive (de instelling "Schermafbeeldingen opslaan in OneDrive" pakt Print Screen af).
 
 ## Kapture 0.3.0
 

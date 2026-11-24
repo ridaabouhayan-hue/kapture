@@ -16,9 +16,58 @@ using Microsoft.Win32;
 
 namespace Kapture
 {
-    // ------------------------------------------------------------------ Icoontjes (Lucide, 24x24, lijndikte 2, ronde uiteinden)
+    // ------------------------------------------------------------------ Icoontjes
+    // Sinds 0.3.1 (keuze van Rida): Phosphor duotone, een vorm met een zachte kobalt vulling (PhosphorData.cs).
+    // Lucide (24x24, lijnen) blijft als reserve voor namen die Phosphor niet heeft.
     static class Icons
     {
+        // ---- Phosphor duotone: gevulde vormen op een raster van 256
+        static readonly Dictionary<string, KeyValuePair<GraphicsPath, bool>[]> PhCache = new Dictionary<string, KeyValuePair<GraphicsPath, bool>[]>();
+
+        static KeyValuePair<GraphicsPath, bool>[] GetPh(string name)
+        {
+            KeyValuePair<GraphicsPath, bool>[] r;
+            if (PhCache.TryGetValue(name, out r)) return r;
+            List<KeyValuePair<GraphicsPath, bool>> list = new List<KeyValuePair<GraphicsPath, bool>>();
+            string[] parts;
+            if (PhosphorData.All.TryGetValue(name, out parts))
+                foreach (string part in parts)
+                {
+                    try
+                    {
+                        GraphicsPath gp = Svg.Path(part.Substring(2));
+                        gp.FillMode = FillMode.Winding;   // zoals in SVG: gaten door de draairichting
+                        list.Add(new KeyValuePair<GraphicsPath, bool>(gp, part[0] == 't'));
+                    }
+                    catch (Exception ex) { Log.Error("Icoon " + name + " kon niet gelezen worden", ex); }
+                }
+            r = list.ToArray();
+            PhCache[name] = r;
+            return r;
+        }
+
+        public static bool IsPhosphor(string name) { return PhosphorData.All.ContainsKey(name); }
+
+        // De zachte vulling: bij een licht icoon (wit op blauw) een beetje van die kleur, anders licht kobalt
+        static Color TintFor(Color c)
+        {
+            double luma = (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0;
+            if (c.A < 200) return Color.FromArgb(c.A / 4, c);
+            return luma > 0.75 ? Color.FromArgb(80, c) : Color.FromArgb(76, 0x3B, 0x82, 0xF6);
+        }
+
+        static void DrawPhosphor(Graphics g, string name, float x, float y, float size, Color c)
+        {
+            GraphicsState st = g.Save();
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            g.TranslateTransform(x, y);
+            g.ScaleTransform(size / 256f, size / 256f);
+            using (SolidBrush tint = new SolidBrush(TintFor(c)))
+            using (SolidBrush main = new SolidBrush(c))
+                foreach (KeyValuePair<GraphicsPath, bool> kv in GetPh(name)) g.FillPath(kv.Value ? tint : main, kv.Key);
+            g.Restore(st);
+        }
         static readonly Dictionary<string, GraphicsPath[]> Cache = new Dictionary<string, GraphicsPath[]>();
 
         static float F(string s) { return float.Parse(s, CultureInfo.InvariantCulture); }
@@ -144,6 +193,7 @@ namespace Kapture
         // Tekent icoon 'name' gecentreerd in r, 'size' pixels groot. 'stroke' is de lijndikte op het 24-raster (standaard 2).
         public static void Draw(Graphics g, string name, RectangleF r, float size, Color c, float stroke)
         {
+            if (IsPhosphor(name)) { DrawPh(g, name, r, size, c); return; }
             int dev = Math.Max(4, (int)Math.Round(size));
             float sc = dev / 24f;
             float ds = DeviceStroke(stroke, sc);
@@ -174,6 +224,30 @@ namespace Kapture
             g.InterpolationMode = InterpolationMode.NearestNeighbor;
             g.PixelOffsetMode = PixelOffsetMode.Half;
             g.DrawImage(b, new Rectangle(x - margin, y - margin, b.Width, b.Height), 0, 0, b.Width, b.Height, GraphicsUnit.Pixel);
+            g.Restore(st);
+        }
+
+        // Phosphor: net als Lucide als kant-en-klaar plaatje per naam, maat en kleur (snel en altijd gelijk).
+        // Iets groter dan gevraagd: Phosphor laat meer ruimte rond de vorm dan Lucide.
+        static void DrawPh(Graphics g, string name, RectangleF r, float size, Color c)
+        {
+            int dev = Math.Max(4, (int)Math.Round(size * 1.12f));
+            int x = (int)Math.Round(r.X + (r.Width - dev) / 2), y = (int)Math.Round(r.Y + (r.Height - dev) / 2);
+            if (!g.Transform.IsIdentity || dev > 64) { DrawPhosphor(g, name, x, y, dev, c); return; }
+            string key = "ph|" + name + "|" + dev + "|" + c.ToArgb();
+            Bitmap b;
+            if (!Ready.TryGetValue(key, out b))
+            {
+                b = new Bitmap(dev + 2, dev + 2, PixelFormat.Format32bppPArgb);
+                using (Graphics bg = Graphics.FromImage(b)) { bg.Clear(Color.Transparent); DrawPhosphor(bg, name, 1, 1, dev, c); }
+                if (Ready.Count > 600) { foreach (Bitmap old in Ready.Values) old.Dispose(); Ready.Clear(); }
+                Ready[key] = b;
+            }
+            GraphicsState st = g.Save();
+            g.CompositingMode = CompositingMode.SourceOver;
+            g.InterpolationMode = InterpolationMode.NearestNeighbor;
+            g.PixelOffsetMode = PixelOffsetMode.Half;
+            g.DrawImage(b, new Rectangle(x - 1, y - 1, b.Width, b.Height), 0, 0, b.Width, b.Height, GraphicsUnit.Pixel);
             g.Restore(st);
         }
 
