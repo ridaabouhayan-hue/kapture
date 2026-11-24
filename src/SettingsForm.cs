@@ -488,13 +488,14 @@ namespace Kapture
             RectangleF content = ContentOf(size);
             GraphicsState st = g.Save();
             g.SetClip(content);
+            using (SolidBrush pb = new SolidBrush(t.Page)) g.FillRectangle(pb, content);   // pagina donkerder/grijzer dan de kaarten
             DrawContent(g, content);
             g.Restore(st);
 
             DrawFooter(g, size);
 
             // bovenbalk met zoekvak
-            using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, 0, 0, size.Width, P(TopH));
+            using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, 0, 0, size.Width, P(TopH));
             using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, 0, P(TopH) - 0.5f, size.Width, P(TopH) - 0.5f);
             RectangleF sb = SearchBox;
             using (GraphicsPath gp = Svg.RoundRect(new RectangleF(sb.X + 0.5f, sb.Y + 0.5f, sb.Width - 1, sb.Height - 1), P(8)))
@@ -509,7 +510,7 @@ namespace Kapture
             }
 
             // menu links
-            using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, 0, P(TopH), P(NavW), size.Height - P(TopH));
+            using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, 0, P(TopH), P(NavW), size.Height - P(TopH));
             using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, P(NavW) - 0.5f, P(TopH), P(NavW) - 0.5f, size.Height);
             bool searching = search.Text.Trim().Length > 0;
             float y = P(TopH) + P(NavPad) + P(8);
@@ -518,12 +519,12 @@ namespace Kapture
                 RectangleF r = new RectangleF(P(NavPad), y, P(NavW) - 2 * P(NavPad), P(NavItemH));
                 bool sel = !searching && i == navIndex;
                 string id = "nav" + i;
-                Color bg = sel ? t.PrimaryContainer : (hot == id ? t.Container : t.SurfaceLow);
+                Color bg = sel ? t.Fill : (hot == id ? t.Container : t.Surface);
                 if (sel || hot == id)
                     using (GraphicsPath gp = Svg.RoundRect(r, P(8)))
                     using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, gp);
-                Icons.Draw(g, Sections[i].Icon, new RectangleF(r.X + P(12), r.Y, P(16), r.Height), 16 * s, sel ? t.Primary : t.Variant, 2);
-                Txt(g, Sections[i].Name, Fonts.Ui(13 * s, sel ? 1 : 0), new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), sel ? t.OnPrimaryContainer : t.OnSurface, false);
+                Icons.Draw(g, Sections[i].Icon, new RectangleF(r.X + P(12), r.Y, P(16), r.Height), 16 * s, sel ? t.OnFill : t.Variant, 2);
+                Txt(g, Sections[i].Name, Fonts.Ui(14 * s, sel ? 1 : 0), new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), sel ? t.OnFill : t.OnSurface, false);
                 int idx = i;
                 zones.Add(new Zone { R = r, Id = id, Click = delegate { GoTo(idx); }, Fixed = true });
                 y += P(NavItemH) + P(4);
@@ -534,7 +535,7 @@ namespace Kapture
         void DrawFooter(Graphics g, Size size)
         {
             RectangleF foot = new RectangleF(P(NavW), size.Height - P(FootH), size.Width - P(NavW), P(FootH));
-            using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, foot);
+            using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, foot);
             using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, foot.X, foot.Y + 0.5f, foot.Right, foot.Y + 0.5f);
             bool dirty = Dirty;
             Font bf = Fonts.Ui(13 * s, 1);
@@ -546,9 +547,9 @@ namespace Kapture
 
             // Opslaan: blauw als er iets te bewaren is, anders grijs
             using (GraphicsPath gp = Svg.RoundRect(saveR, P(8)))
-            using (SolidBrush b = new SolidBrush(dirty ? (hot == "opslaan" ? Theme.Mix(t.Primary, t.OnSurface, 0.15f) : t.Primary) : t.Container))
+            using (SolidBrush b = new SolidBrush(dirty ? (hot == "opslaan" ? Theme.Mix(t.Fill, Color.Black, 0.15f) : t.Fill) : t.Container))
                 g.FillPath(b, gp);
-            Color sc = dirty ? t.OnPrimary : Color.FromArgb(255, Theme.Mix(t.Container, t.OnSurface, 0.4f));
+            Color sc = dirty ? t.OnFill : Color.FromArgb(255, Theme.Mix(t.Container, t.OnSurface, 0.4f));
             Icons.Draw(g, "save", new RectangleF(saveR.X + P(16), saveR.Y, P(16), saveR.Height), 16 * s, sc, 2);
             Txt(g, "Opslaan", bf, new RectangleF(saveR.X + P(38), saveR.Y, saveR.Width - P(46), saveR.Height), sc, false);
             if (dirty) zones.Add(new Zone { R = saveR, Id = "opslaan", Click = SaveNow, Fixed = true });
@@ -595,8 +596,8 @@ namespace Kapture
                 foreach (Card c in sec.Cards) foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) { cards.Add(c); break; }
                 if (cards.Count == 0) continue;
                 any = true;
-                Txt(g, sec.Name, Fonts.Ui(22 * s, 1), new RectangleF(x, y, w, P(32)), t.OnSurface, false);
-                y += P(34);
+                Txt(g, sec.Name, Fonts.Ui(26 * s, 1), new RectangleF(x, y, w, P(36)), t.OnSurface, false);
+                y += P(40);
                 Font df = Fonts.Ui(13 * s, 0);
                 Txt(g, sec.Desc, df, new RectangleF(x, y, w, P(60)), t.Variant, true);
                 y += TextH(sec.Desc, df, w) + P(16);
@@ -611,7 +612,7 @@ namespace Kapture
 
         float DrawCard(Graphics g, Card c, float x, float y, float w, string q)
         {
-            Font titleF = Fonts.Ui(15 * s, 1), descF = Fonts.Ui(12 * s, 0);
+            Font titleF = Fonts.Ui(16 * s, 1), descF = Fonts.Ui(13 * s, 0);
             float pad = P(CardPad), inner = w - 2 * pad;
             float headH = Math.Max(P(40), P(24) + TextH(c.Desc, descF, inner - P(56)));
             List<Row> rows = new List<Row>();
@@ -626,7 +627,7 @@ namespace Kapture
             using (SolidBrush b = new SolidBrush(t.Surface))
             using (Pen p = new Pen(t.OutlineVariant)) { g.FillPath(b, gp); g.DrawPath(p, gp); }
             RectangleF tile = new RectangleF(x + pad, y + pad, P(40), P(40));
-            using (GraphicsPath tp = Svg.RoundRect(tile, P(10))) using (SolidBrush b = new SolidBrush(t.Primary)) g.FillPath(b, tp);
+            using (GraphicsPath tp = Svg.RoundRect(tile, P(10))) using (SolidBrush b = new SolidBrush(t.Fill)) g.FillPath(b, tp);
             Icons.Draw(g, c.Icon, tile, 20 * s, Color.White, 2);
             float tx = tile.Right + P(16);
             Txt(g, c.Title, titleF, new RectangleF(tx, y + pad, inner - P(56), P(22)), t.OnSurface, false);
@@ -683,7 +684,7 @@ namespace Kapture
         {
             float cw = ControlWidth(r);
             float tw = rr.Width - (cw > 0 ? cw + P(ControlGap) : 0);
-            Txt(g, r.Title, Fonts.Ui(14 * s, 0), new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), t.OnSurface, false);
+            Txt(g, r.Title, Fonts.Ui(14 * s, 1), new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), t.OnSurface, false);
             string sub = r.Sub != null ? r.Sub() : "";
             bool warn = r.Warn != null && r.Warn();
             Txt(g, sub, SubFont(r), new RectangleF(rr.X, rr.Y + P(RowPadY) + P(24), tw, rr.Height), warn ? t.Error : t.Variant, true);
@@ -767,16 +768,16 @@ namespace Kapture
                             float bw = BtnW(b);
                             RectangleF br = new RectangleF(bx, cy, bw, P(32));
                             string id = r.Id + ":b" + i;
-                            Color bg = b.Primary ? (hot == id ? Theme.Mix(t.Primary, t.OnSurface, 0.15f) : t.Primary) : (hot == id ? t.Container : t.Surface);
+                            Color bg = b.Primary ? (hot == id ? Theme.Mix(t.Fill, Color.Black, 0.15f) : t.Fill) : (hot == id ? t.Container : t.Surface);
                             using (GraphicsPath bp = Svg.RoundRect(new RectangleF(br.X + 0.5f, br.Y + 0.5f, br.Width - 1, br.Height - 1), P(8)))
                             using (SolidBrush bb = new SolidBrush(bg))
                             {
                                 g.FillPath(bb, bp);
                                 if (!b.Primary) using (Pen pn = new Pen(t.OutlineVariant)) g.DrawPath(pn, bp);
                             }
-                            Color fc = b.Primary ? t.OnPrimary : t.OnSurface;
+                            Color fc = b.Primary ? t.OnFill : t.OnSurface;
                             float lx = br.X + P(12);
-                            if (b.Icon != null) { Icons.Draw(g, b.Icon, new RectangleF(lx, br.Y, P(16), br.Height), 16 * s, b.Primary ? t.OnPrimary : t.Primary, 2); lx += P(24); }
+                            if (b.Icon != null) { Icons.Draw(g, b.Icon, new RectangleF(lx, br.Y, P(16), br.Height), 16 * s, b.Primary ? t.OnFill : t.Primary, 2); lx += P(24); }
                             Txt(g, LabelOf(b), Fonts.Ui(13 * s, 1), new RectangleF(lx, br.Y, br.Right - lx - P(4), br.Height), fc, false);
                             Action click = b.Click;
                             zones.Add(new Zone { R = br, Id = id, Click = delegate { try { click(); } catch (Exception ex) { Log.Error("Knop in Instellingen mislukt", ex); } } });
@@ -791,7 +792,7 @@ namespace Kapture
         {
             using (GraphicsPath gp = Svg.RoundRect(r, r.Height / 2))
             {
-                if (on) using (SolidBrush b = new SolidBrush(hover ? Theme.Mix(t.Primary, t.OnSurface, 0.12f) : t.Primary)) g.FillPath(b, gp);
+                if (on) using (SolidBrush b = new SolidBrush(hover ? Theme.Mix(t.Fill, Color.Black, 0.12f) : t.Fill)) g.FillPath(b, gp);
                 else
                 {
                     using (SolidBrush b = new SolidBrush(hover ? t.Container : t.Surface)) g.FillPath(b, gp);

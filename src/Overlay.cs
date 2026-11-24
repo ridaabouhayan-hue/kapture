@@ -99,7 +99,7 @@ namespace Kapture
                 }
                 Color bg = Color.Empty, fg = t.Variant;
                 if (it.Active && it.Kind == Kind.Icon) { bg = t.PrimaryContainer; fg = t.Primary; }
-                else if (it.Active) { bg = t.Primary; fg = t.OnPrimary; }
+                else if (it.Active) { bg = t.Fill; fg = t.OnFill; }
                 else if (it.Kind == Kind.Chip) { bg = t.PrimaryContainer; fg = t.OnPrimaryContainer; }
                 else if (it == hover && it.Enabled) { bg = t.Dark ? t.Container : t.Container; fg = t.OnSurface; }
                 if (!it.Enabled && it.Kind != Kind.Chip) fg = Color.FromArgb(110, t.Variant);

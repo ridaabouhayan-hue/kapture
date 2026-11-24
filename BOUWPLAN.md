@@ -39,6 +39,8 @@ Overnemen en aanpassen (niet als gedeelde bibliotheek, maar als kopie in deze re
 
 ## Ontwerp (uit Stitch)
 - Kleuren: licht accent `#2563EB`, donker accent `#3B82F6`. Neutrale kleuren uit `kapture_design_system.md`. Nergens groen.
+- Blauwe vlakken (knoppen, gekozen gereedschap, schakelaars, gekozen menu-item) zijn altijd kobalt met witte tekst, ook in donker. Lichtblauw met donkere tekst was slecht te lezen (Rida 24-11).
+- In Instellingen staan witte kaarten op een grijzere pagina (in donker: donkerder pagina), zodat niet alles hetzelfde lijkt.
 - Hoeken 8 tot 12 px, knopjes en chips 6 tot 8 px. Raster van 4 en 8 px.
 - Het matglas van Stitch wordt een effen vlak in dezelfde kleur (snelheid, en glas werkt slecht met layered windows). Mica alleen bij Editor en Instellingen als de spike laat zien dat het werkt.
 - Beweging: wisselen 100 ms, verschijnen 200 ms, verdwijnen 150 ms. Niets stuitert.

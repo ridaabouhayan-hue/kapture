@@ -13,6 +13,10 @@ namespace Kapture
         public bool Dark;
         public Color Surface, SurfaceLow, Container, ContainerHigh, OnSurface, Variant, Outline, OutlineVariant,
             Primary, OnPrimary, PrimaryContainer, OnPrimaryContainer, Inverse, OnInverse, Error;
+        // Fill: blauwe vlakken met witte tekst (knoppen, gekozen gereedschap, schakelaars). Ook in donker
+        // dezelfde kobalt met wit, want lichtblauw met donkere tekst was slecht te lezen (Rida 24-11).
+        // Page: de achtergrond achter de kaarten, duidelijk anders dan de kaarten zelf.
+        public Color Fill = H(0x2563EB), OnFill = H(0xFFFFFF), Page;
 
         static Color H(int rgb) { return Color.FromArgb(255, (rgb >> 16) & 255, (rgb >> 8) & 255, rgb & 255); }
 
@@ -22,7 +26,8 @@ namespace Kapture
             Surface = H(0xFFFFFF), SurfaceLow = H(0xF3F3FE), Container = H(0xEDEDF9), ContainerHigh = H(0xE7E7F3),
             OnSurface = H(0x191B23), Variant = H(0x434655), Outline = H(0x737686), OutlineVariant = H(0xC3C6D7),
             Primary = H(0x2563EB), OnPrimary = H(0xFFFFFF), PrimaryContainer = H(0xDBE1FF), OnPrimaryContainer = H(0x00174B),
-            Inverse = H(0x2E3039), OnInverse = H(0xF0F0FB), Error = H(0xBA1A1A)
+            Inverse = H(0x2E3039), OnInverse = H(0xF0F0FB), Error = H(0xBA1A1A),
+            Page = H(0xECEEF6)
         };
 
         public static readonly Theme DarkTheme = new Theme
@@ -31,7 +36,8 @@ namespace Kapture
             Surface = H(0x1D1F27), SurfaceLow = H(0x191B23), Container = H(0x282A32), ContainerHigh = H(0x32343D),
             OnSurface = H(0xE1E2ED), Variant = H(0xC3C6D7), Outline = H(0x8D90A0), OutlineVariant = H(0x434655),
             Primary = H(0x3B82F6), OnPrimary = H(0x0C0E16), PrimaryContainer = H(0x003EA8), OnPrimaryContainer = H(0xDBE1FF),
-            Inverse = H(0x32343D), OnInverse = H(0xE1E2ED), Error = H(0xFFB4AB)
+            Inverse = H(0x32343D), OnInverse = H(0xE1E2ED), Error = H(0xFFB4AB),
+            Page = H(0x121318), Fill = H(0x2F6BF0)
         };
 
         // Keuze uit Instellingen: 0 = zoals Windows, 1 = licht, 2 = donker

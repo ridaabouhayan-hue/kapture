@@ -53,7 +53,13 @@ namespace Kapture
         Bitmap view; Size viewSize; Rectangle viewCrop; int viewVersion = -1, docVersion;
 
         class Zone { public RectangleF R; public string Id; public Action Click; }
-        readonly List<Zone> zones = new List<Zone>();
+        // per gebied (werkbalk, paneel, onderbalk): als we alleen een stukje van de afbeelding tekenen, blijven de andere staan
+        readonly List<Zone> zTools = new List<Zone>(), zPanel = new List<Zone>(), zFoot = new List<Zone>();
+        List<Zone> zones = new List<Zone>();   // het gebied dat nu getekend wordt
+
+        // De afbeelding met alle markeringen, bewaard als plaatje. Tijdens het tekenen komt alleen de nieuwe lijn erbovenop:
+        // zo hoeft niet bij elke muisbeweging alles opnieuw (dat maakte het stroef).
+        Bitmap layer; int layerVersion = -1; Mark layerSkip; Size layerSize; Rectangle layerCrop;
         string hot, pressed;
         string dragSlider;            // "dikte", "dekking" of "tekst" tijdens het slepen van een schuifje
         Mark sliderBefore;            // hoe het gekozen ding was voor het slepen (één stap ongedaan maken)
@@ -102,7 +108,7 @@ namespace Kapture
         void ApplyTheme()
         {
             t = Theme.Current;
-            BackColor = t.SurfaceLow;
+            BackColor = t.Page;
             noteBox.BackColor = t.Surface;
             noteBox.ForeColor = t.OnSurface;
             if (IsHandleCreated) { try { int v = t.Dark ? 1 : 0; W.DwmSetWindowAttribute(Handle, 20, ref v, 4); } catch { } }
@@ -157,15 +163,51 @@ namespace Kapture
         }
 
         // ---- tekenen
-        protected override void OnPaint(PaintEventArgs e) { Draw(e.Graphics, ClientSize); }
+        protected override void OnPaint(PaintEventArgs e) { Draw(e.Graphics, ClientSize, e.ClipRectangle); }
 
-        public void Draw(Graphics g, Size size)
+        public void Draw(Graphics g, Size size) { Draw(g, size, new Rectangle(Point.Empty, size)); }
+
+        // Mark die nu los getekend wordt (gekozen, of tekst die je typt): niet in het bewaarde plaatje
+        Mark Floating { get { return typing ?? (selected != null && doc.Marks.Contains(selected) ? selected : null); } }
+
+        void EnsureLayer()
         {
-            zones.Clear();
+            EnsureView();
+            Mark skip = Floating;
+            if (layer != null && layerVersion == docVersion && layerSkip == skip && layerSize == viewSize && layerCrop == doc.Crop) return;
+            if (layer != null) layer.Dispose();
+            layer = new Bitmap(viewSize.Width, viewSize.Height, PixelFormat.Format32bppPArgb);
+            using (Graphics g = Graphics.FromImage(layer))
+            {
+                g.DrawImageUnscaled(view, 0, 0);
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                g.ScaleTransform(K, K);
+                g.TranslateTransform(-doc.Crop.X, -doc.Crop.Y);
+                foreach (Mark m in doc.Marks) if (m != skip) MarkRender.Draw(g, m);
+            }
+            layerVersion = docVersion; layerSkip = skip; layerSize = viewSize; layerCrop = doc.Crop;
+        }
+
+        // Alleen het stukje van de afbeelding waar iets veranderde opnieuw laten tekenen (in pixels van de afbeelding)
+        void InvalidateImage(RectangleF r)
+        {
+            if (r.IsEmpty) { Invalidate(Rectangle.Ceiling(imgRect)); return; }
+            RectangleF v = new RectangleF(imgRect.X + (r.X - doc.Crop.X) * K, imgRect.Y + (r.Y - doc.Crop.Y) * K, r.Width * K, r.Height * K);
+            v.Inflate(P(6), P(6));
+            v.Intersect(imgRect);
+            Invalidate(Rectangle.Ceiling(v));
+        }
+
+        public void Draw(Graphics g, Size size, Rectangle clip)
+        {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
             RectangleF canvas = new RectangleF(0, 0, size.Width - P(PanelW), size.Height - P(FootH));
-            using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, 0, 0, size.Width, size.Height);
+            RectangleF panelR = new RectangleF(size.Width - P(PanelW), 0, P(PanelW), size.Height - P(FootH));
+            RectangleF footR = new RectangleF(0, size.Height - P(FootH), size.Width, P(FootH));
+            using (SolidBrush b = new SolidBrush(t.Page)) g.FillRectangle(b, canvas);
 
             // de afbeelding met schaduw en rand
             imgRect = FitImage(canvas);
@@ -174,8 +216,8 @@ namespace Kapture
                 RectangleF sh = imgRect; sh.Inflate(P(i * 2), P(i * 2)); sh.Offset(0, P(4));
                 using (GraphicsPath gp = Svg.RoundRect(sh, P(4 + i * 2))) using (SolidBrush b = new SolidBrush(Color.FromArgb(t.Dark ? 22 : 8, 0, 0, 0))) g.FillPath(b, gp);
             }
-            EnsureView();
-            g.DrawImageUnscaled(view, (int)imgRect.X, (int)imgRect.Y);
+            EnsureLayer();
+            g.DrawImageUnscaled(layer, (int)imgRect.X, (int)imgRect.Y);
             using (Pen p = new Pen(t.OutlineVariant)) g.DrawRectangle(p, imgRect.X - 0.5f, imgRect.Y - 0.5f, imgRect.Width, imgRect.Height);
 
             // de markeringen, in de maat van het scherm
@@ -185,7 +227,8 @@ namespace Kapture
             g.ScaleTransform(K, K);
             g.TranslateTransform(-doc.Crop.X, -doc.Crop.Y);
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            foreach (Mark m in doc.Marks) if (m != typing) MarkRender.Draw(g, m);
+            Mark floating = Floating;
+            if (floating != null && floating != typing) MarkRender.Draw(g, floating);
             if (drawing != null) MarkRender.Draw(g, drawing);
             if (typing != null) DrawTyping(g);
             if (selected != null && doc.Marks.Contains(selected))
@@ -207,9 +250,11 @@ namespace Kapture
                 using (Pen p = new Pen(t.Primary, Math.Max(1.5f, 1.5f * s))) { p.DashPattern = new float[] { 4, 3 }; g.DrawRectangle(p, vr.X, vr.Y, vr.Width, vr.Height); }
             }
 
+            // de rest alleen als dat stuk opnieuw getekend moet worden (scheelt veel tijdens het tekenen)
+            zones = zTools; zones.Clear();
             DrawToolbar(g, canvas);
-            DrawPanel(g, new RectangleF(size.Width - P(PanelW), 0, P(PanelW), size.Height - P(FootH)));
-            DrawFooter(g, new RectangleF(0, size.Height - P(FootH), size.Width, P(FootH)));
+            if (clip.IntersectsWith(Rectangle.Ceiling(panelR))) { zones = zPanel; zones.Clear(); DrawPanel(g, panelR); }
+            if (clip.IntersectsWith(Rectangle.Ceiling(footR))) { zones = zFoot; zones.Clear(); DrawFooter(g, footR); }
         }
 
         RectangleF ToView(Rectangle r)
@@ -263,8 +308,8 @@ namespace Kapture
                 bool on = tl == tool;
                 string id = "tool" + i;
                 if (on || hot == id)
-                    using (GraphicsPath gp = Svg.RoundRect(r, P(8))) using (SolidBrush b = new SolidBrush(on ? t.Primary : t.Container)) g.FillPath(b, gp);
-                Icons.Draw(g, ToolIcons[i], r, 18 * s, on ? t.OnPrimary : t.Variant, 2);
+                    using (GraphicsPath gp = Svg.RoundRect(r, P(8))) using (SolidBrush b = new SolidBrush(on ? t.Fill : t.Container)) g.FillPath(b, gp);
+                Icons.Draw(g, ToolIcons[i], r, 18 * s, on ? t.OnFill : t.Variant, 2);
                 zones.Add(new Zone { R = r, Id = id, Click = delegate { SetTool(tl); } });
                 x += btn + gap;
             }
@@ -454,14 +499,14 @@ namespace Kapture
             Font bf = Fonts.Ui(13 * s, 1);
             float w = TextRenderer.MeasureText(label, bf, Size.Empty, TextFormatFlags.NoPadding).Width + P(16) + P(24) + P(18);
             RectangleF r = new RectangleF(right - w, y, w, h);
-            Color bg = primary ? (hot == id ? Theme.Mix(t.Primary, t.OnSurface, 0.15f) : t.Primary) : (hot == id ? t.Container : t.Surface);
+            Color bg = primary ? (hot == id ? Theme.Mix(t.Fill, Color.Black, 0.15f) : t.Fill) : (hot == id ? t.Container : t.Surface);
             using (GraphicsPath gp = Svg.RoundRect(new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1), P(8)))
             using (SolidBrush b = new SolidBrush(bg))
             {
                 g.FillPath(b, gp);
                 if (!primary) using (Pen p = new Pen(t.OutlineVariant)) g.DrawPath(p, gp);
             }
-            Color fc = primary ? t.OnPrimary : t.OnSurface;
+            Color fc = primary ? t.OnFill : t.OnSurface;
             Icons.Draw(g, icon, new RectangleF(r.X + P(16), r.Y, P(16), r.Height), 16 * s, fc, 2);
             Txt(g, label, bf, new RectangleF(r.X + P(40), r.Y, r.Width - P(48), r.Height), fc, Mid);
             zones.Add(new Zone { R = r, Id = id, Click = click });
@@ -514,8 +559,16 @@ namespace Kapture
         // ---- muis
         string HitZone(Point p)
         {
-            for (int i = zones.Count - 1; i >= 0; i--) if (zones[i].R.Contains(p)) return zones[i].Id;
+            foreach (List<Zone> list in new List<Zone>[] { zTools, zPanel, zFoot })
+                for (int i = list.Count - 1; i >= 0; i--) if (list[i].R.Contains(p)) return list[i].Id;
             return null;
+        }
+
+        void InvalidateZone(string id)
+        {
+            if (id == null) return;
+            foreach (List<Zone> list in new List<Zone>[] { zTools, zPanel, zFoot })
+                foreach (Zone z in list) if (z.Id == id) { RectangleF r = z.R; r.Inflate(P(4), P(4)); Invalidate(Rectangle.Ceiling(r)); }
         }
 
         Mark MarkAt(PointF ip)
@@ -589,14 +642,27 @@ namespace Kapture
             PointF ip = ToImage(e.Location);
             if (drawing != null)
             {
-                if (drawing.Tool == EditTool.Arrow || drawing.Tool == EditTool.Rect) drawing.Pts[1] = ip;
+                if (drawing.Tool == EditTool.Arrow || drawing.Tool == EditTool.Rect)
+                {
+                    RectangleF before = MarkRender.Bounds(drawing);
+                    drawing.Pts[1] = ip;
+                    InvalidateImage(RectangleF.Union(before, MarkRender.Bounds(drawing)));
+                }
                 else
                 {
                     PointF last = drawing.B;
                     float dx = (ip.X - last.X) * K, dy = (ip.Y - last.Y) * K;
-                    if (dx * dx + dy * dy >= 2.5f) drawing.Pts.Add(ip);   // niet elk pixeltje: rustigere lijn
+                    if (dx * dx + dy * dy >= 2f)   // niet elk pixeltje: rustigere lijn
+                    {
+                        drawing.Pts.Add(ip);
+                        // de vloeiende lijn verandert ook een beetje bij de vorige punten: die stukjes meenemen
+                        int n = drawing.Pts.Count;
+                        float w = (drawing.Tool == EditTool.Marker ? MarkRender.MarkerWidth(drawing.Width) : drawing.Width) / 2 + 2;
+                        float x0 = ip.X, y0 = ip.Y, x1 = ip.X, y1 = ip.Y;
+                        for (int i = Math.Max(0, n - 4); i < n; i++) { PointF q = drawing.Pts[i]; x0 = Math.Min(x0, q.X); y0 = Math.Min(y0, q.Y); x1 = Math.Max(x1, q.X); y1 = Math.Max(y1, q.Y); }
+                        InvalidateImage(RectangleF.FromLTRB(x0 - w, y0 - w, x1 + w, y1 + w));
+                    }
                 }
-                Invalidate();
                 return;
             }
             if (draggingRect)
@@ -604,19 +670,20 @@ namespace Kapture
                 RectangleF r = MarkRender.Norm(rectStart, ip);
                 dragRect = Rectangle.Round(r);
                 dragRect.Intersect(doc.Crop);
-                Invalidate();
+                Invalidate(Rectangle.Ceiling(imgRect));   // het bewaarde plaatje maakt dit goedkoop
                 return;
             }
             if (moving && selected != null)
             {
+                RectangleF before = MarkRender.Bounds(selected);
                 MarkRender.Move(selected, ip.X - dragFrom.X, ip.Y - dragFrom.Y);
                 dragFrom = ip;
-                Invalidate();
+                InvalidateImage(RectangleF.Union(before, MarkRender.Bounds(selected)));
                 return;
             }
             if (tool == EditTool.Eraser && e.Button == MouseButtons.Left) { EraseAt(ip); return; }
             string h = HitZone(e.Location);
-            if (h != hot) { hot = h; Invalidate(); }
+            if (h != hot) { InvalidateZone(hot); hot = h; InvalidateZone(hot); }
             Cursor want = h != null ? Cursors.Hand : !imgRect.Contains(e.Location) ? Cursors.Default
                 : tool == EditTool.Select ? (MarkAt(ip) != null ? Cursors.SizeAll : Cursors.Default) : tool == EditTool.Text ? Cursors.IBeam : Cursors.Cross;
             if (Cursor != want) Cursor = want;
@@ -662,7 +729,9 @@ namespace Kapture
             }
             string h = HitZone(e.Location);
             if (h != null && h == pressed)
-                foreach (Zone z in zones.ToArray()) if (z.Id == h && z.Click != null) { z.Click(); break; }
+                foreach (List<Zone> list in new List<Zone>[] { zTools, zPanel, zFoot })
+                    foreach (Zone z in list.ToArray()) if (z.Id == h && z.Click != null) { z.Click(); goto clicked; }
+            clicked:
             Invalidate();
         }
 
@@ -823,6 +892,7 @@ namespace Kapture
             {
                 caretTimer.Dispose(); messageTimer.Dispose();
                 if (view != null) { view.Dispose(); view = null; }
+                if (layer != null) { layer.Dispose(); layer = null; }
                 doc.Dispose();
             }
             base.Dispose(disposing);
@@ -852,6 +922,6 @@ namespace Kapture
             finally { Program.ForceTheme = null; }
         }
 
-        public int ZoneCountForTest { get { return zones.Count; } }
+        public int ZoneCountForTest { get { return zTools.Count + zPanel.Count + zFoot.Count; } }
     }
 }
