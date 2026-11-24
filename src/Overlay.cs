@@ -283,7 +283,7 @@ namespace Kapture
 
         Rectangle HintRect()
         {
-            int w = P(300), h = P(32);
+            int w = P(360), h = P(32);
             return new Rectangle(monitor.X + (monitor.Width - w) / 2, monitor.Bottom - h - P(32), w, h);
         }
 
@@ -293,7 +293,7 @@ namespace Kapture
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath gp = Svg.RoundRect(r, P(16)))
             using (SolidBrush b = new SolidBrush(Color.FromArgb(220, theme.Inverse))) g.FillPath(b, gp);
-            TextRenderer.DrawText(g, "Sleep een kader  ·  Esc annuleert", Fonts.Ui(12 * s, 0), r, theme.OnInverse,
+            TextRenderer.DrawText(g, "Sleep een kader  ·  Esc of rechtsklik annuleert", Fonts.Ui(12 * s, 0), r, theme.OnInverse,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
         }
 

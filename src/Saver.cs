@@ -103,6 +103,23 @@ namespace Kapture
             catch { return ""; }
         }
 
+        // Programma onder een punt op het scherm (het midden van het kader); werkt ook als je vanuit het tray-menu begon
+        public static string AppAt(int x, int y)
+        {
+            try
+            {
+                IntPtr h = W.WindowFromPoint(new W.POINT(x, y));
+                if (h == IntPtr.Zero) return "";
+                IntPtr root = W.GetAncestor(h, 2);
+                if (root != IntPtr.Zero) h = root;
+                uint pid;
+                W.GetWindowThreadProcessId(h, out pid);
+                if (pid == 0 || pid == (uint)Process.GetCurrentProcess().Id) return "";
+                using (Process p = Process.GetProcessById((int)pid)) return AppName(p.ProcessName);
+            }
+            catch { return ""; }
+        }
+
         public static string AppName(string process)
         {
             if (string.IsNullOrEmpty(process)) return "";
@@ -162,7 +179,14 @@ namespace Kapture
         }
 
         // Eerst naar naam.png.tmp in dezelfde map, dan hernoemen: zo ziet OneDrive nooit een half bestand
+        static readonly object writeGate = new object();
+
         public static string WriteFile(byte[] png, string folder, string baseName)
+        {
+            lock (writeGate) return WriteFileLocked(png, folder, baseName);
+        }
+
+        static string WriteFileLocked(byte[] png, string folder, string baseName)
         {
             Directory.CreateDirectory(folder);
             for (int attempt = 0; ; attempt++)
@@ -171,7 +195,7 @@ namespace Kapture
                 string tmp = final + ".tmp";
                 try
                 {
-                    File.WriteAllBytes(tmp, png);
+                    using (FileStream fs = new FileStream(tmp, FileMode.CreateNew, FileAccess.Write)) fs.Write(png, 0, png.Length);
                     File.Move(tmp, final);
                     return final;
                 }

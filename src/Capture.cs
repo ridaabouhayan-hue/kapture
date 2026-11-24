@@ -47,7 +47,7 @@ namespace Kapture
             get
             {
                 CreateParams cp = base.CreateParams;
-                cp.ExStyle |= W.WS_EX_LAYERED | W.WS_EX_TOOLWINDOW | W.WS_EX_TOPMOST | W.WS_EX_NOACTIVATE | W.WS_EX_TRANSPARENT;
+                cp.ExStyle |= W.WS_EX_LAYERED | W.WS_EX_TOOLWINDOW | W.WS_EX_TOPMOST | W.WS_EX_NOACTIVATE;   // geen TRANSPARENT: een vroege klik mag niet in het programma eronder belanden
                 return cp;
             }
         }

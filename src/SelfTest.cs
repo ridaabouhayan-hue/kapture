@@ -37,6 +37,9 @@ namespace Kapture
                         if (scale > 1) OverlayShot(dir, t, scale, false, "overlay-leeg-" + tag + ".png");
                         ToastShot(dir, t, scale, "melding-" + tag + ".png");
                     }
+                foreach (float scale in new float[] { 1f, 1.5f })
+                    foreach (Theme t in new Theme[] { Theme.Light, Theme.DarkTheme })
+                        MenuShot(dir, t, scale, "tray-menu-" + (t.Dark ? "donker" : "licht") + "-" + (int)(scale * 100) + ".png");
                 ProblemToastShot(dir, Theme.Light, 1.5f, "melding-probleem-licht-150.png");
                 ProblemToastShot(dir, Theme.DarkTheme, 1.5f, "melding-probleem-donker-150.png");
 
@@ -179,6 +182,29 @@ namespace Kapture
                 g.DrawImageUnscaled(tb, 20, 20);
                 outB.Save(Path.Combine(dir, name), ImageFormat.Png);
             }
+        }
+
+        static void MenuShot(string dir, Theme t, float scale, string name)
+        {
+            Program.ForceTheme = t;
+            try
+            {
+                System.Windows.Forms.ToolStripMenuItem pause;
+                using (System.Windows.Forms.ContextMenuStrip m = App.BuildMenu(scale, false, delegate { }, delegate { }, delegate { }, delegate { }, out pause))
+                {
+                    m.Items[2].Select();   // Inbox-map openen als gekozen regel, om de kleur te zien
+                    m.PerformLayout();
+                    Size sz = m.GetPreferredSize(Size.Empty);
+                    m.Size = sz;
+                    using (Bitmap b = new Bitmap(sz.Width, sz.Height))
+                    {
+                        m.DrawToBitmap(b, new Rectangle(0, 0, sz.Width, sz.Height));
+                        Save(dir, name, b, t);
+                    }
+                    Check(sz.Width > 100 && sz.Height > 100, "tray-menu getekend " + name + " (" + sz.Width + "x" + sz.Height + ")");
+                }
+            }
+            finally { Program.ForceTheme = null; }
         }
 
         // Uitsnijden: de pixels in het bestand zijn precies die van het scherm

@@ -233,7 +233,12 @@ namespace Kapture
             if (closing)
             {
                 int a = alpha - (int)(255 * dt / 150);
-                if (a <= 0) { alpha = 0; tick.Stop(); W.ShowWindow(Handle, W.SW_HIDE); return; }
+                if (a <= 0)
+                {
+                    alpha = 0; tick.Stop(); W.ShowWindow(Handle, W.SW_HIDE);
+                    if (c != null && c.Thumb != null) { c.Thumb.Dispose(); c.Thumb = null; }
+                    return;
+                }
                 alpha = (byte)a; Render(); return;
             }
             if (alpha < 255) alpha = (byte)Math.Min(255, alpha + (int)(255 * dt / 200));

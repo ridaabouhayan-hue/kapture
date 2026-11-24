@@ -21,7 +21,7 @@ Dit document legt alle afspraken vast. Bij twijfel gaat dit bouwplan voor.
 - Sneltoetsen alleen via RegisterHotKey. Geen toetsenbordhooks.
 - Schermafbeelding met GDI (BitBlt van het bureaublad). Schermopname (video) later: dan Windows.Graphics.Capture en mogelijk een nieuwere .NET. Het ontwerp houdt daar ruimte voor (de vorm "Opname" past als vijfde knop in de werkbalk).
 - Gaat zelf niet het internet op, behalve de optionele check op een nieuwe versie (GitHub Releases).
-- Lettertypes: Inter en JetBrains Mono (SIL OFL), ingebouwd als resource. Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static.
+- Lettertypes: voor nu Segoe UI Variable en Cascadia Mono, die in Windows 11 zitten (geen download nodig). Inter en JetBrains Mono uit het Stitch-ontwerp komen erbij zodra Rida het downloaden goedkeurt. Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static.
 - Licenties van Lucide, Inter en JetBrains Mono meeleveren.
 
 ### Hergebruik uit NexusPen

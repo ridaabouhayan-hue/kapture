@@ -62,18 +62,8 @@ namespace Kapture
         {
             tray.Text = "Kapture";
             tray.Icon = TrayIcon();
-            ContextMenuStrip m = new ContextMenuStrip();
-            m.Renderer = new MenuRenderer();
-            m.ShowImageMargin = true;
-            m.Font = Fonts.Ui(12 * W.ScaleAt(Cursor.Position.X, Cursor.Position.Y), 0);
-            ToolStripMenuItem shotItem = Item(m, "Nieuwe screenshot", "camera", delegate { StartCapture(); });
-            shotItem.ShortcutKeyDisplayString = "PrtSc";
-            m.Items.Add(new ToolStripSeparator());
-            Item(m, "Inbox-map openen", "folder-open", delegate { OpenInbox(); });
-            pauseItem = Item(m, "Sneltoetsen pauzeren", "pause", delegate { TogglePause(); });
-            pauseItem.Checked = cfg.HotkeysPaused;
-            m.Items.Add(new ToolStripSeparator());
-            Item(m, "Kapture afsluiten", "power", delegate { Quit(); });
+            ContextMenuStrip m = BuildMenu(W.ScaleAt(Cursor.Position.X, Cursor.Position.Y), cfg.HotkeysPaused,
+                delegate { StartCapture(); }, delegate { OpenInbox(); }, delegate { TogglePause(); }, delegate { Quit(); }, out pauseItem);
             m.Opening += delegate { W.RoundCorners(m.Handle); };
             tray.ContextMenuStrip = m;
             tray.MouseUp += delegate(object o, MouseEventArgs e)
@@ -86,13 +76,32 @@ namespace Kapture
             tray.Visible = true;
         }
 
-        ToolStripMenuItem Item(ContextMenuStrip m, string text, string icon, EventHandler click)
+        // Het tray-menu; ook gebruikt door de zelftest
+        public static ContextMenuStrip BuildMenu(float sc, bool paused, EventHandler shot, EventHandler inbox, EventHandler pause, EventHandler quit, out ToolStripMenuItem pauseItem)
+        {
+            ContextMenuStrip m = new ContextMenuStrip();
+            m.Renderer = new MenuRenderer();
+            m.ShowImageMargin = true;
+            m.ImageScalingSize = new Size((int)(16 * sc), (int)(16 * sc));
+            m.Font = Fonts.Ui(12 * sc, 0);
+            ToolStripMenuItem shotItem = Item(m, sc, "Nieuwe screenshot", "camera", shot);
+            shotItem.ShortcutKeyDisplayString = "PrtSc";
+            m.Items.Add(new ToolStripSeparator());
+            Item(m, sc, "Inbox-map openen", "folder-open", inbox);
+            pauseItem = Item(m, sc, "Sneltoetsen pauzeren", "pause", pause);
+            pauseItem.Checked = paused;
+            m.Items.Add(new ToolStripSeparator());
+            Item(m, sc, "Kapture afsluiten", "power", quit);
+            return m;
+        }
+
+        static ToolStripMenuItem Item(ContextMenuStrip m, float sc, string text, string icon, EventHandler click)
         {
             ToolStripMenuItem it = new ToolStripMenuItem(text);
             it.Click += click;
             it.Tag = icon;
-            float sc = W.ScaleAt(Cursor.Position.X, Cursor.Position.Y);
-            it.Padding = new Padding((int)(4 * sc), (int)(7 * sc), (int)(8 * sc), (int)(7 * sc));
+            it.Image = MenuRenderer.IconImage(icon, sc, Theme.Current.Variant);
+            it.Padding = new Padding((int)(4 * sc), (int)(7 * sc), (int)(24 * sc), (int)(7 * sc));
             m.Items.Add(it);
             return it;
         }
@@ -141,9 +150,12 @@ namespace Kapture
             try { v = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Keyboard", "PrintScreenKeyForSnippingEnabled", null); } catch { }
             if (v is int && (int)v == 0) return;
             Notify("Zet Print Screen vrij voor Kapture", "Windows opent nu het Knipprogramma met Print Screen. Zet in de instelling \"Print Screen gebruiken om het Knipprogramma te openen\" uit.",
-                "Open instelling", "settings-2", delegate { Open("ms-settings:easeofaccess-keyboard"); }, true);
-            cfg.SnipHintShown = true;
-            cfg.Save();
+                "Open instelling", "settings-2", delegate
+                {
+                    Open("ms-settings:easeofaccess-keyboard");
+                    cfg.SnipHintShown = true;   // pas als gezien markeren als Rida de instelling echt opende
+                    cfg.Save();
+                }, true);
         }
 
         void OnHotkey(int id)
@@ -180,6 +192,7 @@ namespace Kapture
                 }
                 overlay.ShowNow();
                 dim.HideNow();
+                Watchdog.Arm(overlay.Handle, dim.Handle);
             }
             catch (Exception ex)
             {
@@ -192,11 +205,16 @@ namespace Kapture
         {
             try
             {
+                Watchdog.Disarm();
                 Bitmap piece = shot.Crop(r);
                 overlay.End();
                 FreeShot();
                 busy = false;
                 if (piece == null) return;
+                // de overlay is weg: nu zien we welk programma onder het midden van het kader staat
+                string under = Naming.AppAt(shotOrigin.X + r.X + r.Width / 2, shotOrigin.Y + r.Y + r.Height / 2);
+                if (under != "" && under != "Verkenner") shotApp = under;
+                else if (shotApp == "Verkenner") shotApp = under;
                 string folder = InboxFolder.Resolve(cfg);
                 Saver.SaveAndCopy(piece, folder, shotApp, overlay, ShowSaved);
             }
@@ -209,6 +227,7 @@ namespace Kapture
 
         void OnCancelled()
         {
+            Watchdog.Disarm();
             overlay.End();
             FreeShot();
             busy = false;
@@ -217,6 +236,7 @@ namespace Kapture
 
         void SafeReset()
         {
+            Watchdog.Disarm();
             try { overlay.End(); } catch { }
             try { dim.HideNow(); } catch { }
             FreeShot();
@@ -306,6 +326,42 @@ namespace Kapture
         }
     }
 
+    // ------------------------------------------------------------------ Waakhond: het donkere scherm mag nooit blijven hangen
+    // Een tikker op de UI-draad houdt een hartslag bij. Staat de overlay open en blijft de hartslag 3 seconden weg
+    // (Kapture zit vast), dan verbergt een aparte draad de overlay en het donkere venster.
+    static class Watchdog
+    {
+        static readonly System.Windows.Forms.Timer beat = new System.Windows.Forms.Timer { Interval = 250 };
+        static System.Threading.Timer guard;
+        static long last;
+        static IntPtr ov, dimH;
+        static volatile bool armed;
+        static bool hooked;
+
+        public static void Arm(IntPtr overlay, IntPtr dim)
+        {
+            ov = overlay; dimH = dim;
+            System.Threading.Interlocked.Exchange(ref last, DateTime.UtcNow.Ticks);
+            if (!hooked) { beat.Tick += delegate { System.Threading.Interlocked.Exchange(ref last, DateTime.UtcNow.Ticks); }; hooked = true; }
+            beat.Start();
+            if (guard == null) guard = new System.Threading.Timer(Check, null, 500, 500);
+            armed = true;
+        }
+
+        public static void Disarm() { armed = false; beat.Stop(); }
+
+        static void Check(object state)
+        {
+            if (!armed) return;
+            long ago = DateTime.UtcNow.Ticks - System.Threading.Interlocked.Read(ref last);
+            if (ago < TimeSpan.FromSeconds(3).Ticks) return;
+            armed = false;
+            W.ShowWindowAsync(ov, W.SW_HIDE);
+            W.ShowWindowAsync(dimH, W.SW_HIDE);
+            Log.Info("Waakhond: overlay verborgen omdat Kapture niet reageerde");
+        }
+    }
+
     // ------------------------------------------------------------------ Het tray-menu in de Kapture-kleuren (Stitch-scherm 7)
     class MenuRenderer : ToolStripProfessionalRenderer
     {
@@ -334,12 +390,36 @@ namespace Kapture
 
         protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
         {
-            DrawIcon(e.Graphics, e.Item, T);
-            e.TextColor = e.Item.Selected ? T.OnPrimaryContainer : (e.Item is ToolStripMenuItem && ((ToolStripMenuItem)e.Item).ShortcutKeyDisplayString == e.Text ? T.Outline : T.OnSurface);
+            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
+            bool shortcut = mi != null && mi.ShortcutKeyDisplayString == e.Text;
+            e.TextColor = e.Item.Selected ? T.OnPrimaryContainer : (shortcut ? T.Outline : T.OnSurface);
+            // tekst verticaal in het midden van de regel, en wat verder van het icoon
+            Rectangle r = e.TextRectangle;
+            int x = r.X;
+            e.TextRectangle = new Rectangle(x, 0, r.Width, e.Item.Height);
+            e.TextFormat = (e.TextFormat & ~(TextFormatFlags.Top | TextFormatFlags.Bottom)) | TextFormatFlags.VerticalCenter;
             base.OnRenderItemText(e);
         }
 
-        protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e) { }
+        static float Scale(ToolStripItem item) { return Math.Max(1f, item.Font.Size / 12f); }
+
+        // Het icoon (Lucide) in de marge; bij Pauze aan een blauw vinkje
+        protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e)
+        {
+            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
+            float s = Scale(e.Item);
+            if (mi != null && mi.Checked) { Icons.Draw(e.Graphics, "check", e.ImageRectangle, 16 * s, T.Primary, 2.5f); return; }
+            string icon = e.Item.Tag as string;
+            if (icon != null) Icons.Draw(e.Graphics, icon, e.ImageRectangle, 16 * s, e.Item.Selected ? T.OnPrimaryContainer : T.Variant, 2);
+        }
+
+        public static Bitmap IconImage(string icon, float s, Color c)
+        {
+            int n = Math.Max(16, (int)Math.Round(16 * s));
+            Bitmap b = new Bitmap(n, n);
+            using (Graphics g = Graphics.FromImage(b)) Icons.Draw(g, icon, new RectangleF(0, 0, n, n), n, c, 2);
+            return b;
+        }
 
         protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) { }
 
@@ -361,16 +441,5 @@ namespace Kapture
         // Icoontjes zelf tekenen in de marge (Lucide), het vinkje bij Pauze in blauw
         protected override void OnRenderItemBackground(ToolStripItemRenderEventArgs e) { base.OnRenderItemBackground(e); }
 
-        public static void DrawIcon(Graphics g, ToolStripItem item, Theme t)
-        {
-            string icon = item.Tag as string;
-            if (icon == null) return;
-            float s = item.Height / 32f;
-            RectangleF r = new RectangleF(8, 0, 20 * Math.Max(1, s), item.Height);
-            ToolStripMenuItem mi = item as ToolStripMenuItem;
-            Color c = item.Selected ? t.OnPrimaryContainer : t.Variant;
-            if (mi != null && mi.Checked) { c = t.Primary; icon = "check"; }
-            Icons.Draw(g, icon, r, 16 * Math.Max(1, s), c, 2);
-        }
     }
 }
