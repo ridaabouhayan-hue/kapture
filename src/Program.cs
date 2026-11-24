@@ -4,13 +4,13 @@ using System.Windows.Forms;
 
 [assembly: System.Reflection.AssemblyTitle("Kapture")]
 [assembly: System.Reflection.AssemblyProduct("Kapture")]
-[assembly: System.Reflection.AssemblyVersion("0.1.0.0")]
+[assembly: System.Reflection.AssemblyVersion("0.1.1.0")]
 
 namespace Kapture
 {
     static class Program
     {
-        public const string Version = "0.1.0";
+        public const string Version = "0.1.1";
         public static bool SelfTest;
         public static Theme ForceTheme = null;
 

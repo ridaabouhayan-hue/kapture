@@ -186,25 +186,23 @@ namespace Kapture
 
         static void MenuShot(string dir, Theme t, float scale, string name)
         {
-            Program.ForceTheme = t;
-            try
+            using (TrayMenu m = new TrayMenu())
             {
-                System.Windows.Forms.ToolStripMenuItem pause;
-                using (System.Windows.Forms.ContextMenuStrip m = App.BuildMenu(scale, false, delegate { }, delegate { }, delegate { }, delegate { }, out pause))
+                App.FillMenu(m, false, delegate { }, delegate { }, delegate { }, delegate { });
+                using (Bitmap b = m.RenderForTest(t, scale, 2))   // Inbox-map openen als gekozen regel, om de kleur te zien
                 {
-                    m.Items[2].Select();   // Inbox-map openen als gekozen regel, om de kleur te zien
-                    m.PerformLayout();
-                    Size sz = m.GetPreferredSize(Size.Empty);
-                    m.Size = sz;
-                    using (Bitmap b = new Bitmap(sz.Width, sz.Height))
-                    {
-                        m.DrawToBitmap(b, new Rectangle(0, 0, sz.Width, sz.Height));
-                        Save(dir, name, b, t);
-                    }
-                    Check(sz.Width > 100 && sz.Height > 100, "tray-menu getekend " + name + " (" + sz.Width + "x" + sz.Height + ")");
+                    Save(dir, name, b, t);
+                    Check(b.Width > 100 && b.Height > 100, "tray-menu getekend " + name + " (" + b.Width + "x" + b.Height + ")");
                 }
+                // marges nameten: elke regel even ver van links als van rechts, scheidingslijnen niet ingesprongen
+                RectangleF card = m.CardForTest;
+                bool even = true;
+                foreach (RectangleF r in m.RowsForTest)
+                    if (Math.Abs((r.X - card.X) - (card.Right - r.Right)) > 0.5f) even = false;
+                Check(even, "tray-menu: links en rechts evenveel ruimte (" + name + ")");
+                float top = m.RowsForTest[0].Y - card.Y, bottom = card.Bottom - m.RowsForTest[m.RowsForTest.Count - 1].Bottom;
+                Check(Math.Abs(top - bottom) <= 0.5f, "tray-menu: boven en onder evenveel ruimte (" + name + ")");
             }
-            finally { Program.ForceTheme = null; }
         }
 
         // Uitsnijden: de pixels in het bestand zijn precies die van het scherm

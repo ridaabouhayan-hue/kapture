@@ -37,7 +37,7 @@ namespace Kapture
         readonly Overlay overlay = new Overlay();
         readonly Toast toast = new Toast();
         readonly ICapture capture = new GdiCapture();
-        ToolStripMenuItem pauseItem;
+        readonly TrayMenu menu = new TrayMenu();
         Dib shot;                 // het vastgelegde scherm, alleen zolang de overlay open is
         Rectangle shotOrigin;
         string shotApp = "";
@@ -62,48 +62,26 @@ namespace Kapture
         {
             tray.Text = "Kapture";
             tray.Icon = TrayIcon();
-            ContextMenuStrip m = BuildMenu(W.ScaleAt(Cursor.Position.X, Cursor.Position.Y), cfg.HotkeysPaused,
-                delegate { StartCapture(); }, delegate { OpenInbox(); }, delegate { TogglePause(); }, delegate { Quit(); }, out pauseItem);
-            m.Opening += delegate { W.RoundCorners(m.Handle); };
-            tray.ContextMenuStrip = m;
+            // links- en rechtsklikken openen hetzelfde menu (zoals in het Stitch-ontwerp)
             tray.MouseUp += delegate(object o, MouseEventArgs e)
             {
-                if (e.Button != MouseButtons.Left) return;
-                // linksklikken opent hetzelfde menu (zoals in het Stitch-ontwerp)
-                System.Reflection.MethodInfo mi = typeof(NotifyIcon).GetMethod("ShowContextMenu", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
-                if (mi != null) mi.Invoke(tray, null);
+                if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right) return;
+                FillMenu(menu, cfg.HotkeysPaused, delegate { StartCapture(); }, delegate { OpenInbox(); }, delegate { TogglePause(); }, delegate { Quit(); });
+                menu.ShowAt(Cursor.Position);
             };
             tray.Visible = true;
         }
 
-        // Het tray-menu; ook gebruikt door de zelftest
-        public static ContextMenuStrip BuildMenu(float sc, bool paused, EventHandler shot, EventHandler inbox, EventHandler pause, EventHandler quit, out ToolStripMenuItem pauseItem)
+        // De regels van het tray-menu; ook gebruikt door de zelftest
+        public static void FillMenu(TrayMenu m, bool paused, Action shot, Action inbox, Action pause, Action quit)
         {
-            ContextMenuStrip m = new ContextMenuStrip();
-            m.Renderer = new MenuRenderer();
-            m.ShowImageMargin = true;
-            m.ImageScalingSize = new Size((int)(16 * sc), (int)(16 * sc));
-            m.Font = Fonts.Ui(12 * sc, 0);
-            ToolStripMenuItem shotItem = Item(m, sc, "Nieuwe screenshot", "camera", shot);
-            shotItem.ShortcutKeyDisplayString = "PrtSc";
-            m.Items.Add(new ToolStripSeparator());
-            Item(m, sc, "Inbox-map openen", "folder-open", inbox);
-            pauseItem = Item(m, sc, "Sneltoetsen pauzeren", "pause", pause);
-            pauseItem.Checked = paused;
-            m.Items.Add(new ToolStripSeparator());
-            Item(m, sc, "Kapture afsluiten", "power", quit);
-            return m;
-        }
-
-        static ToolStripMenuItem Item(ContextMenuStrip m, float sc, string text, string icon, EventHandler click)
-        {
-            ToolStripMenuItem it = new ToolStripMenuItem(text);
-            it.Click += click;
-            it.Tag = icon;
-            it.Image = MenuRenderer.IconImage(icon, sc, Theme.Current.Variant);
-            it.Padding = new Padding((int)(4 * sc), (int)(7 * sc), (int)(24 * sc), (int)(7 * sc));
-            m.Items.Add(it);
-            return it;
+            m.Clear();
+            m.Add("Nieuwe screenshot", "camera", "PrtSc", shot);
+            m.AddSeparator();
+            m.Add("Inbox-map openen", "folder-open", inbox);
+            m.AddCheck("Sneltoetsen pauzeren", "pause", paused, pause);
+            m.AddSeparator();
+            m.Add("Kapture afsluiten", "power", quit);
         }
 
         static Icon TrayIcon()
@@ -135,7 +113,6 @@ namespace Kapture
         {
             cfg.HotkeysPaused = !cfg.HotkeysPaused;
             if (cfg.HotkeysPaused) W.UnregisterHotKey(hot.Handle, HotkeyCapture); else RegisterHotkeys(true);
-            pauseItem.Checked = cfg.HotkeysPaused;
             cfg.Save();
             UpdateTrayText();
         }
@@ -360,86 +337,5 @@ namespace Kapture
             W.ShowWindowAsync(dimH, W.SW_HIDE);
             Log.Info("Waakhond: overlay verborgen omdat Kapture niet reageerde");
         }
-    }
-
-    // ------------------------------------------------------------------ Het tray-menu in de Kapture-kleuren (Stitch-scherm 7)
-    class MenuRenderer : ToolStripProfessionalRenderer
-    {
-        Theme T { get { return Theme.Current; } }
-
-        protected override void OnRenderToolStripBackground(ToolStripRenderEventArgs e)
-        {
-            using (SolidBrush b = new SolidBrush(T.Surface)) e.Graphics.FillRectangle(b, e.AffectedBounds);
-        }
-
-        protected override void OnRenderToolStripBorder(ToolStripRenderEventArgs e)
-        {
-            using (Pen p = new Pen(T.OutlineVariant)) e.Graphics.DrawRectangle(p, 0, 0, e.AffectedBounds.Width - 1, e.AffectedBounds.Height - 1);
-        }
-
-        protected override void OnRenderImageMargin(ToolStripRenderEventArgs e) { }
-
-        protected override void OnRenderMenuItemBackground(ToolStripItemRenderEventArgs e)
-        {
-            if (!e.Item.Selected) return;
-            Rectangle r = new Rectangle(4, 1, e.Item.Width - 8, e.Item.Height - 2);
-            e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            using (GraphicsPath gp = Svg.RoundRect(r, 6))
-            using (SolidBrush b = new SolidBrush(T.PrimaryContainer)) e.Graphics.FillPath(b, gp);
-        }
-
-        protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
-        {
-            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
-            bool shortcut = mi != null && mi.ShortcutKeyDisplayString == e.Text;
-            e.TextColor = e.Item.Selected ? T.OnPrimaryContainer : (shortcut ? T.Outline : T.OnSurface);
-            // tekst verticaal in het midden van de regel, en wat verder van het icoon
-            Rectangle r = e.TextRectangle;
-            int x = r.X;
-            e.TextRectangle = new Rectangle(x, 0, r.Width, e.Item.Height);
-            e.TextFormat = (e.TextFormat & ~(TextFormatFlags.Top | TextFormatFlags.Bottom)) | TextFormatFlags.VerticalCenter;
-            base.OnRenderItemText(e);
-        }
-
-        static float Scale(ToolStripItem item) { return Math.Max(1f, item.Font.Size / 12f); }
-
-        // Het icoon (Lucide) in de marge; bij Pauze aan een blauw vinkje
-        protected override void OnRenderItemImage(ToolStripItemImageRenderEventArgs e)
-        {
-            ToolStripMenuItem mi = e.Item as ToolStripMenuItem;
-            float s = Scale(e.Item);
-            if (mi != null && mi.Checked) { Icons.Draw(e.Graphics, "check", e.ImageRectangle, 16 * s, T.Primary, 2.5f); return; }
-            string icon = e.Item.Tag as string;
-            if (icon != null) Icons.Draw(e.Graphics, icon, e.ImageRectangle, 16 * s, e.Item.Selected ? T.OnPrimaryContainer : T.Variant, 2);
-        }
-
-        public static Bitmap IconImage(string icon, float s, Color c)
-        {
-            int n = Math.Max(16, (int)Math.Round(16 * s));
-            Bitmap b = new Bitmap(n, n);
-            using (Graphics g = Graphics.FromImage(b)) Icons.Draw(g, icon, new RectangleF(0, 0, n, n), n, c, 2);
-            return b;
-        }
-
-        protected override void OnRenderItemCheck(ToolStripItemImageRenderEventArgs e) { }
-
-        protected override void OnRenderToolStripPanelBackground(ToolStripPanelRenderEventArgs e) { }
-
-        protected override void OnRenderSeparator(ToolStripSeparatorRenderEventArgs e)
-        {
-            int y = e.Item.Height / 2;
-            using (Pen p = new Pen(T.OutlineVariant)) e.Graphics.DrawLine(p, 8, y, e.Item.Width - 8, y);
-        }
-
-        protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e) { }
-
-        protected override void InitializeItem(ToolStripItem item)
-        {
-            base.InitializeItem(item);
-        }
-
-        // Icoontjes zelf tekenen in de marge (Lucide), het vinkje bij Pauze in blauw
-        protected override void OnRenderItemBackground(ToolStripItemRenderEventArgs e) { base.OnRenderItemBackground(e); }
-
     }
 }
