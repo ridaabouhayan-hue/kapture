@@ -38,13 +38,15 @@ namespace Kapture
                         ToastShot(dir, t, scale, "melding-" + tag + ".png");
                         NoteToastShot(dir, t, scale, "melding-notitie-" + tag + ".png");
                         NoteBarShot(dir, t, scale, "notitiebalk-" + tag + ".png");
+                        EditorShot(dir, t, scale, "editor-" + tag + ".png");
                         SettingsShot(dir, t, scale, 0, null, "instellingen-algemeen-" + tag + ".png");
                         if (scale > 1)
                         {
                             SettingsShot(dir, t, scale, 1, null, "instellingen-sneltoetsen-" + tag + ".png");
                             SettingsShot(dir, t, scale, 2, null, "instellingen-opslaan-" + tag + ".png");
                             SettingsShot(dir, t, scale, 3, null, "instellingen-notities-" + tag + ".png");
-                            SettingsShot(dir, t, scale, 4, null, "instellingen-over-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 4, null, "instellingen-bewerken-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 5, null, "instellingen-over-" + tag + ".png");
                             SettingsShot(dir, t, scale, 0, "map", "instellingen-zoeken-" + tag + ".png");
                             SettingsEditedShot(dir, t, scale, tag);
                         }
@@ -58,6 +60,7 @@ namespace Kapture
                 CropTest();
                 SaveTest();
                 NoteTest();
+                EditorTest();
                 SearchTest();
                 SpeedTest();
             }
@@ -224,6 +227,32 @@ namespace Kapture
             }
         }
 
+        // De editor met een paar markeringen op een nep-bureaublad (Stitch-scherm 5)
+        static void EditorShot(string dir, Theme t, float scale, string name)
+        {
+            Bitmap desk = FakeDesktop((int)(1280 * scale), (int)(720 * scale), scale);
+            using (EditorForm f = new EditorForm(desk, "test.png", "Opslaan-knop werkt niet", null))
+            {
+                FillDemo(f.Doc, scale);
+                using (Bitmap b = f.RenderForTest(t, scale, EditTool.Arrow, new Size((int)(1280 * scale), (int)(800 * scale))))
+                    b.Save(Path.Combine(dir, name), ImageFormat.Png);
+                Check(f.ZoneCountForTest > 15, "editor getekend " + name + " (" + f.ZoneCountForTest + " knoppen)");
+            }
+        }
+
+        // Pijl, kader, nummer, tekst, markeerstift en een vervaagd stuk
+        public static void FillDemo(EditDoc d, float s)
+        {
+            Mark a = new Mark { Tool = EditTool.Arrow, Width = 5 * s }; a.Pts.Add(new PointF(700 * s, 520 * s)); a.Pts.Add(new PointF(480 * s, 455 * s)); d.Add(a);
+            Mark r = new Mark { Tool = EditTool.Rect, Width = 4 * s }; r.Pts.Add(new PointF(150 * s, 420 * s)); r.Pts.Add(new PointF(470 * s, 490 * s)); d.Add(r);
+            Mark n = new Mark { Tool = EditTool.Number, Width = 4 * s, Number = 1 }; n.Pts.Add(new PointF(720 * s, 530 * s)); d.Add(n);
+            Mark tx = new Mark { Tool = EditTool.Text, Color = Color.FromArgb(0xDC, 0x26, 0x26), FontSize = 30 * s, Text = "Deze knop doet niets" }; tx.Pts.Add(new PointF(560 * s, 580 * s)); d.Add(tx);
+            Mark m = new Mark { Tool = EditTool.Marker, Color = Color.FromArgb(0xFA, 0xCC, 0x15), Width = 6 * s };
+            for (int i = 0; i <= 10; i++) m.Pts.Add(new PointF((160 + i * 26) * s, 225 * s));
+            d.Add(m);
+            d.Blur(new Rectangle((int)(160 * s), (int)(330 * s), (int)(380 * s), (int)(40 * s)));
+        }
+
         // Instellingen met een wijziging (Opslaan wordt blauw), en de bevestiging na Opslaan
         static void SettingsEditedShot(string dir, Theme t, float scale, string tag)
         {
@@ -271,6 +300,36 @@ namespace Kapture
             }
             catch (Exception ex) { Check(false, "notitietest: " + ex.GetType().Name); }
             finally { try { Directory.Delete(folder, true); } catch { } }
+        }
+
+        // Editor: ongedaan maken, vervagen is echt, uitsnijden, export
+        static void EditorTest()
+        {
+            using (Bitmap img = FakeDesktop(400, 300, 1))
+            {
+                EditDoc d = new EditDoc(new Bitmap(img));
+                Mark a = new Mark { Tool = EditTool.Arrow, Width = 4 }; a.Pts.Add(new PointF(10, 10)); a.Pts.Add(new PointF(100, 100));
+                d.Add(a);
+                Check(d.Marks.Count == 1 && d.CanUndo, "editor: pijl toegevoegd");
+                d.Undo();
+                Check(d.Marks.Count == 0 && d.CanRedo, "editor: ongedaan maken");
+                d.Redo();
+                Check(d.Marks.Count == 1, "editor: opnieuw");
+                Color before = d.Image.GetPixel(130, 160);
+                d.Blur(new Rectangle(120, 150, 80, 40));
+                Color c1 = d.Image.GetPixel(121, 151), c2 = d.Image.GetPixel(122, 152);
+                Check(c1 == c2, "editor: vervagen maakt blokjes van gelijke kleur");
+                d.Undo();
+                Check(d.Image.GetPixel(130, 160) == before, "editor: vervagen ongedaan maken zet de pixels terug");
+                d.SetCrop(new Rectangle(50, 40, 200, 100));
+                using (Bitmap e = d.Export()) Check(e.Width == 200 && e.Height == 100, "editor: uitsnijden geeft de goede maat");
+                d.Undo();
+                using (Bitmap e = d.Export()) Check(e.Width == 400 && e.Height == 300, "editor: uitsnijden ongedaan maken");
+                Check(MarkRender.Hit(a, new PointF(55, 55), 2) && !MarkRender.Hit(a, new PointF(200, 20), 2), "editor: klikken op een pijl");
+                Mark n2 = new Mark { Tool = EditTool.Number, Number = d.NextNumber() };
+                Check(n2.Number == 1, "editor: eerste nummer is 1");
+                d.Dispose();
+            }
         }
 
         static void SearchTest()

@@ -30,7 +30,6 @@ namespace Kapture
             public string[] Segments; public Func<int> GetIndex; public Action<int> SetIndex;
             public Func<int> GetNumber; public Action<int> SetNumber; public int Min, Max; public string Unit = "";
             public List<Btn> Buttons = new List<Btn>();
-            public Func<bool> Enabled;               // false = de regel staat er (nu) niet
         }
 
         public class Card { public string Title, Desc, Icon; public List<Row> Rows = new List<Row>(); }
@@ -285,6 +284,24 @@ namespace Kapture
             notities.Cards.Add(notes);
             Sections.Add(notities);
 
+            Section bewerken = new Section { Name = "Bewerken", Icon = "pencil", Desc = "De editor: pijlen, nummers, tekst, vervagen en uitsnijden." };
+            Card ed = new Card { Title = "Editor", Icon = "pencil", Desc = "Open hem met Bewerken in de melding, of met een klik op de miniatuur." };
+            ed.Rows.Add(new Row
+            {
+                Id = "miniatuur", Title = "Klik op de miniatuur opent", Keywords = "editor bewerken foto windows miniatuur openen",
+                Sub = delegate { return work.ThumbOpensEditor ? "De editor van Kapture." : "Het programma dat Windows voor afbeeldingen gebruikt, bijvoorbeeld Foto's."; },
+                Kind = RowKind.Segments, Segments = new string[] { "Kapture-editor", "Windows" },
+                GetIndex = delegate { return work.ThumbOpensEditor ? 0 : 1; }, SetIndex = delegate(int i) { work.ThumbOpensEditor = i == 0; Edited(); }
+            });
+            ed.Rows.Add(new Row
+            {
+                Id = "editor-hoe", Title = "Zo werkt de editor", Keywords = "sneltoetsen ongedaan pijl tekst vervagen",
+                Sub = delegate { return "Kies bovenin een gereedschap en teken op de screenshot. Ctrl+Z maakt ongedaan, Ctrl+C kopieert.\nKlaar bewaart de screenshot (in hetzelfde bestand) en zet hem op het klembord.\nVervagen vervangt de pixels echt: in het bestand is het daarna niet meer te lezen."; },
+                Kind = RowKind.Info
+            });
+            bewerken.Cards.Add(ed);
+            Sections.Add(bewerken);
+
             Section over = new Section { Name = "Over en bijwerken", Icon = "info", Desc = "Versie, nieuwe versies en privacy." };
             Card about = new Card { Title = "Kapture " + Program.Version, Icon = "camera", Desc = "Je eigen screenshot-tool voor Windows." };
             Row versie = new Row
@@ -401,7 +418,7 @@ namespace Kapture
             return true;
         }
 
-        static bool ShowsRow(Row r) { return r.Enabled == null || r.Enabled(); }
+        static bool ShowsRow(Row r) { return r != null; }
 
         public string Query { get { return search.Text; } set { search.Text = value; } }
 

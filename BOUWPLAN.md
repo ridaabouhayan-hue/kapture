@@ -169,9 +169,9 @@ Resultaat: `docs/SPIKE.md` (ronde 2, 24-11-2026). Gekozen: eerst een donker vens
 | 0.1 | Repo, build, tests, installer, automatische release. Tray-icoon, PrtSc, overlay met kader, opslaan in de inbox, klembord, eenvoudige melding. |
 | 0.2 | Notities: notitieveld in de melding, Shift+PrtSc met notitiebalk, Ctrl+PrtSc, bestandsnaam en tekstbestand, notitiestrook op het klembord. Op verzoek van Rida (24-11) ook al Instellingen met zoekbalk (Algemeen, Sneltoetsen, Opslaan en mappen, Notities, Over) en een map per maand. |
 | 0.2.1 | Bijwerken met een klik (uit NexusPen), Instellingen per pagina met Opslaan en bevestiging, scherpe tekst (Segoe UI met ClearType), Print Screen losmaken van het Knipprogramma met een klik. |
-| 0.3 | Laatste screenshots en het volledige tray-menu. Hernoemen achteraf. |
-| 0.4 | Vormen Vrij, Venster, Hele scherm. Presets en Opslaan in... |
-| 0.5 | Editor: tekenmotor uit NexusPen, vervagen, uitsnijden, kleurkiezer, ongedaan en opnieuw. Doorsturen. |
+| 0.3 | Editor (op verzoek van Rida naar voren gehaald, 24-11): tekenstijl uit NexusPen (pen, markeerstift, pijl, rechthoek, tekst met rand, nummer), echt vervagen, uitsnijden, kleurkiezer, ongedaan en opnieuw. Bewerken in de melding; miniatuur opent de editor of Windows (instelling). |
+| 0.4 | Laatste screenshots en het volledige tray-menu. Hernoemen achteraf. |
+| 0.5 | Vormen Vrij, Venster, Hele scherm. Presets en Opslaan in... Doorsturen (editor eerst, zonder notitie). Editor uitbreiden (cirkel, lijn, selecteren met een kader). |
 | 0.6 | Instellingen aanvullen (Presets, Bewerken, Taal, Gebruik), talen, eerste-keer-scherm, gebruik bijhouden. |
 | 1.0 | Alles nagelopen, logo-pakket, eigen presets, code-review. |
 | 1.x | OCR, dan de lijst "Later". |

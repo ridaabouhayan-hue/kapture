@@ -224,6 +224,37 @@ namespace Kapture
             });
         }
 
+        // Een bewerkte screenshot over het bestand heen zetten: eerst naar naam.tmp, dan vervangen (OneDrive ziet nooit een half bestand)
+        public static bool Replace(Bitmap img, string path)
+        {
+            try
+            {
+                byte[] png;
+                using (MemoryStream ms = new MemoryStream()) { img.Save(ms, ImageFormat.Png); png = ms.ToArray(); }
+                string tmp = path + ".tmp";
+                for (int attempt = 0; ; attempt++)
+                {
+                    try
+                    {
+                        File.WriteAllBytes(tmp, png);
+                        if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);
+                        return true;
+                    }
+                    catch (IOException)
+                    {
+                        if (attempt >= 3) throw;
+                        Thread.Sleep(300 * (attempt + 1));   // OneDrive houdt het bestand soms even vast
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Bewerkte screenshot opslaan mislukt", ex);
+                try { if (File.Exists(path + ".tmp")) File.Delete(path + ".tmp"); } catch { }
+                return false;
+            }
+        }
+
         // Leest een opgeslagen screenshot terug (zonder het bestand vast te houden)
         public static Bitmap Load(string path)
         {

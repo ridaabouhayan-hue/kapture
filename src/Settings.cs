@@ -27,6 +27,9 @@ namespace Kapture
         public bool NoteStrip = true;          // notitiestrook onder de afbeelding op het klembord
         public bool NoteTextFile = true;       // lange notitie of meerdere regels ook als .txt ernaast
 
+        // Bewerken
+        public bool ThumbOpensEditor = true;   // klik op de miniatuur: de editor van Kapture (anders het programma van Windows)
+
         // Over
         public bool UpdateCheck = true;        // bij het starten kijken of er een nieuwe versie op GitHub staat
 
@@ -42,7 +45,7 @@ namespace Kapture
             ThemeMode = o.ThemeMode; ToastSeconds = o.ToastSeconds;
             HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote;
             Inbox = o.Inbox; MonthFolders = o.MonthFolders; NoteStrip = o.NoteStrip; NoteTextFile = o.NoteTextFile;
-            UpdateCheck = o.UpdateCheck;
+            UpdateCheck = o.UpdateCheck; ThumbOpensEditor = o.ThumbOpensEditor;
         }
 
         // Verschilt deze kopie van 'o' in iets wat je in Instellingen kunt wijzigen?
@@ -50,7 +53,8 @@ namespace Kapture
         {
             return ThemeMode != o.ThemeMode || ToastSeconds != o.ToastSeconds || HotkeyCapture != o.HotkeyCapture || HotkeyNote != o.HotkeyNote
                 || HotkeyLastNote != o.HotkeyLastNote || (Inbox ?? "") != (o.Inbox ?? "")
-                || MonthFolders != o.MonthFolders || NoteStrip != o.NoteStrip || NoteTextFile != o.NoteTextFile || UpdateCheck != o.UpdateCheck;
+                || MonthFolders != o.MonthFolders || NoteStrip != o.NoteStrip || NoteTextFile != o.NoteTextFile || UpdateCheck != o.UpdateCheck
+                || ThumbOpensEditor != o.ThumbOpensEditor;
         }
 
         public static string FilePath { get { return Path.Combine(Log.Dir, "instellingen.txt"); } }
@@ -83,6 +87,7 @@ namespace Kapture
                         case "notitieTekstbestand": s.NoteTextFile = v != "0"; break;
                         case "knipprogrammaMelding": s.SnipHintShown = v == "1"; break;
                         case "bijwerkenZoeken": s.UpdateCheck = v != "0"; break;
+                        case "miniatuurEditor": s.ThumbOpensEditor = v != "0"; break;
                     }
                 }
             }
@@ -113,6 +118,7 @@ namespace Kapture
                 sb.AppendLine("notitieTekstbestand=" + B(NoteTextFile));
                 sb.AppendLine("knipprogrammaMelding=" + B(SnipHintShown));
                 sb.AppendLine("bijwerkenZoeken=" + B(UpdateCheck));
+                sb.AppendLine("miniatuurEditor=" + B(ThumbOpensEditor));
                 string tmp = path + ".tmp";
                 File.WriteAllText(tmp, sb.ToString(), Encoding.UTF8);
                 if (File.Exists(path)) File.Replace(tmp, path, null); else File.Move(tmp, path);

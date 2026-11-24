@@ -15,6 +15,7 @@ namespace Kapture
         public bool Ok = true;          // vinkje in een blauw rondje; false = waarschuwing
         public string Title = "", Sub = "";
         public string ActionLabel, ActionIcon; public Action OnAction;
+        public string Action2Label, Action2Icon; public Action OnAction2;   // tweede knop (bijvoorbeeld Map openen naast Bewerken)
         public Action OnThumb;
         public int Seconds = 6;
         public bool Stay;               // blijft staan tot je hem wegklikt (voor een probleem)
@@ -36,7 +37,7 @@ namespace Kapture
         float s = 1;
         int margin;                     // ruimte voor de schaduw
         int bodyH;                      // hoogte van miniatuur plus tekst
-        Rectangle card, thumbR, closeR, actionR, dismissR, noteR, helpR;
+        Rectangle card, thumbR, closeR, actionR, action2R, dismissR, noteR, helpR;
         Rectangle workArea;
         string hot;                     // knop onder de muis
         readonly Timer tick = new Timer();
@@ -150,6 +151,13 @@ namespace Kapture
                 SizeF ts = Measure(c.ActionLabel);
                 actionR = new Rectangle(card.X + pad, ay, P(10) + (c.ActionIcon != null ? P(14) + P(6) : 0) + (int)ts.Width + P(10), P(28));
             }
+            action2R = Rectangle.Empty;
+            if (c.Action2Label != null)
+            {
+                SizeF ts = Measure(c.Action2Label);
+                int x2 = actionR.IsEmpty ? card.X + pad : actionR.Right + P(6);
+                action2R = new Rectangle(x2, ay, P(10) + (c.Action2Icon != null ? P(14) + P(6) : 0) + (int)ts.Width + P(10), P(28));
+            }
             SizeF ds = Measure("Sluiten");
             dismissR = new Rectangle(card.Right - pad - ((int)ds.Width + P(16)), ay, (int)ds.Width + P(16), P(28));
         }
@@ -254,6 +262,7 @@ namespace Kapture
 
                 // knoppen
                 if (c.ActionLabel != null) DrawButton(g, actionR, c.ActionIcon, c.ActionLabel, hot == "action", true);
+                if (c.Action2Label != null) DrawButton(g, action2R, c.Action2Icon, c.Action2Label, hot == "action2", false);
                 DrawButton(g, dismissR, null, "Sluiten", hot == "dismiss", false);
             }
             return b;
@@ -425,6 +434,7 @@ namespace Kapture
         {
             if (closeR.Contains(p)) return "close";
             if (c.ActionLabel != null && actionR.Contains(p)) return "action";
+            if (c.Action2Label != null && action2R.Contains(p)) return "action2";
             if (dismissR.Contains(p)) return "dismiss";
             if (c.NoteField && noteR.Contains(p)) return "note";
             if (c.Thumb != null && c.OnThumb != null && thumbR.Contains(p)) return "thumb";
@@ -451,6 +461,7 @@ namespace Kapture
             {
                 if (h == "close" || h == "dismiss") Dismiss();
                 else if (h == "action" && c.OnAction != null) { if (editing) EndEdit(true); c.OnAction(); Dismiss(); }
+                else if (h == "action2" && c.OnAction2 != null) { if (editing) EndEdit(true); c.OnAction2(); Dismiss(); }
                 else if (h == "thumb" && c.OnThumb != null) c.OnThumb();
                 else if (h == "note") BeginEdit();
             }

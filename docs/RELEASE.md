@@ -1,4 +1,14 @@
-# Kapture 0.2.2
+# Kapture 0.3.0
+
+Nieuw in 0.3: **de editor**.
+- Open hem met **Bewerken** in de melding, of met een klik op de miniatuur. In Instellingen, Bewerken kies je of de miniatuur de editor van Kapture opent of het programma van Windows.
+- Gereedschap bovenin: Selecteren, Pen, Markeerstift, Pijl, Rechthoek, Tekst, Nummer (1, 2, 3), Vervagen, Uitsnijden en Gum. Ongedaan maken en opnieuw (Ctrl+Z, Ctrl+Y).
+- Rechts Eigenschappen: kleur (met een kleurkiezer), lijndikte, dekking en tekstgrootte. Met Selecteren gelden ze voor wat je gekozen hebt. Onderaan de notitie bij de screenshot.
+- **Vervagen is echt**: de pixels worden vervangen, dus in het bestand is het daarna niet meer te lezen.
+- **Klaar** bewaart de screenshot in hetzelfde bestand en zet hem op het klembord (met de notitiestrook). Opslaan en Kopiëren kunnen ook los.
+- Sneltoetsen: V, P, M, A, R, T, N, B, C, E voor het gereedschap; Delete haalt weg wat je gekozen hebt.
+
+## Kapture 0.2.2
 
 Nieuw in 0.2.2:
 - **Geen flits meer** voor het scherm donker wordt: de verschijn-animatie van Windows staat uit voor Kapture, en het stilstaande beeld wordt eerst getekend en dan pas getoond.

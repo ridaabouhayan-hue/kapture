@@ -364,14 +364,55 @@ namespace Kapture
             c.Thumb = thumb;
             c.Title = note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
             c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png" : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
-            c.ActionLabel = "Map openen"; c.ActionIcon = "folder-open";
-            c.OnAction = delegate { ShowInFolder(entry.Path); };
-            c.OnThumb = delegate { Open(entry.Path); };
+            c.ActionLabel = "Bewerken"; c.ActionIcon = "pencil";
+            c.OnAction = delegate { OpenEditor(entry); };
+            c.Action2Label = "Map openen"; c.Action2Icon = "folder-open";
+            c.OnAction2 = delegate { ShowInFolder(entry.Path); };
+            c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry); else Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
             c.NoteField = true; c.Note = note; c.Tag = entry;
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
             toast.ShowToast(c, Theme.Current);
             if (edit) toast.BeginEdit();
+        }
+
+        // ---- de editor (Stitch-scherm 5)
+        public void OpenEditor(Shot entry)
+        {
+            if (entry == null || entry.Path == null || !File.Exists(entry.Path))
+            {
+                Notify("Screenshot niet gevonden", "Het bestand is verplaatst of verwijderd.", null, null, null, false);
+                return;
+            }
+            try
+            {
+                Bitmap img = Saver.Load(entry.Path);
+                EditorForm.Host h = new EditorForm.Host();
+                h.SaveImage = delegate(Bitmap b)
+                {
+                    bool ok = Saver.Replace(b, entry.Path);
+                    if (ok) Log.Info("Screenshot bewerkt en opgeslagen");
+                    return ok;
+                };
+                h.Copy = delegate(Bitmap b, string note)
+                {
+                    bool ok;
+                    if (cfg.NoteStrip && !string.IsNullOrEmpty(note)) using (Bitmap withNote = Notes.WithStrip(b, note)) ok = Saver.Copy(withNote, null);
+                    else ok = Saver.Copy(b, null);
+                    if (ok) { entry.Copied = true; entry.ClipboardSeq = W.GetClipboardSequenceNumber(); }
+                    return ok;
+                };
+                h.NoteChanged = delegate(string note) { ApplyNote(entry, note); };
+                EditorForm f = new EditorForm(img, entry.Path, entry.Note, h);
+                f.Show();
+                W.SetForegroundWindow(f.Handle);
+                f.Activate();
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Editor openen mislukt", ex);
+                Notify("Bewerken lukte niet", "De screenshot kon niet geopend worden.", null, null, null, false);
+            }
         }
 
         // Ctrl+PrtSc: notitie bij de laatste screenshot
