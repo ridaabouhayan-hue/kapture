@@ -28,7 +28,44 @@ namespace Kapture
     // ------------------------------------------------------------------ Kapture zelf: tray-icoon, sneltoetsen, de stappen van een screenshot
     class App : ApplicationContext
     {
-        public const int HotkeyCapture = 1, HotkeyNote = 2, HotkeyLastNote = 3;
+        public const int HotkeyCapture = 1, HotkeyNote = 2, HotkeyLastNote = 3, HotkeyCustom = 4;
+
+        // Een eigen sneltoets (Keys met Ctrl, Alt, Shift) naar wat RegisterHotKey wil
+        public static int ModsOf(int keys)
+        {
+            Keys k = (Keys)keys; int m = W.MOD_NOREPEAT;
+            if ((k & Keys.Control) != 0) m |= W.MOD_CONTROL;
+            if ((k & Keys.Alt) != 0) m |= W.MOD_ALT;
+            if ((k & Keys.Shift) != 0) m |= W.MOD_SHIFT;
+            return m;
+        }
+
+        public static string KeyName(int keys)
+        {
+            if (keys == 0) return "";
+            Keys k = (Keys)keys;
+            string s = "";
+            if ((k & Keys.Control) != 0) s += "Ctrl+";
+            if ((k & Keys.Alt) != 0) s += "Alt+";
+            if ((k & Keys.Shift) != 0) s += "Shift+";
+            Keys code = k & Keys.KeyCode;
+            string n = code.ToString();
+            if (code >= Keys.D0 && code <= Keys.D9) n = n.Substring(1);
+            else if (code == Keys.Snapshot) n = "PrtSc";
+            else if (code == Keys.OemQuestion) n = "/";
+            else if (code == Keys.Oemcomma) n = ",";
+            else if (code == Keys.OemPeriod) n = ".";
+            return s + n;
+        }
+
+        // Mag deze toets een eigen sneltoets zijn? Met Ctrl of Alt erbij, of een F-toets. Gewone letters niet (dan kun je niet meer typen).
+        public static bool UsableKey(int keys)
+        {
+            Keys k = (Keys)keys, code = k & Keys.KeyCode;
+            if (code == Keys.ControlKey || code == Keys.ShiftKey || code == Keys.Menu || code == Keys.None || code == Keys.LWin || code == Keys.RWin) return false;
+            if (code >= Keys.F1 && code <= Keys.F24) return true;
+            return (k & (Keys.Control | Keys.Alt)) != 0;
+        }
 
         readonly Settings cfg;
         readonly History history;
@@ -131,7 +168,7 @@ namespace Kapture
         // ---- sneltoetsen
         public void RegisterHotkeys(bool tell)
         {
-            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
+            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote, HotkeyCustom }) W.UnregisterHotKey(hot.Handle, id);
             HotkeyTaken.Clear();
             if (!cfg.HotkeysPaused)
             {
@@ -139,6 +176,7 @@ namespace Kapture
                 if (cfg.HotkeyCapture && !W.RegisterHotKey(hot.Handle, HotkeyCapture, W.MOD_NOREPEAT, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyCapture] = true; bad.Add("Print Screen"); }
                 if (cfg.HotkeyNote && !W.RegisterHotKey(hot.Handle, HotkeyNote, W.MOD_NOREPEAT | W.MOD_SHIFT, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyNote] = true; bad.Add("Shift+Print Screen"); }
                 if (cfg.HotkeyLastNote && !W.RegisterHotKey(hot.Handle, HotkeyLastNote, W.MOD_NOREPEAT | W.MOD_CONTROL, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyLastNote] = true; bad.Add("Ctrl+Print Screen"); }
+                if (cfg.CustomKey != 0 && UsableKey(cfg.CustomKey) && !W.RegisterHotKey(hot.Handle, HotkeyCustom, ModsOf(cfg.CustomKey), cfg.CustomKey & (int)Keys.KeyCode)) { HotkeyTaken[HotkeyCustom] = true; bad.Add(KeyName(cfg.CustomKey)); }
                 if (bad.Count > 0)
                 {
                     Log.Info(bad.Count + " sneltoets(en) konden niet vastgelegd worden");
@@ -163,6 +201,7 @@ namespace Kapture
             if (HotkeyTaken.ContainsKey(HotkeyCapture) && W.RegisterHotKey(hot.Handle, HotkeyCapture, W.MOD_NOREPEAT, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyCapture); freed = true; }
             if (HotkeyTaken.ContainsKey(HotkeyNote) && W.RegisterHotKey(hot.Handle, HotkeyNote, W.MOD_NOREPEAT | W.MOD_SHIFT, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyNote); freed = true; }
             if (HotkeyTaken.ContainsKey(HotkeyLastNote) && W.RegisterHotKey(hot.Handle, HotkeyLastNote, W.MOD_NOREPEAT | W.MOD_CONTROL, W.VK_SNAPSHOT)) { HotkeyTaken.Remove(HotkeyLastNote); freed = true; }
+            if (HotkeyTaken.ContainsKey(HotkeyCustom) && cfg.CustomKey != 0 && W.RegisterHotKey(hot.Handle, HotkeyCustom, ModsOf(cfg.CustomKey), cfg.CustomKey & (int)Keys.KeyCode)) { HotkeyTaken.Remove(HotkeyCustom); freed = true; }
             if (freed)
             {
                 Log.Info("Sneltoets weer vrij en vastgelegd");
@@ -233,7 +272,7 @@ namespace Kapture
 
         void OnHotkey(int id)
         {
-            if (id == HotkeyCapture) StartCapture(false);
+            if (id == HotkeyCapture || id == HotkeyCustom) StartCapture(false);
             else if (id == HotkeyNote) StartCapture(true);
             else if (id == HotkeyLastNote) NoteForLast();
         }
@@ -721,7 +760,7 @@ namespace Kapture
                 try { last(); }
                 catch (Exception ex) { quitting = false; if (failed != null) failed(ex); return; }
             }
-            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
+            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote, HotkeyCustom }) W.UnregisterHotKey(hot.Handle, id);
             tray.Visible = false;
             tray.Dispose();
             SafeReset();

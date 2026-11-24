@@ -18,6 +18,7 @@ namespace Kapture
         public bool HotkeyNote = true;         // Shift+PrtSc
         public bool HotkeyLastNote = true;     // Ctrl+PrtSc
         public bool HotkeysPaused = false;
+        public int CustomKey = 0;              // eigen sneltoets voor een screenshot (Keys met Ctrl/Alt/Shift), 0 = geen
 
         // Opslaan en mappen
         public string Inbox = "";              // leeg = de standaardmap (InboxFolder.Default)
@@ -43,7 +44,7 @@ namespace Kapture
         public void CopyFrom(Settings o)
         {
             ThemeMode = o.ThemeMode; ToastSeconds = o.ToastSeconds;
-            HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote;
+            HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote; CustomKey = o.CustomKey;
             Inbox = o.Inbox; MonthFolders = o.MonthFolders; NoteStrip = o.NoteStrip; NoteTextFile = o.NoteTextFile;
             UpdateCheck = o.UpdateCheck; ThumbOpensEditor = o.ThumbOpensEditor;
         }
@@ -52,7 +53,7 @@ namespace Kapture
         public bool DiffersFrom(Settings o)
         {
             return ThemeMode != o.ThemeMode || ToastSeconds != o.ToastSeconds || HotkeyCapture != o.HotkeyCapture || HotkeyNote != o.HotkeyNote
-                || HotkeyLastNote != o.HotkeyLastNote || (Inbox ?? "") != (o.Inbox ?? "")
+                || HotkeyLastNote != o.HotkeyLastNote || CustomKey != o.CustomKey || (Inbox ?? "") != (o.Inbox ?? "")
                 || MonthFolders != o.MonthFolders || NoteStrip != o.NoteStrip || NoteTextFile != o.NoteTextFile || UpdateCheck != o.UpdateCheck
                 || ThumbOpensEditor != o.ThumbOpensEditor;
         }
@@ -80,6 +81,7 @@ namespace Kapture
                         case "toetsScreenshot": s.HotkeyCapture = v != "0"; break;
                         case "toetsMetNotitie": s.HotkeyNote = v != "0"; break;
                         case "toetsNotitieLaatste": s.HotkeyLastNote = v != "0"; break;
+                        case "eigenToets": if (int.TryParse(v, out n) && n >= 0) s.CustomKey = n; break;
                         case "sneltoetsenPauze": s.HotkeysPaused = v == "1"; break;
                         case "inbox": s.Inbox = v; break;
                         case "mapPerMaand": s.MonthFolders = v == "1"; break;
@@ -111,6 +113,7 @@ namespace Kapture
                 sb.AppendLine("toetsScreenshot=" + B(HotkeyCapture));
                 sb.AppendLine("toetsMetNotitie=" + B(HotkeyNote));
                 sb.AppendLine("toetsNotitieLaatste=" + B(HotkeyLastNote));
+                sb.AppendLine("eigenToets=" + CustomKey);
                 sb.AppendLine("sneltoetsenPauze=" + B(HotkeysPaused));
                 sb.AppendLine("inbox=" + (Inbox ?? "").Replace("\r", "").Replace("\n", ""));
                 sb.AppendLine("mapPerMaand=" + B(MonthFolders));

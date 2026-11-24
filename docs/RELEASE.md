@@ -1,4 +1,10 @@
-# Kapture 0.3.1
+# Kapture 0.3.2
+
+Nieuw in 0.3.2:
+- **Print Screen sluit niet meer meteen**: bij het loslaten van Print Screen haalde Windows (of het Knipprogramma) soms een eigen venster naar voren, waardoor Kapture het donkere scherm meteen weer sloot. Nu pakt Kapture in het eerste ogenblik de focus terug. In het foutlog staat welk programma het was (alleen de programmanaam).
+- **Eigen sneltoets voor een screenshot**: in Instellingen, Sneltoetsen kies je een eigen toets, bijvoorbeeld Ctrl+Alt+S. Koppel die in Windows aan een tik met vier vingers op het touchpad: Instellingen, Bluetooth en apparaten, Touchpad, Geavanceerde bewegingen, Aangepaste snelkoppeling.
+
+## Kapture 0.3.1
 
 Nieuw in 0.3.1:
 - **Editor soepeler**: tijdens het tekenen wordt alleen het nieuwe stukje opnieuw getekend, niet het hele venster. Pen, pijl, kader en verplaatsen volgen de muis nu direct.

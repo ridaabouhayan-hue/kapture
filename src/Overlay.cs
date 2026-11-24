@@ -207,6 +207,40 @@ namespace Kapture
             W.SetForegroundWindow(Handle);
             Activate();
             Focus();
+            shownAt = DateTime.UtcNow; regains = 0;
+        }
+
+        // Bij het loslaten van Print Screen haalt Windows (of een ander programma, zoals het Knipprogramma) soms een
+        // eigen venster naar voren. In de eerste ogenblikken na het tonen sluiten we dan niet, maar pakken we de focus terug.
+        public const int GraceMs = 700;
+        DateTime shownAt;
+        int regains;
+        public static string LastThief = "";   // voor de zelftest en het foutlog: welk programma nam de focus
+
+        bool InGrace { get { return (DateTime.UtcNow - shownAt).TotalMilliseconds < GraceMs && regains < 3; } }
+
+        void Regain()
+        {
+            regains++;
+            string who = "";
+            IntPtr fg = W.GetForegroundWindow();
+            try
+            {
+                uint pid; uint fgThread = W.GetWindowThreadProcessId(fg, out pid);
+                if (pid != 0 && pid != (uint)System.Diagnostics.Process.GetCurrentProcess().Id)
+                    using (System.Diagnostics.Process p = System.Diagnostics.Process.GetProcessById((int)pid)) who = p.ProcessName;
+                // alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel
+                Log.Info("Overlay: focus kwijt aan " + (who.Length > 0 ? who : "onbekend") + " vlak na het openen; teruggepakt");
+                LastThief = who;
+                uint me = W.GetCurrentThreadId();
+                bool attached = fgThread != 0 && fgThread != me && W.AttachThreadInput(me, fgThread, true);
+                W.SetForegroundWindow(Handle);
+                W.BringWindowToTop(Handle);
+                if (attached) W.AttachThreadInput(me, fgThread, false);
+            }
+            catch (Exception ex) { Log.Error("Focus terugpakken mislukt", ex); }
+            Activate();
+            Focus();
         }
 
         public void End()
@@ -421,6 +455,12 @@ namespace Kapture
         protected override void OnDeactivate(EventArgs e)
         {
             base.OnDeactivate(e);
+            if ((active || noteMode) && InGrace)
+            {
+                // net geopend: niet sluiten, de focus terugpakken (na dit bericht, anders werkt het niet)
+                BeginInvoke((MethodInvoker)Regain);
+                return;
+            }
             if (noteMode) { FinishNote(true); return; }   // weggeklikt: de notitie tot nu toe bewaren
             if (active && wasActivated && !dragging) Cancel();
         }
@@ -453,6 +493,7 @@ namespace Kapture
             RelayoutNote();
             blink.Start();
             W.SetForegroundWindow(Handle); Activate(); Focus();
+            shownAt = DateTime.UtcNow; regains = 0;
         }
 
         Font NoteFont { get { return Fonts.Ui(14 * s, 0); } }

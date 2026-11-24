@@ -88,6 +88,15 @@ namespace Kapture
             live.CopyFrom(copy);
             Is(live.MonthFolders && !live.UpdateCheck && !copy.DiffersFrom(live), "opslaan neemt de kopie over");
 
+            // eigen sneltoets
+            int cas = (int)(System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.Alt | System.Windows.Forms.Keys.S);
+            Eq(App.KeyName(cas), "Ctrl+Alt+S", "naam van een eigen sneltoets");
+            Is(App.UsableKey(cas) && App.UsableKey((int)System.Windows.Forms.Keys.F9), "Ctrl+Alt+S en F9 mogen");
+            Is(!App.UsableKey((int)System.Windows.Forms.Keys.S) && !App.UsableKey((int)(System.Windows.Forms.Keys.Shift | System.Windows.Forms.Keys.S)), "gewone letter (ook met Shift) mag niet");
+            Is(App.ModsOf(cas) == (W.MOD_NOREPEAT | W.MOD_CONTROL | W.MOD_ALT), "Ctrl en Alt gaan mee naar Windows");
+            Settings ck = new Settings { CustomKey = cas };
+            Is(ck.Clone().CustomKey == cas && new Settings().DiffersFrom(ck), "eigen sneltoets in de werkkopie");
+
             // bijwerken: versies vergelijken en het antwoord van GitHub lezen
             Is(Updates.IsNewer("0.2.1", "0.2.0") && Updates.IsNewer("v1.0", "0.9.9") && !Updates.IsNewer("0.2.0", "0.2.0") && !Updates.IsNewer("0.1.9", "0.2.0"), "nieuwere versie herkennen");
             string sha = new string('a', 64);
