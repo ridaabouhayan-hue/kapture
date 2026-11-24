@@ -1,0 +1,99 @@
+using System;
+using System.Drawing;
+using System.IO;
+
+namespace Kapture
+{
+    // Tests zonder scherm: bestandsnamen, instellingen, kader, donker maken, logo.
+    static class Tests
+    {
+        static int fails, total;
+
+        static void Is(bool ok, string what)
+        {
+            total++;
+            if (!ok) { fails++; Console.WriteLine("FOUT  " + what); }
+        }
+
+        static void Eq(string got, string want, string what) { Is(got == want, what + ": kreeg \"" + got + "\", wilde \"" + want + "\""); }
+
+        static int Main()
+        {
+            DateTime t = new DateTime(2026, 11, 24, 0, 12, 0);
+
+            // bestandsnamen
+            Eq(Naming.Base(t, "Chrome", ""), "2026-11-24 0012 Chrome", "naam zonder notitie");
+            Eq(Naming.Base(t, "Chrome", "Opslaan-knop werkt niet"), "2026-11-24 0012 Chrome - Opslaan-knop werkt niet", "naam met notitie");
+            Eq(Naming.Base(t, "", ""), "2026-11-24 0012", "naam zonder programma");
+            Eq(Naming.Clean("a/b\\c:d*e?f\"g<h>i|j"), "abcdefghij", "verboden tekens weg");
+            Eq(Naming.Clean("  twee\r\nregels   en\tspaties  "), "twee regels en spaties", "regeleinden en spaties");
+            Eq(Naming.Clean("eindigt op punt..."), "eindigt op punt", "geen punt aan het eind");
+            Eq(Naming.Clean(null), "", "leeg blijft leeg");
+            string lang = Naming.Base(t, "Chrome", new string('x', 300));
+            Is(lang.Length <= Naming.MaxLength, "lange naam wordt ingekort (" + lang.Length + ")");
+            Eq(Naming.AppName("chrome"), "Chrome", "programmanaam Chrome");
+            Eq(Naming.AppName("WINWORD"), "Word", "programmanaam Word");
+            Eq(Naming.AppName("notepad"), "Notepad", "onbekend programma met hoofdletter");
+            Eq(Naming.AppName(""), "", "geen programma");
+
+            // uniek
+            string dir = Path.Combine(Path.GetTempPath(), "kapture-test-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            try
+            {
+                File.WriteAllText(Path.Combine(dir, "a.png"), "");
+                Eq(Path.GetFileName(Naming.Unique(dir, "a", ".png")), "a (2).png", "dubbele naam krijgt (2)");
+                File.WriteAllText(Path.Combine(dir, "b.png.tmp"), "");
+                Eq(Path.GetFileName(Naming.Unique(dir, "b", ".png")), "b (2).png", "half geschreven bestand telt mee");
+
+                // instellingen heen en terug
+                string sp = Path.Combine(dir, "instellingen.txt");
+                Settings s = new Settings { Inbox = @"D:\Map met spaties", ToastSeconds = 9, HotkeysPaused = true, SnipHintShown = true };
+                s.Save(sp);
+                Settings r = Settings.Load(sp);
+                Is(r.Inbox == s.Inbox && r.ToastSeconds == 9 && r.HotkeysPaused && r.SnipHintShown, "instellingen heen en terug");
+                s.ToastSeconds = 4; s.Save(sp);
+                Is(Settings.Load(sp).ToastSeconds == 4, "instellingen overschrijven");
+                File.WriteAllText(sp, "meldingSeconden=999\nonzin\n=leeg");
+                Is(Settings.Load(sp).ToastSeconds == 60, "te grote waarde wordt begrensd");
+                Is(Settings.Load(Path.Combine(dir, "bestaatniet.txt")).ToastSeconds == 6, "geen bestand = standaard");
+            }
+            finally { try { Directory.Delete(dir, true); } catch { } }
+
+            // kader van twee punten, in elke richting
+            Is(Overlay.Norm(new Point(10, 10), new Point(20, 30)) == new Rectangle(10, 10, 11, 21), "kader van linksboven naar rechtsonder");
+            Is(Overlay.Norm(new Point(20, 30), new Point(10, 10)) == new Rectangle(10, 10, 11, 21), "kader van rechtsonder naar linksboven");
+
+            // donker maken
+            using (Dib a = Dib.Create(2, 1))
+            using (Dib b = Dib.Create(2, 1))
+            {
+                System.Runtime.InteropServices.Marshal.WriteInt32(a.Bits, 0, unchecked((int)0x00FFFFFF));
+                System.Runtime.InteropServices.Marshal.WriteInt32(a.Bits, 4, unchecked((int)0x00804020));
+                Dib.Darken(a, b, 128);
+                uint p0 = (uint)System.Runtime.InteropServices.Marshal.ReadInt32(b.Bits, 0), p1 = (uint)System.Runtime.InteropServices.Marshal.ReadInt32(b.Bits, 4);
+                Is((p0 & 0xFFFFFF) == 0x7F7F7F, "wit wordt half zo licht (" + p0.ToString("X8") + ")");
+                Is((p1 & 0xFFFFFF) == 0x402010, "kleur wordt half zo licht (" + p1.ToString("X8") + ")");
+            }
+
+            // logo en icoontjes zijn te lezen
+            using (Bitmap l = Logo.Bitmap(32)) Is(l.GetPixel(16, 16).A > 0, "logo 32 px heeft inhoud");
+            using (Bitmap l = Logo.Bitmap(256)) Is(l.GetPixel(128, 128).A > 0, "logo 256 px heeft inhoud");
+            foreach (string name in IconData.All.Keys)
+                using (Bitmap ib = new Bitmap(24, 24))
+                using (Graphics g = Graphics.FromImage(ib))
+                {
+                    Icons.Draw(g, name, new RectangleF(0, 0, 24, 24), 24, Color.Black, 2);
+                    bool any = false;
+                    for (int x = 0; x < 24 && !any; x++) for (int y = 0; y < 24 && !any; y++) if (ib.GetPixel(x, y).A > 0) any = true;
+                    Is(any, "icoon " + name + " tekent iets");
+                }
+
+            // inboxmap
+            Is(!string.IsNullOrEmpty(InboxFolder.Default()), "er is altijd een inboxmap");
+
+            Console.WriteLine(fails == 0 ? "Alle " + total + " tests geslaagd" : fails + " van " + total + " tests mislukt");
+            return fails == 0 ? 0 : 1;
+        }
+    }
+}
