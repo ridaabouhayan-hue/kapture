@@ -25,35 +25,48 @@ namespace Kapture
         }
     }
 
-    // ------------------------------------------------------------------ Kapture zelf: tray-icoon, sneltoets, de stappen van een screenshot
+    // ------------------------------------------------------------------ Kapture zelf: tray-icoon, sneltoetsen, de stappen van een screenshot
     class App : ApplicationContext
     {
-        const int HotkeyCapture = 1;
+        public const int HotkeyCapture = 1, HotkeyNote = 2, HotkeyLastNote = 3;
 
         readonly Settings cfg;
+        readonly History history;
         readonly HotkeyWindow hot = new HotkeyWindow();
         readonly NotifyIcon tray = new NotifyIcon();
         readonly DimWindow dim = new DimWindow();
         readonly Overlay overlay = new Overlay();
         readonly Toast toast = new Toast();
-        readonly ICapture capture = new GdiCapture();
         readonly TrayMenu menu = new TrayMenu();
+        readonly ICapture capture = new GdiCapture();
+        SettingsForm settingsForm;
         Dib shot;                 // het vastgelegde scherm, alleen zolang de overlay open is
         Rectangle shotOrigin;
         string shotApp = "";
         bool busy;
-        string lastPath;
+        Shot noteShot;            // de screenshot waar de notitiebalk bij hoort
+        SaveResult noteResult;    // al opgeslagen terwijl de notitiebalk nog openstond
+        readonly object noteGate = new object();
+
+        // Welke sneltoetsen niet lukten (bezet door een ander programma); voor Instellingen
+        public readonly System.Collections.Generic.Dictionary<int, bool> HotkeyTaken = new System.Collections.Generic.Dictionary<int, bool>();
 
         public App()
         {
             cfg = Settings.Load();
+            Theme.Mode = cfg.ThemeMode;
+            history = History.Load(History.DefaultPath);
             hot.OnHotkey = OnHotkey;
-            hot.OnShowRequest = delegate { Notify("Kapture draait al", "Je vindt hem bij de klok. Druk op Print Screen voor een screenshot.", null, null, null, false); };
+            hot.OnShowRequest = delegate { OpenSettings(); };   // Kapture nog eens gestart: open Instellingen
             overlay.Selected += OnSelected;
             overlay.Cancelled += OnCancelled;
+            overlay.NoteDone += OnNoteDone;
             BuildTray();
-            if (!cfg.HotkeysPaused) RegisterHotkeys(true);
+            RegisterHotkeys(true);
             CheckSnippingSetting();
+            string inboxProblem = InboxFolder.Check(InboxFolder.Resolve(cfg));
+            if (inboxProblem != null)
+                Notify("Inbox-map niet bereikbaar", inboxProblem + " Kies een andere map in Instellingen.", "Instellingen", "settings", delegate { OpenSettings(); }, true);
             Log.Info("Gestart " + Program.Version + " op Windows " + Environment.OSVersion.Version);
         }
 
@@ -66,22 +79,29 @@ namespace Kapture
             tray.MouseUp += delegate(object o, MouseEventArgs e)
             {
                 if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right) return;
-                FillMenu(menu, cfg.HotkeysPaused, delegate { StartCapture(); }, delegate { OpenInbox(); }, delegate { TogglePause(); }, delegate { Quit(); });
+                FillMenu(menu, cfg, history.Last != null, delegate { StartCapture(false); }, delegate { StartCapture(true); }, delegate { NoteForLast(); },
+                    delegate { OpenInbox(); }, delegate { OpenSettings(); }, delegate { TogglePause(); }, delegate { Quit(); });
                 menu.ShowAt(Cursor.Position);
             };
             tray.Visible = true;
+            UpdateTrayText();
         }
 
-        // De regels van het tray-menu; ook gebruikt door de zelftest
-        public static void FillMenu(TrayMenu m, bool paused, Action shot, Action inbox, Action pause, Action quit)
+        // De regels van het tray-menu (Stitch-scherm 7); ook gebruikt door de zelftest
+        public static void FillMenu(TrayMenu m, Settings c, bool hasLast, Action shot, Action shotNote, Action lastNote, Action inbox, Action settings, Action pause, Action quit)
         {
+            bool keys = !c.HotkeysPaused;
             m.Clear();
-            m.Add("Nieuwe screenshot", "camera", "PrtSc", shot);
+            m.AddHeader("Kapture", "Naar Claude");
+            m.Add("Nieuwe screenshot", "camera", keys && c.HotkeyCapture ? "PrtSc" : null, shot);
+            m.Add("Screenshot met notitie", "sticky-note", keys && c.HotkeyNote ? "Shift+PrtSc" : null, shotNote);
+            m.Add("Notitie bij laatste", "pencil", keys && c.HotkeyLastNote ? "Ctrl+PrtSc" : null, hasLast ? lastNote : null);
             m.AddSeparator();
             m.Add("Inbox-map openen", "folder-open", inbox);
-            m.AddCheck("Sneltoetsen pauzeren", "pause", paused, pause);
+            m.Add("Instellingen", "settings", settings);
+            m.AddCheck("Sneltoetsen pauzeren", "pause", c.HotkeysPaused, pause);
             m.AddSeparator();
-            m.Add("Kapture afsluiten", "power", quit);
+            m.Add("Afsluiten", "power", quit);
         }
 
         static Icon TrayIcon()
@@ -96,40 +116,53 @@ namespace Kapture
         }
 
         // ---- sneltoetsen
-        bool RegisterHotkeys(bool tell)
+        public void RegisterHotkeys(bool tell)
         {
-            W.UnregisterHotKey(hot.Handle, HotkeyCapture);
-            bool ok = W.RegisterHotKey(hot.Handle, HotkeyCapture, W.MOD_NOREPEAT, W.VK_SNAPSHOT);
-            if (!ok)
+            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
+            HotkeyTaken.Clear();
+            if (!cfg.HotkeysPaused)
             {
-                Log.Info("Print Screen kon niet vastgelegd worden");
-                if (tell) Notify("Print Screen is bezet", "Een ander programma gebruikt Print Screen, bijvoorbeeld ShareX. Sluit dat en klik op Opnieuw.", "Opnieuw", "camera", delegate { RegisterHotkeys(true); }, true);
+                System.Collections.Generic.List<string> bad = new System.Collections.Generic.List<string>();
+                if (cfg.HotkeyCapture && !W.RegisterHotKey(hot.Handle, HotkeyCapture, W.MOD_NOREPEAT, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyCapture] = true; bad.Add("Print Screen"); }
+                if (cfg.HotkeyNote && !W.RegisterHotKey(hot.Handle, HotkeyNote, W.MOD_NOREPEAT | W.MOD_SHIFT, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyNote] = true; bad.Add("Shift+Print Screen"); }
+                if (cfg.HotkeyLastNote && !W.RegisterHotKey(hot.Handle, HotkeyLastNote, W.MOD_NOREPEAT | W.MOD_CONTROL, W.VK_SNAPSHOT)) { HotkeyTaken[HotkeyLastNote] = true; bad.Add("Ctrl+Print Screen"); }
+                if (bad.Count > 0)
+                {
+                    Log.Info(bad.Count + " sneltoets(en) konden niet vastgelegd worden");
+                    if (tell) Notify(string.Join(", ", bad.ToArray()) + (bad.Count == 1 ? " is bezet" : " zijn bezet"),
+                        "Een ander programma gebruikt deze toets, bijvoorbeeld ShareX. Sluit dat en klik op Opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
+                }
             }
             UpdateTrayText();
-            return ok;
         }
 
         void TogglePause()
         {
             cfg.HotkeysPaused = !cfg.HotkeysPaused;
-            if (cfg.HotkeysPaused) W.UnregisterHotKey(hot.Handle, HotkeyCapture); else RegisterHotkeys(true);
             cfg.Save();
-            UpdateTrayText();
+            RegisterHotkeys(true);
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
         }
 
         void UpdateTrayText() { tray.Text = cfg.HotkeysPaused ? "Kapture (sneltoetsen op pauze)" : "Kapture"; }
 
         // Windows 11 opent standaard het Knipprogramma met Print Screen. Eén keer melden hoe je dat uitzet.
-        void CheckSnippingSetting()
+        public static bool SnippingUsesPrintScreen()
         {
-            if (cfg.SnipHintShown) return;
             object v = null;
             try { v = Registry.GetValue(@"HKEY_CURRENT_USER\Control Panel\Keyboard", "PrintScreenKeyForSnippingEnabled", null); } catch { }
-            if (v is int && (int)v == 0) return;
+            return !(v is int && (int)v == 0);
+        }
+
+        public static void OpenSnippingSetting() { Open("ms-settings:easeofaccess-keyboard"); }
+
+        void CheckSnippingSetting()
+        {
+            if (cfg.SnipHintShown || !SnippingUsesPrintScreen()) return;
             Notify("Zet Print Screen vrij voor Kapture", "Windows opent nu het Knipprogramma met Print Screen. Zet in de instelling \"Print Screen gebruiken om het Knipprogramma te openen\" uit.",
                 "Open instelling", "settings-2", delegate
                 {
-                    Open("ms-settings:easeofaccess-keyboard");
+                    OpenSnippingSetting();
                     cfg.SnipHintShown = true;   // pas als gezien markeren als Rida de instelling echt opende
                     cfg.Save();
                 }, true);
@@ -137,17 +170,20 @@ namespace Kapture
 
         void OnHotkey(int id)
         {
-            if (id == HotkeyCapture) StartCapture();
+            if (id == HotkeyCapture) StartCapture(false);
+            else if (id == HotkeyNote) StartCapture(true);
+            else if (id == HotkeyLastNote) NoteForLast();
         }
 
         // ---- een screenshot: donker, vastleggen, kader, opslaan
-        public void StartCapture()
+        public void StartCapture(bool withNote)
         {
-            if (busy || overlay.IsActive) return;
+            if (busy || overlay.IsActive || overlay.InNoteMode) return;
             busy = true;
             try
             {
                 toast.Dismiss();
+                menu.HideMenu();
                 shotApp = Naming.ForegroundApp();
                 Rectangle v = VirtualScreen.Bounds;
                 if (dim.Excluded) dim.ShowOver(v);
@@ -161,7 +197,7 @@ namespace Kapture
                 shotOrigin = v;
                 Point cur = Cursor.Position;
                 Rectangle mon = Screen.FromPoint(cur).Bounds;
-                if (!overlay.Prepare(shot, v, Theme.Current, cur, mon))
+                if (!overlay.Prepare(shot, v, Theme.Current, cur, mon, withNote))
                 {
                     FreeShot(); dim.HideNow(); busy = false;
                     Notify("Screenshot lukte niet", "Er was niet genoeg geheugen vrij. Sluit een paar programma's en probeer het nog eens.", null, null, null, false);
@@ -182,24 +218,62 @@ namespace Kapture
         {
             try
             {
-                Watchdog.Disarm();
                 Bitmap piece = shot.Crop(r);
-                overlay.End();
-                FreeShot();
-                busy = false;
-                if (piece == null) return;
-                // de overlay is weg: nu zien we welk programma onder het midden van het kader staat
+                bool note = overlay.WithNote && piece != null;
+                if (!note)
+                {
+                    Watchdog.Disarm();
+                    overlay.End();
+                    FreeShot();
+                    busy = false;
+                }
+                if (piece == null) { if (note) SafeReset(); return; }
+                // welk programma staat onder het midden van het kader (de vensters van Kapture tellen niet mee)
                 string under = Naming.AppAt(shotOrigin.X + r.X + r.Width / 2, shotOrigin.Y + r.Y + r.Height / 2);
                 if (under != "" && under != "Verkenner") shotApp = under;
                 else if (shotApp == "Verkenner") shotApp = under;
-                string folder = InboxFolder.Resolve(cfg);
-                Saver.SaveAndCopy(piece, folder, shotApp, overlay, ShowSaved);
+                Shot entry = new Shot { Time = DateTime.Now, App = shotApp ?? "" };
+                string folder = InboxFolder.ForShot(cfg, entry.Time);
+                if (note)
+                {
+                    noteShot = entry; noteResult = null;
+                    overlay.BeginNote(r, delegate(string n) { return Naming.Base(entry.Time, entry.App, n) + ".png"; });
+                }
+                Saver.SaveAndCopy(piece, entry, folder, true, cfg.NoteStrip, cfg.NoteTextFile, overlay, OnSaved);
             }
             catch (Exception ex)
             {
                 Log.Error("Kader verwerken mislukt", ex);
                 SafeReset();
             }
+        }
+
+        void OnSaved(SaveResult r)
+        {
+            Trim();
+            if (!r.Failed) history.Add(r.Shot);
+            if (noteShot == r.Shot && overlay.InNoteMode) { noteResult = r; return; }   // de melding komt na de notitie
+            if (!r.Failed && r.Shot.PendingNote != null)
+            {
+                string n = r.Shot.PendingNote; r.Shot.PendingNote = null;
+                if (n.Length > 0) ApplyNote(r.Shot, n);
+            }
+            ShowSaved(r);
+        }
+
+        // Notitiebalk klaar: Enter (tekst), Esc (null) of weggeklikt
+        void OnNoteDone(string text)
+        {
+            Watchdog.Disarm();
+            overlay.End();
+            FreeShot();
+            busy = false;
+            Shot entry = noteShot; noteShot = null;
+            SaveResult r = noteResult; noteResult = null;
+            if (entry == null) return;
+            if (r == null) { entry.PendingNote = text ?? ""; return; }   // nog aan het opslaan: OnSaved doet de rest
+            if (!r.Failed && !string.IsNullOrEmpty(text)) ApplyNote(entry, text);
+            ShowSaved(r);
         }
 
         void OnCancelled()
@@ -217,6 +291,7 @@ namespace Kapture
             try { overlay.End(); } catch { }
             try { dim.HideNow(); } catch { }
             FreeShot();
+            noteShot = null; noteResult = null;
             busy = false;
         }
 
@@ -224,23 +299,94 @@ namespace Kapture
 
         void ShowSaved(SaveResult r)
         {
-            Trim();
             if (r.Failed)
             {
-                Notify(r.Copied ? "Gekopieerd, niet opgeslagen" : "Opslaan lukte niet", "De inbox-map was niet bereikbaar. Staat OneDrive aan?", "Map openen", "folder-open", delegate { OpenInbox(); }, true);
+                if (r.Thumb != null) r.Thumb.Dispose();
+                Notify(r.Copied ? "Gekopieerd, niet opgeslagen" : "Opslaan lukte niet", "De inbox-map was niet bereikbaar. Staat OneDrive aan? Je kunt een andere map kiezen in Instellingen.",
+                    "Instellingen", "settings", delegate { OpenSettings(); }, true);
                 return;
             }
-            lastPath = r.Path;
-            string path = r.Path;
+            ShowShotToast(r.Shot, r.Thumb, r.Copied, false);
+        }
+
+        // Melding met notitieveld voor een screenshot. edit = meteen het toetsenbord in het notitieveld (Ctrl+PrtSc).
+        void ShowShotToast(Shot entry, Bitmap thumb, bool copied, bool edit)
+        {
             ToastContent c = new ToastContent();
-            c.Thumb = r.Thumb;
-            c.Title = r.Copied ? "Opgeslagen en gekopieerd" : "Opgeslagen";
-            c.Sub = r.Copied ? "Preset: Naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.";
+            c.Thumb = thumb;
+            c.Title = entry.Note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
+            c.Sub = entry.Note.Length > 0 ? Path.GetFileName(entry.Path) : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
             c.ActionLabel = "Map openen"; c.ActionIcon = "folder-open";
-            c.OnAction = delegate { ShowInFolder(path); };
-            c.OnThumb = delegate { Open(path); };
+            c.OnAction = delegate { ShowInFolder(entry.Path); };
+            c.OnThumb = delegate { Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
+            c.NoteField = true; c.Note = entry.Note ?? ""; c.Tag = entry;
+            c.OnNote = delegate(string n) { ApplyNote(entry, n); };
             toast.ShowToast(c, Theme.Current);
+            if (edit) toast.BeginEdit();
+        }
+
+        // Ctrl+PrtSc: notitie bij de laatste screenshot
+        void NoteForLast()
+        {
+            if (overlay.IsActive || overlay.InNoteMode) return;
+            ToastContent cur = toast.Content;
+            if (cur != null && cur.NoteField) { toast.BeginEdit(); return; }
+            Shot last = history.Last;
+            if (last == null) { Notify("Nog geen screenshot", "Maak eerst een screenshot met Print Screen. Daarna kun je er met Ctrl+PrtSc een notitie bij typen.", null, null, null, false); return; }
+            Bitmap thumb = null;
+            try { using (Bitmap full = Saver.Load(last.Path)) thumb = Saver.Thumbnail(full, 160, 96); }
+            catch (Exception ex) { Log.Error("Miniatuur laden mislukt", ex); }
+            ShowShotToast(last, thumb, true, true);
+        }
+
+        // De notitie in de naam zetten (op de achtergrond, met nieuwe pogingen), daarna het klembord en de melding bijwerken
+        void ApplyNote(Shot entry, string note)
+        {
+            note = (note ?? "").Trim();
+            if (entry.Path == null) { entry.PendingNote = note; return; }
+            bool textFile = cfg.NoteTextFile;
+            System.Threading.ThreadPool.QueueUserWorkItem(delegate
+            {
+                Exception fail = null;
+                lock (noteGate)
+                {
+                    try { Notes.Apply(entry, note, textFile); }
+                    catch (Exception ex) { fail = ex; }
+                }
+                try { overlay.BeginInvoke((Action)delegate { NoteApplied(entry, note, fail); }); }
+                catch (Exception ex) { Log.Error("Terug naar de UI mislukt", ex); }
+            });
+        }
+
+        void NoteApplied(Shot entry, string note, Exception fail)
+        {
+            if (fail != null)
+            {
+                Log.Error("Hernoemen met notitie mislukt", fail);
+                Notify("Notitie niet in de naam gezet", "Het bestand was bezet (OneDrive houdt het soms even vast). Je notitie is niet kwijt.",
+                    "Opnieuw", "rotate-ccw", delegate { ApplyNote(entry, note); }, true);
+                return;
+            }
+            history.Save();
+            // klembord: alleen vervangen als daar nog onze screenshot op staat
+            if (entry.Copied && cfg.NoteStrip && W.GetClipboardSequenceNumber() == entry.ClipboardSeq)
+            {
+                try
+                {
+                    using (Bitmap img = Saver.Load(entry.Path))
+                    {
+                        bool ok;
+                        if (note.Length > 0) using (Bitmap withNote = Notes.WithStrip(img, note)) ok = Saver.Copy(withNote, null);
+                        else ok = Saver.Copy(img, null);
+                        if (ok) entry.ClipboardSeq = W.GetClipboardSequenceNumber();
+                    }
+                }
+                catch (Exception ex) { Log.Error("Klembord bijwerken mislukt", ex); }
+            }
+            ToastContent cur = toast.Content;
+            if (cur != null && cur.Tag == entry)
+                toast.UpdateText(note.Length > 0 ? "Notitie bewaard" : "Notitie weggehaald", Path.GetFileName(entry.Path));
         }
 
         void Notify(string title, string sub, string action, string icon, Action onAction, bool stay)
@@ -263,8 +409,29 @@ namespace Kapture
             catch { }
         }
 
+        // ---- instellingen
+        void OpenSettings()
+        {
+            try
+            {
+                if (settingsForm == null || settingsForm.IsDisposed)
+                    settingsForm = new SettingsForm(cfg, this);
+                settingsForm.ShowAndFocus();
+            }
+            catch (Exception ex) { Log.Error("Instellingen openen mislukt", ex); }
+        }
+
+        // Komt uit Instellingen na elke wijziging (al bewaard)
+        public void SettingsChanged()
+        {
+            Theme.Mode = cfg.ThemeMode;
+            RegisterHotkeys(false);
+        }
+
+        public bool InboxUsable(out string problem) { problem = InboxFolder.Check(InboxFolder.Resolve(cfg)); return problem == null; }
+
         // ---- mappen openen
-        void OpenInbox()
+        public void OpenInbox()
         {
             try
             {
@@ -277,11 +444,15 @@ namespace Kapture
 
         static void ShowInFolder(string path)
         {
-            try { Process.Start("explorer.exe", "/select,\"" + path + "\""); }
+            try
+            {
+                if (path != null && File.Exists(path)) Process.Start("explorer.exe", "/select,\"" + path + "\"");
+                else if (path != null) Process.Start("explorer.exe", "\"" + Path.GetDirectoryName(path) + "\"");
+            }
             catch (Exception ex) { Log.Error("Map openen mislukt", ex); }
         }
 
-        static void Open(string target)
+        public static void Open(string target)
         {
             try { Process.Start(new ProcessStartInfo(target) { UseShellExecute = true }); }
             catch (Exception ex) { Log.Error("Openen mislukt", ex); }
@@ -289,10 +460,12 @@ namespace Kapture
 
         void Quit()
         {
-            W.UnregisterHotKey(hot.Handle, HotkeyCapture);
+            foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
+            if (toast.IsEditing) toast.Dismiss();
             tray.Visible = false;
             tray.Dispose();
             SafeReset();
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.Close();
             ExitThread();
         }
 

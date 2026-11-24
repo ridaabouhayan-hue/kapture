@@ -15,8 +15,8 @@ namespace Kapture
     {
         public class Entry
         {
-            public string Text, Icon, Hint;
-            public bool Check, Sep;
+            public string Text, Icon, Hint, Chip;
+            public bool Check, Sep, Header;
             public Action Click;
         }
 
@@ -29,6 +29,7 @@ namespace Kapture
         public const float Gap = 12;         // tussen icoon en tekst
         public const float HintGap = 32;     // minimaal tussen tekst en sneltoets
         public const float SepH = 9;         // hoogte van een scheidingslijn
+        public const float HeaderH = 40;     // kop met logo, "Kapture" en de actieve preset
         public const float MinW = 220;       // minimale breedte van het menu
         public const float Radius = 8;       // hoeken van het menu
         public const float FontPx = 12;
@@ -63,6 +64,8 @@ namespace Kapture
         public void Add(string text, string icon, string hint, Action click) { Add(text, icon, click); entries[entries.Count - 1].Hint = hint; }
         public void AddCheck(string text, string icon, bool on, Action click) { Add(text, icon, click); entries[entries.Count - 1].Check = on; }
         public void AddSeparator() { Entry e = new Entry(); e.Sep = true; entries.Add(e); }
+        // Kop bovenaan (Stitch-scherm 7): logo, naam en rechts de actieve preset; daaronder een lijn
+        public void AddHeader(string text, string chip) { Entry e = new Entry(); e.Header = true; e.Text = text; e.Chip = chip; entries.Add(e); AddSeparator(); }
 
         float P(float v) { return (float)Math.Round(v * s); }
 
@@ -76,8 +79,15 @@ namespace Kapture
                 foreach (Entry e in entries)
                 {
                     if (e.Sep) continue;
+                    if (e.Header)
+                    {
+                        float hw = mg.MeasureString(e.Text, Fonts.Ui(13 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
+                        if (e.Chip != null) hw += P(HintGap) + mg.MeasureString(e.Chip, Fonts.Ui(11 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width + P(16);
+                        textW = Math.Max(textW, hw);
+                        continue;
+                    }
                     textW = Math.Max(textW, mg.MeasureString(e.Text, Fonts.Ui(FontPx * s, 0), PointF.Empty, StringFormat.GenericTypographic).Width);
-                    if (e.Hint != null) hintW = Math.Max(hintW, mg.MeasureString(e.Hint, Fonts.Ui(FontPx * s, 0), PointF.Empty, StringFormat.GenericTypographic).Width);
+                    if (e.Hint != null) hintW = Math.Max(hintW, mg.MeasureString(e.Hint, Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width + P(14));
                 }
             }
             float m = P(ShadowM), pad = P(Pad);
@@ -87,7 +97,7 @@ namespace Kapture
             float y = pad;
             foreach (Entry e in entries)
             {
-                float h = e.Sep ? P(SepH) : P(RowH);
+                float h = e.Sep ? P(SepH) : (e.Header ? P(HeaderH) : P(RowH));
                 rows.Add(new RectangleF(m + pad, m + y, w - 2 * pad, h));
                 y += h;
             }
@@ -136,26 +146,58 @@ namespace Kapture
                         using (Pen p = new Pen(t.OutlineVariant, Math.Max(1, P(1)))) g.DrawLine(p, card.X + P(Pad), ly, card.Right - P(Pad), ly);
                         continue;
                     }
-                    bool h = i == hot;
+                    if (e.Header) { DrawHeader(g, e, r); continue; }
+                    bool off = e.Click == null;
+                    bool h = i == hot && !off;
                     if (h)
                         using (GraphicsPath hp = Svg.RoundRect(r, P(6)))
                         using (SolidBrush hb = new SolidBrush(t.PrimaryContainer)) g.FillPath(hb, hp);
                     // icoon (op hele pixels), bij een aangevinkte regel een blauw vinkje
                     RectangleF ir = new RectangleF(r.X + P(Inset), (float)Math.Round(r.Y + (r.Height - P(IconS)) / 2), P(IconS), P(IconS));
+                    Color iconC = off ? Color.FromArgb(110, t.Variant) : (h ? t.OnPrimaryContainer : t.Variant);
                     if (e.Check) Icons.Draw(g, "check", ir, IconS * s, h ? t.OnPrimaryContainer : t.Primary, 2.5f);
-                    else if (e.Icon != null) Icons.Draw(g, e.Icon, ir, IconS * s, h ? t.OnPrimaryContainer : t.Variant, 2);
+                    else if (e.Icon != null) Icons.Draw(g, e.Icon, ir, IconS * s, iconC, 2);
                     float tx = ir.Right + P(Gap);
-                    using (SolidBrush fg = new SolidBrush(h ? t.OnPrimaryContainer : t.OnSurface))
+                    using (SolidBrush fg = new SolidBrush(off ? Color.FromArgb(120, t.OnSurface) : (h ? t.OnPrimaryContainer : t.OnSurface)))
                         g.DrawString(e.Text, f, fg, new RectangleF(tx, r.Y, r.Right - tx - P(Inset), r.Height), sf);
                     if (e.Hint != null)
                     {
-                        StringFormat hf = new StringFormat(sf); hf.Alignment = StringAlignment.Far;
-                        using (SolidBrush fg = new SolidBrush(h ? t.OnPrimaryContainer : t.Outline))
-                            g.DrawString(e.Hint, f, fg, new RectangleF(tx, r.Y, r.Right - P(Inset) - tx, r.Height), hf);
+                        // sneltoets als een toetsje, rechts uitgelijnd
+                        Font kf = Fonts.Mono(11 * s);
+                        float kw = g.MeasureString(e.Hint, kf, PointF.Empty, StringFormat.GenericTypographic).Width + P(14);
+                        RectangleF key = new RectangleF(r.Right - P(Inset) - kw, (float)Math.Round(r.Y + (r.Height - P(22)) / 2), kw, P(22));
+                        using (GraphicsPath kp = Svg.RoundRect(key, P(5)))
+                        using (SolidBrush kb = new SolidBrush(t.Surface))
+                        using (Pen kpn = new Pen(t.OutlineVariant, Math.Max(1, P(1)))) { g.FillPath(kb, kp); g.DrawPath(kpn, kp); }
+                        StringFormat kc = new StringFormat(sf); kc.Alignment = StringAlignment.Center;
+                        using (SolidBrush fg = new SolidBrush(off ? Color.FromArgb(120, t.Variant) : t.Variant)) g.DrawString(e.Hint, kf, fg, key, kc);
                     }
                 }
             }
             return b;
+        }
+
+        void DrawHeader(Graphics g, Entry e, RectangleF r)
+        {
+            RectangleF logo = new RectangleF(r.X + P(Inset) - P(2), (float)Math.Round(r.Y + (r.Height - P(20)) / 2), P(20), P(20));
+            using (Bitmap lb = Logo.Bitmap((int)logo.Width))
+            {
+                g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+                g.DrawImage(lb, logo);
+            }
+            StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
+            sf.FormatFlags |= StringFormatFlags.NoWrap; sf.LineAlignment = StringAlignment.Center;
+            float tx = r.X + P(Inset) + P(IconS) + P(Gap);
+            using (SolidBrush fg = new SolidBrush(t.OnSurface)) g.DrawString(e.Text, Fonts.Ui(13 * s, 1), fg, new RectangleF(tx, r.Y, r.Width, r.Height), sf);
+            if (e.Chip != null)
+            {
+                Font cf = Fonts.Ui(11 * s, 1);
+                float cw = g.MeasureString(e.Chip, cf, PointF.Empty, StringFormat.GenericTypographic).Width + P(16);
+                RectangleF chip = new RectangleF(r.Right - P(Inset) + P(4) - cw, (float)Math.Round(r.Y + (r.Height - P(22)) / 2), cw, P(22));
+                using (GraphicsPath cp = Svg.RoundRect(chip, P(11))) using (SolidBrush cb = new SolidBrush(t.PrimaryContainer)) g.FillPath(cb, cp);
+                StringFormat cc = new StringFormat(sf); cc.Alignment = StringAlignment.Center;
+                using (SolidBrush fg = new SolidBrush(t.OnPrimaryContainer)) g.DrawString(e.Chip, cf, fg, chip, cc);
+            }
         }
 
         void Render()
@@ -207,7 +249,7 @@ namespace Kapture
 
         int HitTest(Point p)
         {
-            for (int i = 0; i < rows.Count; i++) if (!entries[i].Sep && rows[i].Contains(p)) return i;
+            for (int i = 0; i < rows.Count; i++) if (!entries[i].Sep && !entries[i].Header && rows[i].Contains(p)) return i;
             return -1;
         }
 
@@ -229,8 +271,8 @@ namespace Kapture
         void Choose(int i)
         {
             Action a = entries[i].Click;
+            if (a == null) return;   // grijze regel: niets doen, menu blijft open
             HideMenu();
-            if (a == null) return;
             // na het verbergen, zodat een screenshot het menu niet meer ziet
             BeginInvoke((MethodInvoker)delegate
             {
@@ -247,7 +289,7 @@ namespace Kapture
                 for (int k = 0; k < n; k++)
                 {
                     i = key == Keys.Down ? (i + 1) % n : (i - 1 + n) % n;
-                    if (!entries[i].Sep) break;
+                    if (!entries[i].Sep && !entries[i].Header && entries[i].Click != null) break;
                 }
                 hot = i; Render(); return true;
             }

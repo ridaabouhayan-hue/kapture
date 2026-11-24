@@ -1,16 +1,25 @@
-# Kapture 0.1.1
+# Kapture 0.2.0
 
-Nieuw in 0.1.1: het menu bij de klok is nu helemaal zelf getekend, met overal dezelfde ruimte rondom. De scheidingslijnen lopen over de hele breedte, links en rechts evenveel ruimte, en het menu opent nu met links- en rechtsklikken.
+Nieuw in 0.2: notities, instellingen en een eigen map per maand als je wilt.
 
-## Wat er in Kapture zit
+## Notities
+- **In de melding** staat nu een notitieveld. Klik erop (of druk Ctrl+PrtSc) en typ waarom je de screenshot maakte. Enter bewaart, Shift+Enter is een nieuwe regel, Esc sluit.
+- **Shift+PrtSc**: screenshot met notitie. Na het loslaten blijft het kader staan met een notitiebalk eronder. Je ziet meteen welke bestandsnaam er ontstaat. Esc = bewaren zonder notitie.
+- **In de werkbalk** zit een knop Met notitie, voor als je toch een notitie wilt.
+- **Ctrl+PrtSc**: notitie bij de laatste screenshot, ook als de melding al weg is.
+- De notitie komt in de **bestandsnaam**, bijvoorbeeld `2026-11-24 0012 Chrome - Opslaan-knop werkt niet.png`. Is hij te lang of heeft hij meerdere regels, dan staat de hele tekst in een `.txt` ernaast.
+- Op het **klembord** staat de notitie als strook onder de afbeelding, zodat Claude foto en reden ziet. Het bestand zelf blijft schoon.
 
-- **Print Screen**: het scherm wordt meteen donker, bovenaan staat de werkbalk. Trek een kader met de muis.
-- **Loslaten** = klaar: de screenshot staat in je inbox (OneDrive, Pictures, Screenshots) en op het klembord.
-- **Hele scherm**: klik op Hele scherm in de werkbalk.
-- **Melding rechtsonder** met een miniatuur en Map openen. Klik op de miniatuur om de screenshot te openen.
-- **Bij de klok**: Nieuwe screenshot, Inbox-map openen, Sneltoetsen pauzeren, Kapture afsluiten.
-- **Esc** of rechtsklik annuleert.
+## Instellingen
+Open ze via het menu bij de klok, of start Kapture nog een keer. Met een zoekbalk bovenaan.
+- **Algemeen**: thema (Systeem, Licht, Donker), starten met Windows, hoe lang de melding blijft staan.
+- **Sneltoetsen**: elke sneltoets los aan of uit, alles pauzeren, en of Print Screen nog bij het Knipprogramma hoort.
+- **Opslaan en mappen**: de inbox-map kiezen of openen, terug naar de standaardmap, en elke maand een eigen map (`Screenshots\2026-11`).
+- **Notities**: de notitiestrook op het klembord en het tekstbestand aan of uit.
 
-Nog niet in deze versie: notities, Laatste screenshots, Vrij en Venster, presets kiezen, de editor, instellingen.
+## Menu bij de klok
+Nu zoals in het ontwerp: bovenaan Kapture met de preset, en Screenshot met notitie, Notitie bij laatste en Instellingen erbij.
 
-Eerste keer installeren: Windows waarschuwt omdat Kapture geen betaalde handtekening heeft. Klik op Meer info en dan Toch uitvoeren.
+Nog niet in deze versie: Laatste screenshots, Vrij en Venster, presets kiezen, de editor, talen.
+
+Eerste keer installeren: Windows waarschuwt omdat Kapture geen betaalde handtekening heeft. Klik op Meer info en dan Toch uitvoeren. Bijwerken: installeer de nieuwe Kapture-Setup over de oude heen; je instellingen blijven staan.

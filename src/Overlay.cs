@@ -29,6 +29,7 @@ namespace Kapture
             Items.Add(new Item { Key = "scherm", Icon = "monitor", Label = "Hele scherm", Kind = Kind.Mode });
             Items.Add(new Item { Key = "", Kind = Kind.Separator });
             Items.Add(new Item { Key = "preset", Icon = "sparkles", Label = "Naar Claude", Kind = Kind.Chip, Enabled = false });
+            Items.Add(new Item { Key = "notitie", Icon = "sticky-note", Label = "Met notitie", Kind = Kind.Icon });
             Items.Add(new Item { Key = "sluiten", Icon = "x", Label = "Sluiten", Kind = Kind.Icon });
         }
 
@@ -58,6 +59,8 @@ namespace Kapture
             Rect = new Rectangle(monitor.X + (monitor.Width - x) / 2, monitor.Y + P(24), x, h + 2 * pad);
             foreach (Item it in Items) it.Rect.Offset(Rect.X, Rect.Y);
         }
+
+        public Item Find(string key) { foreach (Item it in Items) if (it.Key == key) return it; return null; }
 
         public Item HitTest(Point p)
         {
@@ -95,7 +98,8 @@ namespace Kapture
                     continue;
                 }
                 Color bg = Color.Empty, fg = t.Variant;
-                if (it.Active) { bg = t.Primary; fg = t.OnPrimary; }
+                if (it.Active && it.Kind == Kind.Icon) { bg = t.PrimaryContainer; fg = t.Primary; }
+                else if (it.Active) { bg = t.Primary; fg = t.OnPrimary; }
                 else if (it.Kind == Kind.Chip) { bg = t.PrimaryContainer; fg = t.OnPrimaryContainer; }
                 else if (it == hover && it.Enabled) { bg = t.Dark ? t.Container : t.Container; fg = t.OnSurface; }
                 if (!it.Enabled && it.Kind != Kind.Chip) fg = Color.FromArgb(110, t.Variant);
@@ -130,8 +134,19 @@ namespace Kapture
         readonly Toolbar bar = new Toolbar();
         Toolbar.Item hover;
 
+        // Met notitie (Shift+PrtSc of de knop in de werkbalk): na loslaten blijft het kader staan met de notitiebalk eronder
+        bool withNote, noteMode;
+        readonly TextField note = new TextField();
+        Rectangle noteBar, noteName;
+        Func<string, string> preview;
+        readonly Timer blink = new Timer { Interval = 265 };
+
         public event Action<Rectangle> Selected;   // in de coordinaten van het beeld
         public event Action Cancelled;
+        public event Action<string> NoteDone;      // de notitie; null = Esc (bewaren zonder notitie)
+
+        public bool WithNote { get { return withNote; } }
+        public bool InNoteMode { get { return noteMode; } }
 
         protected override CreateParams CreateParams
         {
@@ -146,6 +161,8 @@ namespace Kapture
             DoubleBuffered = false;
             Cursor = Cursors.Cross;
             IntPtr h = Handle;
+            note.Changed += delegate { if (noteMode) RelayoutNote(); };
+            blink.Tick += delegate { if (noteMode) Invalidate(noteBar); };
         }
 
         public float TestScale;   // alleen voor de zelftest
@@ -156,9 +173,13 @@ namespace Kapture
         int P(float v) { return (int)Math.Round(v * s); }
 
         // Voorbereiden: donker beeld maken en de werkbalk plaatsen. 'cursor' en 'origin' in schermcoordinaten.
-        public bool Prepare(Dib capture, Rectangle origin, Theme t, Point cursor, Rectangle monitorScreen)
+        public bool Prepare(Dib capture, Rectangle origin, Theme t, Point cursor, Rectangle monitorScreen) { return Prepare(capture, origin, t, cursor, monitorScreen, false); }
+
+        public bool Prepare(Dib capture, Rectangle origin, Theme t, Point cursor, Rectangle monitorScreen, bool note)
         {
             bright = capture; theme = t;
+            withNote = note; noteMode = false; noteBar = noteName = Rectangle.Empty;
+            bar.Find("notitie").Active = note;
             dimmed = Dib.Create(capture.Width, capture.Height);
             work = Dib.Create(capture.Width, capture.Height);
             if (dimmed == null || work == null) { Release(); return false; }
@@ -185,7 +206,7 @@ namespace Kapture
 
         public void End()
         {
-            active = false; dragging = false;
+            active = false; dragging = false; noteMode = false; blink.Stop();
             W.ShowWindow(Handle, W.SW_HIDE);
             Release();
         }
@@ -214,6 +235,7 @@ namespace Kapture
                 if (sel.Width > 0 && sel.Height > 0) DrawFrame(g);
                 else DrawHint(g);
                 if (clip.IntersectsWith(bar.Bounds)) bar.Draw(g, theme, hover);
+                if (noteMode) DrawNoteBar(g);
             }
         }
 
@@ -324,6 +346,7 @@ namespace Kapture
         // ---- muis en toetsen
         protected override void OnMouseDown(MouseEventArgs e)
         {
+            if (noteMode) { if (e.Button == MouseButtons.Right) FinishNote(false); return; }
             if (!active) return;
             if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; SetSelection(Rectangle.Empty); } else Cancel(); return; }
             if (e.Button != MouseButtons.Left) return;
@@ -363,14 +386,28 @@ namespace Kapture
         void OnToolbarClick(Toolbar.Item it)
         {
             if (!it.Enabled) return;
+            if (it.Key == "notitie") { withNote = !withNote; it.Active = withNote; Invalidate(bar.Bounds); return; }
             if (it.Key == "sluiten") Cancel();
             else if (it.Key == "scherm") Finish(monitor);
         }
 
         protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
         {
+            if (noteMode)
+            {
+                if (keyData == Keys.Escape) { FinishNote(false); return true; }
+                if (keyData == Keys.Enter) { FinishNote(true); return true; }
+                if (keyData == (Keys.Enter | Keys.Shift)) { note.NewLine(); return true; }
+                if (note.OnKey(keyData)) { Invalidate(noteBar); return true; }
+                return base.ProcessCmdKey(ref msg, keyData);
+            }
             if (active && keyData == Keys.Escape) { Cancel(); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
+        }
+
+        protected override void OnKeyPress(KeyPressEventArgs e)
+        {
+            if (noteMode && note.OnChar(e.KeyChar)) { e.Handled = true; Invalidate(noteBar); }
         }
 
         protected override void OnActivated(EventArgs e) { base.OnActivated(e); if (active) wasActivated = true; }
@@ -379,6 +416,7 @@ namespace Kapture
         protected override void OnDeactivate(EventArgs e)
         {
             base.OnDeactivate(e);
+            if (noteMode) { FinishNote(true); return; }   // weggeklikt: de notitie tot nu toe bewaren
             if (active && wasActivated && !dragging) Cancel();
         }
 
@@ -396,6 +434,129 @@ namespace Kapture
             active = false;
             Action h = Cancelled;
             if (h != null) h();
+        }
+
+        // ---- de notitiebalk onder het kader (Stitch-scherm 2)
+        // 'namePreview' geeft bij een notitie de bestandsnaam die ontstaat, zodat je ziet wat Claude straks ziet.
+        public void BeginNote(Rectangle r, Func<string, string> namePreview)
+        {
+            sel = r; preview = namePreview;
+            note.Set(""); note.AllowNewLine = true;
+            noteMode = true;
+            RelayoutNote();
+            blink.Start();
+            W.SetForegroundWindow(Handle); Activate(); Focus();
+        }
+
+        Font NoteFont { get { return Fonts.Ui(14 * s, 0); } }
+
+        void RelayoutNote()
+        {
+            Rectangle old = Rectangle.Union(noteBar, noteName);
+            int lineH = (int)Math.Ceiling(TextField.LineHeight(NoteFont));
+            int w = Math.Max(sel.Width, P(560));
+            w = Math.Min(w, monitor.Width - P(32));
+            int innerW = w - P(16) - P(18) - P(12) - ChipsWidth() - P(16);
+            int lines = Math.Min(4, note.Lines(NoteFont, innerW));
+            int h = Math.Max(P(48), P(14) * 2 + lines * lineH);
+            int x = Math.Max(monitor.X + P(16), Math.Min(sel.X, monitor.Right - P(16) - w));
+            int y = sel.Bottom + P(12);
+            int nameH = P(26);
+            if (y + h + P(8) + nameH > monitor.Bottom - P(8)) y = sel.Y - P(12) - h - P(8) - nameH;   // past niet onder het kader: erboven
+            if (y < monitor.Y + P(8)) y = monitor.Bottom - P(16) - h - P(8) - nameH;                  // past ook niet erboven: onderin het scherm
+            noteBar = new Rectangle(x, y, w, h);
+            noteName = new Rectangle(x, y + h + P(8), w, nameH);
+            Rectangle dirty = Rectangle.Union(old.IsEmpty ? noteBar : old, Rectangle.Union(noteBar, noteName));
+            dirty.Inflate(P(16), P(16));
+            Invalidate(dirty);
+        }
+
+        int ChipsWidth()
+        {
+            using (Bitmap b = new Bitmap(1, 1)) using (Graphics g = Graphics.FromImage(b))
+            {
+                float a = g.MeasureString("Al opgeslagen en gekopieerd", Fonts.Ui(12 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
+                float k = g.MeasureString("Enter", Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width;
+                return (int)Math.Ceiling(P(10) + P(14) + P(6) + a + P(10) + P(8) + k + P(14));
+            }
+        }
+
+        void DrawNoteBar(Graphics g)
+        {
+            Theme t = theme;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            g.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            for (int i = 3; i >= 1; i--)
+            {
+                Rectangle sh = noteBar; sh.Inflate(P(2 * i), P(2 * i)); sh.Offset(0, P(4 + 2 * i));
+                using (GraphicsPath gp = Svg.RoundRect(sh, P(12 + 2 * i)))
+                using (SolidBrush b = new SolidBrush(Color.FromArgb(t.Dark ? 34 : 18, 0, 0, 0))) g.FillPath(b, gp);
+            }
+            using (GraphicsPath gp = Svg.RoundRect(new RectangleF(noteBar.X + 0.5f, noteBar.Y + 0.5f, noteBar.Width - 1, noteBar.Height - 1), P(12)))
+            using (SolidBrush b = new SolidBrush(t.SurfaceLow))
+            using (Pen p = new Pen(t.OutlineVariant, Math.Max(1, P(1))))
+            { g.FillPath(b, gp); g.DrawPath(p, gp); }
+
+            int lineH = (int)Math.Ceiling(TextField.LineHeight(NoteFont));
+            int top = noteBar.Y + (noteBar.Height > P(48) ? P(14) : (noteBar.Height - lineH) / 2);
+            Icons.Draw(g, "file", new RectangleF(noteBar.X + P(16), top + (lineH - P(18)) / 2f, P(18), P(18)), 18 * s, t.Primary, 2);
+
+            // rechts: "Al opgeslagen en gekopieerd" en het toetsje Enter
+            Font chipF = Fonts.Ui(12 * s, 1), keyF = Fonts.Mono(11 * s);
+            float aw = g.MeasureString("Al opgeslagen en gekopieerd", chipF, PointF.Empty, StringFormat.GenericTypographic).Width;
+            float kw = g.MeasureString("Enter", keyF, PointF.Empty, StringFormat.GenericTypographic).Width;
+            Rectangle key = new Rectangle(noteBar.Right - P(14) - (int)Math.Ceiling(kw + P(16)), top + (lineH - P(24)) / 2, (int)Math.Ceiling(kw + P(16)), P(24));
+            Rectangle chip = new Rectangle(key.X - P(8) - (int)Math.Ceiling(P(10) + P(14) + P(6) + aw + P(10)), key.Y, (int)Math.Ceiling(P(10) + P(14) + P(6) + aw + P(10)), P(24));
+            using (GraphicsPath cp = Svg.RoundRect(chip, P(12))) using (SolidBrush cb = new SolidBrush(t.PrimaryContainer)) g.FillPath(cb, cp);
+            Icons.Draw(g, "check", new RectangleF(chip.X + P(10), chip.Y, P(14), chip.Height), 14 * s, t.Primary, 2.5f);
+            StringFormat mid = new StringFormat(StringFormat.GenericTypographic); mid.LineAlignment = StringAlignment.Center; mid.FormatFlags |= StringFormatFlags.NoWrap;
+            using (SolidBrush cf = new SolidBrush(t.OnPrimaryContainer)) g.DrawString("Al opgeslagen en gekopieerd", chipF, cf, new RectangleF(chip.X + P(30), chip.Y, aw + P(4), chip.Height), mid);
+            using (GraphicsPath kp = Svg.RoundRect(key, P(6)))
+            using (SolidBrush kb = new SolidBrush(t.Surface))
+            using (Pen kpn = new Pen(t.OutlineVariant, Math.Max(1, P(1)))) { g.FillPath(kb, kp); g.DrawPath(kpn, kp); }
+            StringFormat center = new StringFormat(mid); center.Alignment = StringAlignment.Center;
+            using (SolidBrush kf = new SolidBrush(t.Variant)) g.DrawString("Enter", keyF, kf, key, center);
+
+            float tx = noteBar.X + P(16) + P(18) + P(12);
+            RectangleF tr = new RectangleF(tx, top, chip.X - P(16) - tx, noteBar.Bottom - top - P(8));
+            GraphicsState st = g.Save();
+            g.SetClip(new RectangleF(tr.X - 2, noteBar.Y + 2, tr.Width + 4, noteBar.Height - 4));
+            note.Draw(g, tr, NoteFont, t.OnSurface, t.Outline, "Waarom maak je deze screenshot?", true, t.Primary, t.PrimaryContainer);
+            g.Restore(st);
+
+            // eronder: de bestandsnaam die ontstaat, en "Esc zonder notitie"
+            string name = preview != null ? preview(note.Text) : "";
+            Font nf = Fonts.Mono(11 * s), uf = Fonts.Ui(12 * s, 0);
+            string esc = "Esc  zonder notitie";
+            float ew = g.MeasureString(esc, uf, PointF.Empty, StringFormat.GenericTypographic).Width;
+            float nw = Math.Min(g.MeasureString(name, nf, PointF.Empty, StringFormat.GenericTypographic).Width, noteName.Width - ew - P(64));
+            Rectangle pill = new Rectangle(noteName.X, noteName.Y, (int)Math.Ceiling(P(10) + P(14) + P(6) + nw + P(16) + ew + P(12)), noteName.Height);
+            using (GraphicsPath pp = Svg.RoundRect(pill, P(8))) using (SolidBrush pb = new SolidBrush(Color.FromArgb(230, t.Inverse))) g.FillPath(pb, pp);
+            Icons.Draw(g, "image", new RectangleF(pill.X + P(10), pill.Y, P(14), pill.Height), 14 * s, t.OnInverse, 2);
+            StringFormat trim = new StringFormat(mid); trim.Trimming = StringTrimming.EllipsisCharacter;
+            using (SolidBrush nb = new SolidBrush(t.OnInverse))
+            {
+                g.DrawString(name, nf, nb, new RectangleF(pill.X + P(30), pill.Y, nw + 2, pill.Height), trim);
+                using (SolidBrush eb = new SolidBrush(Color.FromArgb(190, t.OnInverse)))
+                    g.DrawString(esc, uf, eb, new RectangleF(pill.Right - P(12) - ew, pill.Y, ew + 2, pill.Height), mid);
+            }
+        }
+
+        void FinishNote(bool save)
+        {
+            if (!noteMode) return;
+            noteMode = false; blink.Stop();
+            string text = save ? note.Text.Trim() : null;
+            Action<string> h = NoteDone;
+            if (h != null) h(text);
+        }
+
+        // Voor de zelftest: de notitiebalk tonen met een getypte notitie, zonder venster op het scherm
+        public void SetNoteForTest(Rectangle r, string typed, Func<string, string> namePreview)
+        {
+            sel = r; preview = namePreview; noteMode = true;
+            note.Set(typed);
+            RelayoutNote();
         }
 
         // Voor de zelftest: een kader zetten zonder muis

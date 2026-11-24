@@ -18,10 +18,17 @@ namespace Kapture
         public Action OnThumb;
         public int Seconds = 6;
         public bool Stay;               // blijft staan tot je hem wegklikt (voor een probleem)
+
+        // Notitieveld (Stitch-scherm 3): alleen bij een screenshot
+        public bool NoteField;
+        public string Note = "";
+        public Action<string> OnNote;   // komt na Enter of als je wegklikt met een gewijzigde notitie
+        public object Tag;              // de screenshot (Shot) waar deze melding bij hoort
     }
 
     // ------------------------------------------------------------------ De melding rechtsonder (Stitch-scherm 3)
-    // Pakt het toetsenbord niet af en blijft staan zolang de muis erboven hangt.
+    // Pakt het toetsenbord niet af en blijft staan zolang de muis erboven hangt. Pas na een klik op het
+    // notitieveld (of Ctrl+PrtSc) krijgt hij het toetsenbord, zodat je niet per ongeluk in de melding typt.
     class Toast : Form
     {
         ToastContent c;
@@ -29,12 +36,16 @@ namespace Kapture
         float s = 1;
         int margin;                     // ruimte voor de schaduw
         int bodyH;                      // hoogte van miniatuur plus tekst
-        Rectangle card, thumbR, closeR, actionR, dismissR;
+        Rectangle card, thumbR, closeR, actionR, dismissR, noteR, helpR;
+        Rectangle workArea;
         string hot;                     // knop onder de muis
         readonly Timer tick = new Timer();
         DateTime shownAt; double elapsedMs, totalMs;
-        bool hovering, closing;
+        bool hovering, closing, editing;
         byte alpha;
+        readonly TextField field = new TextField();
+
+        public const int NoteMaxLines = 4;
 
         protected override CreateParams CreateParams
         {
@@ -51,20 +62,26 @@ namespace Kapture
         public Toast()
         {
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual;
-            AutoScaleMode = AutoScaleMode.None;
+            AutoScaleMode = AutoScaleMode.None; KeyPreview = true;
             tick.Interval = 33;
             tick.Tick += delegate { OnTick(); };
+            field.Changed += delegate { if (c != null) { Arrange(workArea); Render(); } };
         }
+
+        public ToastContent Content { get { return Visible && !closing ? c : null; } }
+        public bool IsEditing { get { return editing; } }
 
         int P(float v) { return (int)Math.Round(v * s); }
 
         public void ShowToast(ToastContent content, Theme theme)
         {
+            if (editing) EndEdit(true);
             if (c != null && c.Thumb != null && c.Thumb != content.Thumb) c.Thumb.Dispose();
             c = content; t = theme;
-            Rectangle wa = Screen.PrimaryScreen.WorkingArea;
-            s = W.ScaleAt(wa.Right - 10, wa.Bottom - 10);
-            Arrange(wa);
+            field.Set(c.Note);
+            workArea = Screen.PrimaryScreen.WorkingArea;
+            s = W.ScaleAt(workArea.Right - 10, workArea.Bottom - 10);
+            Arrange(workArea);
             totalMs = Math.Max(2, c.Seconds) * 1000.0; elapsedMs = 0; shownAt = DateTime.Now;
             hovering = false; closing = false; hot = null;
             alpha = 0;
@@ -73,6 +90,16 @@ namespace Kapture
             W.SetWindowPos(Handle, W.HWND_TOPMOST, 0, 0, 0, 0, W.SWP_NOMOVE | W.SWP_NOSIZE | W.SWP_NOACTIVATE);
             tick.Start();
         }
+
+        // Nieuwe tekst bovenin (bijvoorbeeld na het hernoemen), zonder de melding opnieuw te starten
+        public void UpdateText(string title, string sub)
+        {
+            if (c == null) return;
+            c.Title = title; c.Sub = sub;
+            Arrange(workArea); Render();
+        }
+
+        Font NoteFont { get { return Fonts.Ui(12 * s, 0); } }
 
         void Arrange(Rectangle wa)
         {
@@ -84,13 +111,28 @@ namespace Kapture
             using (Bitmap mb = new Bitmap(1, 1)) using (Graphics mg = Graphics.FromImage(mb))
                 subH = (int)Math.Ceiling(mg.MeasureString(c.Sub ?? "", Fonts.Ui(12 * s, 0), textW, Wrap()).Height);
             bodyH = Math.Max(P(48), P(2) + P(21) + subH + P(2));
-            int h = pad + bodyH + P(12) + P(28) + pad + (c.Stay ? 0 : P(4));
+            int y = pad + bodyH + P(12);
+            noteR = helpR = Rectangle.Empty;
+            if (c.NoteField)
+            {
+                int lineH = (int)Math.Ceiling(TextField.LineHeight(NoteFont));
+                int lines = Math.Min(NoteMaxLines, field.Lines(NoteFont, NoteTextWidth(w - 2 * pad)));
+                int fh = Math.Max(P(34), P(9) * 2 + lines * lineH);
+                noteR = new Rectangle(pad, y, w - 2 * pad, fh);
+                y += fh;
+                if (editing) { helpR = new Rectangle(pad + P(2), y + P(6), w - 2 * pad, P(16)); y += P(6) + P(16); }
+                y += P(10);
+            }
+            int ay = y;
+            int h = ay + P(28) + pad + (c.Stay ? 0 : P(4));
             card = new Rectangle(margin, margin, w, h);
             Size = new Size(w + 2 * margin, h + 2 * margin);
             Location = new Point(wa.Right - Width - P(20) + margin, wa.Bottom - Height - P(16) + margin);
+            if (!noteR.IsEmpty) noteR.Offset(card.X, card.Y);
+            if (!helpR.IsEmpty) helpR.Offset(card.X, card.Y);
             thumbR = new Rectangle(card.X + pad, card.Y + pad, P(80), P(48));
             closeR = new Rectangle(card.Right - pad - P(32) + P(6), card.Y + pad - P(6), P(32), P(32));
-            int ay = card.Y + pad + bodyH + P(12);
+            ay += card.Y;
             actionR = Rectangle.Empty;
             if (c.ActionLabel != null)
             {
@@ -99,6 +141,17 @@ namespace Kapture
             }
             SizeF ds = Measure("Sluiten");
             dismissR = new Rectangle(card.Right - pad - ((int)ds.Width + P(16)), ay, (int)ds.Width + P(16), P(28));
+        }
+
+        // Breedte voor de tekst in het notitieveld: na het icoon, voor de sneltoets rechts
+        float NoteTextWidth(int fieldW) { return fieldW - P(10) - P(14) - P(8) - HintWidth() - P(10) - P(8); }
+
+        string Hint { get { return editing ? "Enter" : "Ctrl+PrtSc"; } }
+
+        int HintWidth()
+        {
+            using (Bitmap mb = new Bitmap(1, 1)) using (Graphics mg = Graphics.FromImage(mb))
+                return (int)Math.Ceiling(mg.MeasureString(Hint, Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width) + P(12);
         }
 
         SizeF Measure(string text)
@@ -186,11 +239,46 @@ namespace Kapture
                 if (hot == "close") using (GraphicsPath hp = Svg.RoundRect(closeR, P(8))) using (SolidBrush hb = new SolidBrush(t.Container)) g.FillPath(hb, hp);
                 Icons.Draw(g, "x", closeR, 16 * s, t.Variant, 2);
 
+                if (c.NoteField) DrawNote(g);
+
                 // knoppen
                 if (c.ActionLabel != null) DrawButton(g, actionR, c.ActionIcon, c.ActionLabel, hot == "action", true);
                 DrawButton(g, dismissR, null, "Sluiten", hot == "dismiss", false);
             }
             return b;
+        }
+
+        // Het notitieveld: grijs vlak met icoon en "Notitie toevoegen..."; tijdens typen een blauwe rand
+        void DrawNote(Graphics g)
+        {
+            Color bg = editing ? t.Surface : (hot == "note" ? t.Container : t.SurfaceLow);
+            using (GraphicsPath gp = Svg.RoundRect(new RectangleF(noteR.X + 0.5f, noteR.Y + 0.5f, noteR.Width - 1, noteR.Height - 1), P(8)))
+            using (SolidBrush b = new SolidBrush(bg))
+            using (Pen p = new Pen(editing ? t.Primary : t.OutlineVariant, editing ? Math.Max(1.5f, 2 * s) : Math.Max(1, P(1))))
+            { g.FillPath(b, gp); g.DrawPath(p, gp); }
+            int lineH = (int)Math.Ceiling(TextField.LineHeight(NoteFont));
+            int top = noteR.Y + (noteR.Height > P(34) ? P(9) : (noteR.Height - lineH) / 2);
+            Icons.Draw(g, "sticky-note", new RectangleF(noteR.X + P(10), top + (lineH - P(14)) / 2f, P(14), P(14)), 14 * s, editing || c.Note.Length > 0 ? t.Primary : t.Outline, 2);
+            // sneltoets rechts als een toetsje
+            int hw = HintWidth();
+            Rectangle key = new Rectangle(noteR.Right - P(8) - hw, top + (lineH - P(20)) / 2, hw, P(20));
+            using (GraphicsPath kp = Svg.RoundRect(key, P(5)))
+            using (Pen kpn = new Pen(t.OutlineVariant, Math.Max(1, P(1))))
+            using (SolidBrush kb = new SolidBrush(t.Surface)) { g.FillPath(kb, kp); g.DrawPath(kpn, kp); }
+            using (SolidBrush kf = new SolidBrush(t.Variant))
+            {
+                StringFormat sf = NoWrap(); sf.Alignment = StringAlignment.Center; sf.LineAlignment = StringAlignment.Center;
+                g.DrawString(Hint, Fonts.Mono(11 * s), kf, key, sf);
+            }
+            float textX = noteR.X + P(10) + P(14) + P(8);
+            RectangleF tr = new RectangleF(textX, top, key.X - P(8) - textX, noteR.Bottom - top - P(6));
+            GraphicsState st = g.Save();
+            g.SetClip(new RectangleF(tr.X - 2, noteR.Y + 2, tr.Width + 4, noteR.Height - 4));
+            field.Draw(g, tr, NoteFont, t.OnSurface, t.Outline, editing ? "Waarom maakte je deze screenshot?" : "Notitie toevoegen...", editing, t.Primary, t.PrimaryContainer);
+            g.Restore(st);
+            if (editing && !helpR.IsEmpty)
+                using (SolidBrush hb = new SolidBrush(t.Outline))
+                    g.DrawString("Enter bewaren  ·  Shift+Enter nieuwe regel  ·  Esc sluiten", Fonts.Ui(11 * s, 0), hb, helpR, NoWrap());
         }
 
         void DrawButton(Graphics g, Rectangle r, string icon, string label, bool hover, bool primary)
@@ -212,6 +300,7 @@ namespace Kapture
 
         void Render()
         {
+            if (c == null || Width <= 0) return;
             using (Bitmap b = RenderBitmap())
             {
                 IntPtr scr = W.GetDC(IntPtr.Zero);
@@ -242,28 +331,95 @@ namespace Kapture
                 alpha = (byte)a; Render(); return;
             }
             if (alpha < 255) alpha = (byte)Math.Min(255, alpha + (int)(255 * dt / 200));
-            if (!hovering && !c.Stay) elapsedMs += dt;
-            if (!c.Stay && elapsedMs >= totalMs) { closing = true; return; }
+            if (!hovering && !editing && !c.Stay) elapsedMs += dt;
+            if (!c.Stay && !editing && elapsedMs >= totalMs) { closing = true; return; }
             Render();
         }
 
-        public void Dismiss() { if (Visible && !closing) { closing = true; shownAt = DateTime.Now; tick.Start(); } }
+        public void Dismiss()
+        {
+            if (editing) EndEdit(true);
+            if (Visible && !closing) { closing = true; shownAt = DateTime.Now; tick.Start(); }
+        }
+
+        // ---- notitie typen
+        // Het venster mag nu het toetsenbord hebben: WS_EX_NOACTIVATE eraf, naar voren halen
+        public void BeginEdit()
+        {
+            if (c == null || !c.NoteField || closing) return;
+            if (!editing)
+            {
+                editing = true;
+                field.Set(c.Note);
+                field.AllSelected = c.Note.Length > 0;
+            }
+            int ex = W.GetWindowLong(Handle, W.GWL_EXSTYLE);
+            W.SetWindowLong(Handle, W.GWL_EXSTYLE, ex & ~W.WS_EX_NOACTIVATE);
+            Arrange(workArea);
+            Render();
+            W.SetForegroundWindow(Handle);
+            Activate();
+            Focus();
+        }
+
+        // Klaar met typen. save = de notitie bewaren (Enter of wegklikken), anders weggooien (Esc).
+        void EndEdit(bool save)
+        {
+            if (!editing) return;
+            editing = false;
+            int ex = W.GetWindowLong(Handle, W.GWL_EXSTYLE);
+            W.SetWindowLong(Handle, W.GWL_EXSTYLE, ex | W.WS_EX_NOACTIVATE);
+            string note = field.Text.Trim();
+            if (save && note != (c.Note ?? ""))
+            {
+                c.Note = note;
+                try { if (c.OnNote != null) c.OnNote(note); }
+                catch (Exception e) { Log.Error("Notitie bewaren mislukt", e); }
+            }
+            field.Set(c.Note);
+            elapsedMs = Math.Min(elapsedMs, Math.Max(0, totalMs - 4000));   // nog even laten staan
+            Arrange(workArea);
+            Render();
+        }
+
+        protected override void OnDeactivate(EventArgs e)
+        {
+            base.OnDeactivate(e);
+            if (editing) EndEdit(true);   // weggeklikt: wat je typte blijft bewaard
+        }
+
+        protected override bool ProcessCmdKey(ref Message msg, Keys key)
+        {
+            if (!editing) return base.ProcessCmdKey(ref msg, key);
+            if (key == Keys.Escape) { EndEdit(false); Dismiss(); return true; }
+            if (key == Keys.Enter) { EndEdit(true); return true; }
+            if (key == (Keys.Enter | Keys.Shift)) { field.NewLine(); return true; }
+            if (field.OnKey(key)) { Render(); return true; }
+            return base.ProcessCmdKey(ref msg, key);
+        }
+
+        protected override void OnKeyPress(KeyPressEventArgs e)
+        {
+            if (editing && field.OnChar(e.KeyChar)) { e.Handled = true; Render(); }
+        }
 
         string HitTest(Point p)
         {
             if (closeR.Contains(p)) return "close";
             if (c.ActionLabel != null && actionR.Contains(p)) return "action";
             if (dismissR.Contains(p)) return "dismiss";
+            if (c.NoteField && noteR.Contains(p)) return "note";
             if (c.Thumb != null && c.OnThumb != null && thumbR.Contains(p)) return "thumb";
             return null;
         }
 
         protected override void OnMouseMove(MouseEventArgs e)
         {
+            if (c == null) return;
             bool inside = card.Contains(e.Location);
             if (inside != hovering) hovering = inside;
             string h = inside ? HitTest(e.Location) : null;
-            Cursor = h != null ? Cursors.Hand : Cursors.Default;
+            Cursor = h == "note" ? Cursors.IBeam : (h != null ? Cursors.Hand : Cursors.Default);
             if (h != hot) { hot = h; Render(); }
         }
 
@@ -276,18 +432,26 @@ namespace Kapture
             try
             {
                 if (h == "close" || h == "dismiss") Dismiss();
-                else if (h == "action" && c.OnAction != null) { c.OnAction(); Dismiss(); }
+                else if (h == "action" && c.OnAction != null) { if (editing) EndEdit(true); c.OnAction(); Dismiss(); }
                 else if (h == "thumb" && c.OnThumb != null) c.OnThumb();
+                else if (h == "note") BeginEdit();
             }
             catch (Exception ex) { Log.Error("Knop in de melding mislukt", ex); }
         }
 
         // Voor de zelftest: zonder scherm de melding als plaatje maken
-        public Bitmap RenderForTest(ToastContent content, Theme theme, float scale)
+        public Bitmap RenderForTest(ToastContent content, Theme theme, float scale) { return RenderForTest(content, theme, scale, false, null); }
+
+        public Bitmap RenderForTest(ToastContent content, Theme theme, float scale, bool edit, string typed)
         {
             c = content; t = theme; s = scale; alpha = 255; totalMs = 6000; elapsedMs = 2000;
-            Arrange(new Rectangle(0, 0, 2000, 1200));
-            return RenderBitmap();
+            editing = edit;
+            field.Set(typed ?? c.Note);
+            workArea = new Rectangle(0, 0, 2000, 1200);
+            Arrange(workArea);
+            Bitmap b = RenderBitmap();
+            editing = false;
+            return b;
         }
     }
 }

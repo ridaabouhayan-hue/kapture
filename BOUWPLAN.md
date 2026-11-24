@@ -106,6 +106,8 @@ Win+Shift+S blijft van Windows. Rida zet in Windows eenmalig "Print Screen opent
 ## Opslaan
 - Inbox: `%OneDrive%\Pictures\Screenshots` (voorstel). Bestaat OneDrive niet, dan `Pictures\Screenshots` van Windows.
 - Let op: het Windows Knipprogramma bewaart standaard ook in Pictures\Screenshots. Zolang Kapture het Knipprogramma vervangt, is dat juist handig: alles op een plek.
+- Elke maand een eigen map (aan of uit in Instellingen, standaard uit): `Screenshots\2026-11`. Inbox-map openen opent altijd de inbox zelf.
+- Kan Kapture niet in de inbox schrijven (OneDrive uit, schijf weg), dan zegt hij dat bij het opstarten en bij het opslaan, met een knop naar Instellingen.
 - Opslaan in...: recente mappen (laatste 8) en favorieten (zelf vastzetten).
 - Formaat: PNG. JPG later als optie.
 
@@ -165,11 +167,11 @@ Resultaat: `docs/SPIKE.md` (ronde 2, 24-11-2026). Gekozen: eerst een donker vens
 | Versie | Wat erin zit |
 |---|---|
 | 0.1 | Repo, build, tests, installer, automatische release. Tray-icoon, PrtSc, overlay met kader, opslaan in de inbox, klembord, eenvoudige melding. |
-| 0.2 | Notities: notitieveld in de melding, Shift+PrtSc met notitiebalk, Ctrl+PrtSc, bestandsnaam en tekstbestand, notitiestrook op het klembord. |
+| 0.2 | Notities: notitieveld in de melding, Shift+PrtSc met notitiebalk, Ctrl+PrtSc, bestandsnaam en tekstbestand, notitiestrook op het klembord. Op verzoek van Rida (24-11) ook al Instellingen met zoekbalk (Algemeen, Sneltoetsen, Opslaan en mappen, Notities, Over) en een map per maand. |
 | 0.3 | Laatste screenshots en het volledige tray-menu. Hernoemen achteraf. |
 | 0.4 | Vormen Vrij, Venster, Hele scherm. Presets en Opslaan in... |
 | 0.5 | Editor: tekenmotor uit NexusPen, vervagen, uitsnijden, kleurkiezer, ongedaan en opnieuw. Doorsturen. |
-| 0.6 | Instellingen met zoekbalk, talen, eerste-keer-scherm, gebruik bijhouden. |
+| 0.6 | Instellingen aanvullen (Presets, Bewerken, Taal, Gebruik), talen, eerste-keer-scherm, gebruik bijhouden. |
 | 1.0 | Alles nagelopen, logo-pakket, eigen presets, code-review. |
 | 1.x | OCR, dan de lijst "Later". |
 

@@ -6,7 +6,7 @@ $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework64\v4.0.30319\csc.exe"
 if (-not (Test-Path $csc)) { $csc = Join-Path $env:WINDIR "Microsoft.NET\Framework\v4.0.30319\csc.exe" }
 $out = Join-Path $root "out"
 New-Item -ItemType Directory -Force -Path $out | Out-Null
-$refs = "/r:System.dll", "/r:System.Core.dll", "/r:System.Drawing.dll", "/r:System.Windows.Forms.dll"
+$refs = "/r:System.dll", "/r:System.Core.dll", "/r:System.Drawing.dll", "/r:System.Windows.Forms.dll", "/r:System.Runtime.Serialization.dll"
 
 Write-Host "Logo-icoon maken..."
 & $csc /nologo /target:exe "/out:$out\MaakIcoon.exe" @refs "$root\tools\MaakIcoon.cs" "$root\src\Logo.cs" "$root\src\Svg.cs"

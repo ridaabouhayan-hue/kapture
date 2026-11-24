@@ -34,12 +34,17 @@ namespace Kapture
             Inverse = H(0x32343D), OnInverse = H(0xE1E2ED), Error = H(0xFFB4AB)
         };
 
+        // Keuze uit Instellingen: 0 = zoals Windows, 1 = licht, 2 = donker
+        public static int Mode;
+
         // Volgt Windows: Instellingen > Persoonlijke instellingen > Kleuren > Kies je app-modus
         public static Theme Current
         {
             get
             {
                 if (Program.ForceTheme != null) return Program.ForceTheme;
+                if (Mode == 1) return Light;
+                if (Mode == 2) return DarkTheme;
                 try
                 {
                     object v = Registry.GetValue(@"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize", "AppsUseLightTheme", 1);

@@ -36,6 +36,16 @@ namespace Kapture
                         OverlayShot(dir, t, scale, true, "overlay-kader-" + tag + ".png");
                         if (scale > 1) OverlayShot(dir, t, scale, false, "overlay-leeg-" + tag + ".png");
                         ToastShot(dir, t, scale, "melding-" + tag + ".png");
+                        NoteToastShot(dir, t, scale, "melding-notitie-" + tag + ".png");
+                        NoteBarShot(dir, t, scale, "notitiebalk-" + tag + ".png");
+                        SettingsShot(dir, t, scale, 0, null, "instellingen-algemeen-" + tag + ".png");
+                        if (scale > 1)
+                        {
+                            SettingsShot(dir, t, scale, 1, null, "instellingen-sneltoetsen-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 2, null, "instellingen-opslaan-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 3, null, "instellingen-notities-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 0, "map", "instellingen-zoeken-" + tag + ".png");
+                        }
                     }
                 foreach (float scale in new float[] { 1f, 1.5f })
                     foreach (Theme t in new Theme[] { Theme.Light, Theme.DarkTheme })
@@ -45,6 +55,8 @@ namespace Kapture
 
                 CropTest();
                 SaveTest();
+                NoteTest();
+                SearchTest();
                 SpeedTest();
             }
             catch (Exception ex)
@@ -159,6 +171,107 @@ namespace Kapture
             }
         }
 
+        // De melding met een notitie die je aan het typen bent
+        static void NoteToastShot(string dir, Theme t, float scale, string name)
+        {
+            using (Bitmap desk = FakeDesktop((int)(640 * scale), (int)(300 * scale), scale))
+            using (Toast toast = new Toast())
+            {
+                ToastContent c = new ToastContent();
+                c.Thumb = Saver.Thumbnail(desk, 160, 96);
+                c.Title = "Opgeslagen en gekopieerd"; c.Sub = "Preset: Nu naar Claude";
+                c.ActionLabel = "Map openen"; c.ActionIcon = "folder-open";
+                c.NoteField = true;
+                using (Bitmap tb = toast.RenderForTest(c, t, scale, false, ""))
+                    Save(dir, name.Replace(".png", "-leeg.png"), tb, t);
+                using (Bitmap tb = toast.RenderForTest(c, t, scale, true, "Opslaan-knop werkt niet als je op Enter drukt"))
+                    Save(dir, name, tb, t);
+                c.Thumb.Dispose();
+            }
+        }
+
+        // Shift+PrtSc: het kader met de notitiebalk eronder
+        static void NoteBarShot(string dir, Theme t, float scale, string name)
+        {
+            int w = (int)(1440 * scale), h = (int)(900 * scale);
+            using (Bitmap desk = FakeDesktop(w, h, scale))
+            using (Dib d = ToDib(desk))
+            using (Overlay o = new Overlay())
+            {
+                o.TestScale = scale;
+                bool ok = o.Prepare(d, new Rectangle(0, 0, w, h), t, new Point(w / 2, h / 2), new Rectangle(0, 0, w, h), true);
+                Check(ok, "notitiebalk voorbereiden " + name);
+                if (!ok) return;
+                Rectangle sel = new Rectangle((int)(150 * scale), (int)(200 * scale), (int)(620 * scale), (int)(340 * scale));
+                DateTime when = new DateTime(2026, 11, 24, 0, 12, 0);
+                o.SetNoteForTest(sel, "Opslaan-knop werkt niet", delegate(string n) { return Naming.Base(when, "Chrome", n) + ".png"; });
+                o.Compose(new Rectangle(0, 0, w, h));
+                using (Bitmap v = o.WorkBuffer.View()) v.Save(Path.Combine(dir, name), ImageFormat.Png);
+                o.End();
+            }
+        }
+
+        static void SettingsShot(string dir, Theme t, float scale, int section, string query, string name)
+        {
+            Settings cfg = new Settings();
+            using (SettingsForm f = new SettingsForm(cfg, null))
+            using (Bitmap b = f.RenderForTest(t, scale, section, query))
+            {
+                b.Save(Path.Combine(dir, name), ImageFormat.Png);
+                Check(f.ZoneCountForTest > 5, "instellingen getekend " + name + " (" + f.ZoneCountForTest + " knoppen)");
+            }
+        }
+
+        // Notitie achteraf: hernoemen, tekstbestand, en weer weghalen (in een tijdelijke map)
+        static void NoteTest()
+        {
+            string folder = Path.Combine(Path.GetTempPath(), "kapture-zelftest-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                Directory.CreateDirectory(folder);
+                DateTime when = new DateTime(2026, 11, 24, 0, 12, 0);
+                string p = Path.Combine(folder, Naming.Base(when, "Chrome", "") + ".png");
+                using (Bitmap b = FakeDesktop(200, 100, 1)) b.Save(p, ImageFormat.Png);
+                Shot s = new Shot { Path = p, Time = when, App = "Chrome" };
+                Notes.Apply(s, "Opslaan-knop werkt niet", true);
+                Check(Path.GetFileName(s.Path) == "2026-11-24 0012 Chrome - Opslaan-knop werkt niet.png" && File.Exists(s.Path) && !File.Exists(p), "notitie hernoemt het bestand");
+                string lang = "Eerste regel\nTweede regel met " + new string('x', 150);
+                Notes.Apply(s, lang, true);
+                Check(File.Exists(Notes.TextPath(s.Path)) && File.ReadAllText(Notes.TextPath(s.Path)).Contains("Tweede regel"), "lange notitie komt in een tekstbestand");
+                Check(Path.GetFileNameWithoutExtension(s.Path).Length <= Naming.MaxLength, "naam blijft kort genoeg");
+                string txt = Notes.TextPath(s.Path);
+                Notes.Apply(s, "", true);
+                Check(Path.GetFileName(s.Path) == "2026-11-24 0012 Chrome.png" && !File.Exists(txt), "notitie weghalen geeft de oude naam terug");
+                Check(Directory.GetFiles(folder).Length == 1, "geen losse bestanden over na hernoemen");
+                using (Bitmap img = new Bitmap(400, 200))
+                using (Bitmap withNote = Notes.WithStrip(img, "Opslaan-knop werkt niet"))
+                    Check(withNote.Height > 200 && withNote.Width == 400, "notitiestrook komt onder de afbeelding");
+                History h = new History(Path.Combine(folder, "geschiedenis.json"));
+                for (int i = 0; i < 12; i++) h.Add(new Shot { Path = s.Path, Time = when.AddMinutes(i), App = "Chrome", Note = i == 11 ? "laatste \"met\" aanhalingstekens" : "" });
+                History back = History.Load(Path.Combine(folder, "geschiedenis.json"));
+                Check(back.Items.Count == History.Max && back.Items[back.Items.Count - 1].Note == "laatste \"met\" aanhalingstekens", "geschiedenis bewaart de laatste 10");
+            }
+            catch (Exception ex) { Check(false, "notitietest: " + ex.GetType().Name); }
+            finally { try { Directory.Delete(folder, true); } catch { } }
+        }
+
+        static void SearchTest()
+        {
+            using (SettingsForm f = new SettingsForm(new Settings(), null))
+            {
+                int all = 0, map = 0, none = 0;
+                foreach (SettingsForm.Section sec in f.Sections)
+                    foreach (SettingsForm.Card c in sec.Cards)
+                        foreach (SettingsForm.Row r in c.Rows)
+                        {
+                            all++;
+                            if (SettingsForm.Matches(r, "map")) map++;
+                            if (SettingsForm.Matches(r, "zzqq")) none++;
+                        }
+                Check(all > 10 && map >= 2 && map < all && none == 0, "zoeken in instellingen (" + map + " van " + all + " voor \"map\")");
+            }
+        }
+
         static void ProblemToastShot(string dir, Theme t, float scale, string name)
         {
             using (Toast toast = new Toast())
@@ -188,8 +301,8 @@ namespace Kapture
         {
             using (TrayMenu m = new TrayMenu())
             {
-                App.FillMenu(m, false, delegate { }, delegate { }, delegate { }, delegate { });
-                using (Bitmap b = m.RenderForTest(t, scale, 2))   // Inbox-map openen als gekozen regel, om de kleur te zien
+                App.FillMenu(m, new Settings(), true, delegate { }, delegate { }, delegate { }, delegate { }, delegate { }, delegate { }, delegate { });
+                using (Bitmap b = m.RenderForTest(t, scale, 2))   // Nieuwe screenshot als gekozen regel, om de kleur te zien
                 {
                     Save(dir, name, b, t);
                     Check(b.Width > 100 && b.Height > 100, "tray-menu getekend " + name + " (" + b.Width + "x" + b.Height + ")");

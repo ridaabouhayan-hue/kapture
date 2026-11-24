@@ -57,8 +57,48 @@ namespace Kapture
                 File.WriteAllText(sp, "meldingSeconden=999\nonzin\n=leeg");
                 Is(Settings.Load(sp).ToastSeconds == 60, "te grote waarde wordt begrensd");
                 Is(Settings.Load(Path.Combine(dir, "bestaatniet.txt")).ToastSeconds == 6, "geen bestand = standaard");
+
+                // nieuwe instellingen heen en terug
+                Settings n = new Settings { ThemeMode = 2, HotkeyNote = false, HotkeyLastNote = false, MonthFolders = true, NoteStrip = false, NoteTextFile = false };
+                n.Save(sp);
+                Settings nb = Settings.Load(sp);
+                Is(nb.ThemeMode == 2 && !nb.HotkeyNote && !nb.HotkeyLastNote && nb.HotkeyCapture && nb.MonthFolders && !nb.NoteStrip && !nb.NoteTextFile, "thema, sneltoetsen, mappen en notities heen en terug");
+                File.WriteAllText(sp, "thema=9");
+                Is(Settings.Load(sp).ThemeMode == 2, "thema wordt begrensd");
+                Settings def = new Settings();
+                Is(def.HotkeyCapture && def.HotkeyNote && def.HotkeyLastNote && def.NoteStrip && def.NoteTextFile && !def.MonthFolders, "standaard: alles aan, geen maandmappen");
+
+                // mappen
+                Settings m = new Settings { Inbox = dir };
+                Eq(InboxFolder.ForShot(m, t), dir, "zonder maandmappen: de inbox zelf");
+                m.MonthFolders = true;
+                Eq(InboxFolder.ForShot(m, t), Path.Combine(dir, "2026-11"), "met maandmappen: jjjj-mm");
+                Is(InboxFolder.Check(dir) == null, "bestaande map is bruikbaar");
+                Is(InboxFolder.Check("relatief\\pad") != null, "een half pad wordt geweigerd");
+                Is(InboxFolder.Check("") != null, "geen map wordt geweigerd");
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
+
+            // notities: wanneer een tekstbestand, en is de naam al goed
+            Is(!Notes.NeedsTextFile(t, "Chrome", "Opslaan-knop werkt niet"), "korte notitie: geen tekstbestand");
+            Is(Notes.NeedsTextFile(t, "Chrome", "regel een\nregel twee"), "notitie met regels: tekstbestand");
+            Is(Notes.NeedsTextFile(t, "Chrome", new string('x', 200)), "te lange notitie: tekstbestand");
+            Is(!Notes.NeedsTextFile(t, "Chrome", ""), "geen notitie: geen tekstbestand");
+            Is(Notes.HasName(@"C:\a\2026-11-24 0012 Chrome.png", "2026-11-24 0012 Chrome"), "naam klopt al");
+            Is(Notes.HasName(@"C:\a\2026-11-24 0012 Chrome (3).png", "2026-11-24 0012 Chrome"), "naam met (3) klopt ook");
+            Is(!Notes.HasName(@"C:\a\2026-11-24 0012 Chrome - x.png", "2026-11-24 0012 Chrome"), "andere notitie = andere naam");
+            Is(!Notes.HasName(@"C:\a\2026-11-24 0012 Chrome (x).png", "2026-11-24 0012 Chrome"), "(x) is geen nummer");
+
+            // tekstveld
+            TextField tf = new TextField();
+            tf.OnChar('a'); tf.OnChar('b'); tf.OnKey(System.Windows.Forms.Keys.Left); tf.OnChar('X');
+            Eq(tf.Text, "aXb", "typen met de cursor in het midden");
+            tf.OnKey(System.Windows.Forms.Keys.Back);
+            Eq(tf.Text, "ab", "backspace");
+            tf.OnKey(System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.A); tf.OnChar('z');
+            Eq(tf.Text, "z", "alles selecteren en overtypen");
+            tf.Set(new string('q', 600));
+            Is(tf.Text.Length == TextField.MaxLength, "notitie wordt begrensd op " + TextField.MaxLength + " tekens");
 
             // kader van twee punten, in elke richting
             Is(Overlay.Norm(new Point(10, 10), new Point(20, 30)) == new Rectangle(10, 10, 11, 21), "kader van linksboven naar rechtsonder");

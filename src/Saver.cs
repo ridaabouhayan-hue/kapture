@@ -41,6 +41,30 @@ namespace Kapture
         }
 
         public static string Resolve(Settings s) { return string.IsNullOrEmpty(s.Inbox) ? Default() : s.Inbox; }
+
+        // De map voor een nieuwe screenshot: de inbox, of met "elke maand een eigen map" de submap jjjj-mm
+        public static string ForShot(Settings s, DateTime t)
+        {
+            string root = Resolve(s);
+            return s.MonthFolders ? Path.Combine(root, t.ToString("yyyy-MM")) : root;
+        }
+
+        // Kan Kapture in deze map schrijven? Maakt de map aan als die er nog niet is. Geeft null of een korte uitleg.
+        public static string Check(string folder)
+        {
+            if (string.IsNullOrEmpty(folder)) return "Er is geen map gekozen.";
+            try
+            {
+                if (!Path.IsPathRooted(folder)) return "Kies een volledige map, bijvoorbeeld op C: of in OneDrive.";
+                Directory.CreateDirectory(folder);
+                string probe = Path.Combine(folder, ".kapture-proef-" + Guid.NewGuid().ToString("N") + ".tmp");
+                File.WriteAllText(probe, "");
+                File.Delete(probe);
+                return null;
+            }
+            catch (UnauthorizedAccessException) { return "Kapture mag niet schrijven in deze map."; }
+            catch (Exception) { return "Deze map is niet bereikbaar. Staat OneDrive aan, of is de schijf aangesloten?"; }
+        }
     }
 
     // ------------------------------------------------------------------ Bestandsnamen: "2026-11-24 0012 Chrome - Opslaan-knop werkt niet.png"
@@ -103,21 +127,30 @@ namespace Kapture
             catch { return ""; }
         }
 
-        // Programma onder een punt op het scherm (het midden van het kader); werkt ook als je vanuit het tray-menu begon
+        // Programma onder een punt op het scherm (het midden van het kader); werkt ook als je vanuit het tray-menu begon.
+        // Loopt de vensters van boven naar onder af en slaat die van Kapture zelf over (de overlay kan nog openstaan).
         public static string AppAt(int x, int y)
         {
             try
             {
-                IntPtr h = W.WindowFromPoint(new W.POINT(x, y));
-                if (h == IntPtr.Zero) return "";
-                IntPtr root = W.GetAncestor(h, 2);
-                if (root != IntPtr.Zero) h = root;
-                uint pid;
-                W.GetWindowThreadProcessId(h, out pid);
-                if (pid == 0 || pid == (uint)Process.GetCurrentProcess().Id) return "";
-                using (Process p = Process.GetProcessById((int)pid)) return AppName(p.ProcessName);
+                uint me = (uint)Process.GetCurrentProcess().Id;
+                IntPtr h = W.GetTopWindow(IntPtr.Zero);
+                for (int guard = 0; h != IntPtr.Zero && guard < 2000; guard++, h = W.GetWindow(h, W.GW_HWNDNEXT))
+                {
+                    if (!W.IsWindowVisible(h)) continue;
+                    W.RECT rc;
+                    if (!W.GetWindowRect(h, out rc) || x < rc.Left || x >= rc.Right || y < rc.Top || y >= rc.Bottom) continue;
+                    int cloaked = 0;
+                    try { W.DwmGetWindowAttribute(h, 14, out cloaked, 4); } catch { }
+                    if (cloaked != 0) continue;
+                    uint pid;
+                    W.GetWindowThreadProcessId(h, out pid);
+                    if (pid == 0 || pid == me) continue;
+                    using (Process p = Process.GetProcessById((int)pid)) return AppName(p.ProcessName);
+                }
             }
-            catch { return ""; }
+            catch { }
+            return "";
         }
 
         public static string AppName(string process)
@@ -145,37 +178,59 @@ namespace Kapture
     // ------------------------------------------------------------------ Opslaan en kopieren
     class SaveResult
     {
-        public string Path;          // waar het bestand staat (null als opslaan mislukte)
+        public Shot Shot;            // Shot.Path is null als opslaan mislukte
         public bool Copied;
         public Bitmap Thumb;         // miniatuur voor de melding
-        public bool Failed { get { return Path == null; } }
+        public bool Failed { get { return Shot.Path == null; } }
     }
 
     static class Saver
     {
         // Opslaan als PNG op de achtergrond, daarna (op de UI-draad) kopieren. 'done' komt altijd op de UI-draad.
-        public static void SaveAndCopy(Bitmap shot, string folder, string app, Control ui, Action<SaveResult> done)
+        // Een notitie die al bekend is komt meteen in de naam en (als 'strip') als strook op het klembord.
+        public static void SaveAndCopy(Bitmap shot, Shot entry, string folder, bool copy, bool strip, bool textFile, System.Windows.Forms.Control ui, Action<SaveResult> done)
         {
-            DateTime when = DateTime.Now;
             ThreadPool.QueueUserWorkItem(delegate
             {
                 SaveResult r = new SaveResult();
+                r.Shot = entry;
                 byte[] png = null;
                 try
                 {
                     using (MemoryStream ms = new MemoryStream()) { shot.Save(ms, ImageFormat.Png); png = ms.ToArray(); }
-                    r.Path = WriteFile(png, folder, Naming.Base(when, app, ""));
+                    entry.Path = WriteFile(png, folder, Naming.Base(entry.Time, entry.App, entry.Note));
+                    if (textFile && Notes.NeedsTextFile(entry.Time, entry.App, entry.Note))
+                        Notes.WriteText(Notes.TextPath(entry.Path), entry.Note);
                 }
-                catch (Exception ex) { Log.Error("Opslaan mislukt", ex); r.Path = null; }
+                catch (Exception ex) { Log.Error("Opslaan mislukt", ex); entry.Path = null; }
                 try { r.Thumb = Thumbnail(shot, 160, 96); } catch { }
                 Action finish = delegate
                 {
-                    try { r.Copied = Copy(shot, png); }
+                    try
+                    {
+                        if (copy)
+                        {
+                            if (strip && !string.IsNullOrEmpty(entry.Note))
+                                using (Bitmap withNote = Notes.WithStrip(shot, entry.Note)) r.Copied = Copy(withNote, null);
+                            else r.Copied = Copy(shot, png);
+                            entry.Copied = r.Copied;
+                            if (r.Copied) entry.ClipboardSeq = W.GetClipboardSequenceNumber();
+                        }
+                    }
                     finally { shot.Dispose(); }
                     done(r);
                 };
                 try { ui.BeginInvoke(finish); } catch (Exception ex) { Log.Error("Terug naar de UI mislukt", ex); shot.Dispose(); }
             });
+        }
+
+        // Leest een opgeslagen screenshot terug (zonder het bestand vast te houden)
+        public static Bitmap Load(string path)
+        {
+            byte[] data = File.ReadAllBytes(path);
+            using (MemoryStream ms = new MemoryStream(data))
+            using (Image img = Image.FromStream(ms))
+                return new Bitmap(img);
         }
 
         // Eerst naar naam.png.tmp in dezelfde map, dan hernoemen: zo ziet OneDrive nooit een half bestand
@@ -213,9 +268,11 @@ namespace Kapture
         {
             try
             {
+                if (png == null)
+                    using (MemoryStream ms = new MemoryStream()) { shot.Save(ms, ImageFormat.Png); png = ms.ToArray(); }
                 DataObject data = new DataObject();
                 data.SetData(DataFormats.Bitmap, true, shot);
-                if (png != null) data.SetData("PNG", false, new MemoryStream(png));
+                data.SetData("PNG", false, new MemoryStream(png));
                 Clipboard.SetDataObject(data, true, 5, 100);
                 return true;
             }
