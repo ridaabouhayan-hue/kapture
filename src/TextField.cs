@@ -133,7 +133,7 @@ namespace Kapture
 
         public void Draw(Graphics g, RectangleF r, Font f, Color fg, Color placeholderColor, string placeholder, bool focused, Color caretColor, Color selection)
         {
-            g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
             StringFormat fmt = Fmt();
             if (Text.Length == 0)
             {

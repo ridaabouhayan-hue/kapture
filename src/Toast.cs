@@ -179,7 +179,7 @@ namespace Kapture
                 g.Clear(Color.Transparent);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
                 // schaduw
                 for (int i = 6; i >= 1; i--)
                 {

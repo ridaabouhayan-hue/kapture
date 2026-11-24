@@ -1,6 +1,12 @@
-# Kapture 0.2.0
+# Kapture 0.2.1
 
-Nieuw in 0.2: notities, instellingen en een eigen map per maand als je wilt.
+Nieuw in 0.2.1:
+- **Bijwerken met een klik**, zoals in NexusPen. Staat er een nieuwe versie op GitHub, dan zegt Kapture dat bij het starten (en in het menu bij de klok). Klik op Bijwerken: Kapture haalt hem op, controleert hem, installeert hem en start daarna vanzelf weer. Ook in Instellingen, Over en bijwerken: Nu zoeken.
+- **Instellingen per pagina**, met onderaan **Opslaan** en **Annuleren**. Pas na Opslaan gebruikt Kapture de nieuwe instellingen, en je ziet een bevestiging. Sluit je met wijzigingen die nog niet bewaard zijn, dan vraagt Kapture of ze bewaard moeten worden.
+- **Scherpere tekst**, net als in NexusPen.
+- **Print Screen**: als Windows Print Screen nog naar het Knipprogramma stuurt, zegt Kapture dat en zet het met één klik (Zet uit) voor je uit.
+
+## Ook in 0.2: notities, instellingen en een eigen map per maand
 
 ## Notities
 - **In de melding** staat nu een notitieveld. Klik erop (of druk Ctrl+PrtSc) en typ waarom je de screenshot maakte. Enter bewaart, Shift+Enter is een nieuwe regel, Esc sluit.

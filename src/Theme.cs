@@ -62,7 +62,7 @@ namespace Kapture
     }
 
     // ------------------------------------------------------------------ Lettertypes
-    // Voor nu de lettertypes van Windows 11 (Segoe UI Variable, Cascadia Mono). Inter en JetBrains Mono uit het
+    // Voor nu de lettertypes van Windows (Segoe UI, Cascadia Mono). Inter en JetBrains Mono uit het
     // Stitch-ontwerp komen erbij zodra Rida het downloaden van die bestanden goedkeurt (BOUWPLAN.md, Techniek).
     static class Fonts
     {
@@ -89,7 +89,8 @@ namespace Kapture
         // gewicht: 0 = gewoon, 1 = halfvet
         public static Font Ui(float px, int weight)
         {
-            string fam = weight >= 1 ? Pick("Segoe UI Variable Text Semibold", "Segoe UI Semibold") : Pick("Segoe UI Variable Text", "Segoe UI");
+            // Segoe UI, net als NexusPen: Windows tekent die haarscherp. Segoe UI Variable gaf gekartelde letters.
+            string fam = weight >= 1 ? Pick("Segoe UI Semibold", "Segoe UI") : Pick("Segoe UI");
             return Get(fam, px, FontStyle.Regular);
         }
 

@@ -44,7 +44,9 @@ namespace Kapture
                             SettingsShot(dir, t, scale, 1, null, "instellingen-sneltoetsen-" + tag + ".png");
                             SettingsShot(dir, t, scale, 2, null, "instellingen-opslaan-" + tag + ".png");
                             SettingsShot(dir, t, scale, 3, null, "instellingen-notities-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 4, null, "instellingen-over-" + tag + ".png");
                             SettingsShot(dir, t, scale, 0, "map", "instellingen-zoeken-" + tag + ".png");
+                            SettingsEditedShot(dir, t, scale, tag);
                         }
                     }
                 foreach (float scale in new float[] { 1f, 1.5f })
@@ -219,6 +221,22 @@ namespace Kapture
             {
                 b.Save(Path.Combine(dir, name), ImageFormat.Png);
                 Check(f.ZoneCountForTest > 5, "instellingen getekend " + name + " (" + f.ZoneCountForTest + " knoppen)");
+            }
+        }
+
+        // Instellingen met een wijziging (Opslaan wordt blauw), en de bevestiging na Opslaan
+        static void SettingsEditedShot(string dir, Theme t, float scale, string tag)
+        {
+            using (SettingsForm f = new SettingsForm(new Settings(), null))
+            {
+                using (Bitmap b = f.RenderForTest(t, scale, 2, null, true)) b.Save(Path.Combine(dir, "instellingen-gewijzigd-" + tag + ".png"), ImageFormat.Png);
+                Check(f.Dirty, "instellingen: wijziging wordt gezien (" + tag + ")");
+            }
+            using (SettingsForm f = new SettingsForm(new Settings(), null))
+            {
+                f.ShowSavedForTest();
+                using (Bitmap b = f.RenderForTest(t, scale, 0, null)) b.Save(Path.Combine(dir, "instellingen-opgeslagen-" + tag + ".png"), ImageFormat.Png);
+                Check(!f.Dirty, "instellingen: zonder wijziging niets te bewaren (" + tag + ")");
             }
         }
 

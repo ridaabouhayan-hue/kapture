@@ -22,7 +22,7 @@ Kapture is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-doc
 - Code in `src/`, opgesplitst per onderdeel. Veel komt uit NexusPen (zie BOUWPLAN.md, Hergebruik): kopieer en pas aan, houd het los van NexusPen.
 - Zwevende vensters (werkbalk, melding, notitiebalk, tray-menu) tekenen zichzelf met UpdateLayeredWindow. Icoontjes op hele pixels.
 - PerMonitorV2. Sneltoetsen alleen via RegisterHotKey, nooit een toetsenbordhook.
-- Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static. Lettertypes: voor nu Segoe UI Variable en Cascadia Mono (zitten in Windows 11). Inter en JetBrains Mono uit Stitch komen erbij als Rida het downloaden goedkeurt.
+- Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static. Lettertypes: voor nu Segoe UI en Cascadia Mono (zitten in Windows), net als NexusPen; tekst op een dichte achtergrond met ClearType (TextRenderer) zodat hij scherp is. Niet Segoe UI Variable: die tekent gekarteld. Inter en JetBrains Mono uit Stitch komen erbij als Rida het downloaden goedkeurt.
 - Logo: `assets/logo/` en `src/Logo.cs`. Groot = Stitch-vorm, 32 px en kleiner = witte K op kobalt.
 - Tests: `tests/Tests.cs`. De zelftest (`--zelftest`) maakt schermafdrukken van elk venster in licht en donker.
 - ShareX is GPL-3.0. Kopieer er nooit code uit, ook geen stukje. Idee mag, code niet.

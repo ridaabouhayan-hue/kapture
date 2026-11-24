@@ -64,6 +64,16 @@ namespace Kapture
         public void Add(string text, string icon, string hint, Action click) { Add(text, icon, click); entries[entries.Count - 1].Hint = hint; }
         public void AddCheck(string text, string icon, bool on, Action click) { Add(text, icon, click); entries[entries.Count - 1].Check = on; }
         public void AddSeparator() { Entry e = new Entry(); e.Sep = true; entries.Add(e); }
+
+        // Een nieuwe versie staat klaar: bovenaan, onder de kop, een regel om bij te werken
+        public void InsertUpdate(string text, Action click)
+        {
+            int at = entries.Count > 0 && entries[0].Header ? 2 : 0;
+            Entry e = new Entry(); e.Text = text; e.Icon = "download"; e.Click = click;
+            Entry sep = new Entry(); sep.Sep = true;
+            entries.Insert(Math.Min(at, entries.Count), sep);
+            entries.Insert(Math.Min(at, entries.Count), e);
+        }
         // Kop bovenaan (Stitch-scherm 7): logo, naam en rechts de actieve preset; daaronder een lijn
         public void AddHeader(string text, string chip) { Entry e = new Entry(); e.Header = true; e.Text = text; e.Chip = chip; entries.Add(e); AddSeparator(); }
 
@@ -75,7 +85,7 @@ namespace Kapture
             float textW = 0, hintW = 0;
             using (Bitmap mb = new Bitmap(1, 1)) using (Graphics mg = Graphics.FromImage(mb))
             {
-                mg.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                mg.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
                 foreach (Entry e in entries)
                 {
                     if (e.Sep) continue;
@@ -114,7 +124,7 @@ namespace Kapture
                 g.Clear(Color.Transparent);
                 g.SmoothingMode = SmoothingMode.AntiAlias;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
 
                 // schaduw
                 for (int i = 6; i >= 1; i--)

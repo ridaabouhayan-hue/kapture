@@ -231,7 +231,7 @@ namespace Kapture
             using (Graphics g = Graphics.FromHdc(work.Dc))
             {
                 g.SetClip(clip);
-                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
                 if (sel.Width > 0 && sel.Height > 0) DrawFrame(g);
                 else DrawHint(g);
                 if (clip.IntersectsWith(bar.Bounds)) bar.Draw(g, theme, hover);

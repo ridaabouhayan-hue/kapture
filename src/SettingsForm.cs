@@ -2,21 +2,21 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.Drawing.Text;
 using System.IO;
 using System.Windows.Forms;
 
 namespace Kapture
 {
     // ------------------------------------------------------------------ Instellingen (Stitch-scherm 6)
-    // Een gewoon venster, zelf getekend: bovenaan de zoekbalk, links het menu, rechts kaarten met de instellingen.
-    // Elke wijziging wordt meteen bewaard en toegepast.
+    // Een gewoon venster, zelf getekend: bovenaan de zoekbalk, links het menu, rechts één pagina tegelijk.
+    // Wijzigingen staan eerst in een werkkopie; pas met Opslaan gebruikt Kapture ze (met een bevestiging).
+    // Tekst via Windows zelf (ClearType, zoals NexusPen): scherp en met de normale letterafstand.
     class SettingsForm : Form
     {
-        // ---- de inhoud als gegevens: secties met kaarten met regels
+        // ---- de inhoud als gegevens: pagina's met kaarten met regels
         public enum RowKind { Toggle, Segments, Stepper, Buttons, Info }
 
-        public class Btn { public string Label, Icon; public Action Click; }
+        public class Btn { public string Label, Icon; public Func<string> LabelNow; public Action Click; public Func<bool> Show; public bool Primary; }
 
         public class Row
         {
@@ -30,7 +30,7 @@ namespace Kapture
             public string[] Segments; public Func<int> GetIndex; public Action<int> SetIndex;
             public Func<int> GetNumber; public Action<int> SetNumber; public int Min, Max; public string Unit = "";
             public List<Btn> Buttons = new List<Btn>();
-            public Func<bool> Enabled;
+            public Func<bool> Enabled;               // false = de regel staat er (nu) niet
         }
 
         public class Card { public string Title, Desc, Icon; public List<Row> Rows = new List<Row>(); }
@@ -38,10 +38,12 @@ namespace Kapture
         public class Section { public string Name, Icon, Desc; public List<Card> Cards = new List<Card>(); }
 
         // ---- maten bij 100%
-        const float TopH = 76, SearchW = 576, SearchH = 42, NavW = 232, NavItemH = 36, NavPad = 12;
+        const float TopH = 76, SearchW = 576, SearchH = 42, NavW = 232, NavItemH = 36, NavPad = 12, FootH = 68;
         const float ContentPadX = 32, ContentPadTop = 28, CardPad = 20, CardGap = 16, SectionGap = 40, RowPadY = 14, ControlGap = 20;
 
-        readonly Settings cfg;
+        readonly Settings cfg;            // wat Kapture nu gebruikt
+        Settings work;                    // wat je hier aan het wijzigen bent
+        bool autostartNow, autostartWork;
         readonly App app;
         public readonly List<Section> Sections = new List<Section>();
         readonly TextBox search = new TextBox();
@@ -49,13 +51,13 @@ namespace Kapture
         Theme t = Theme.Light;
         int navIndex;
         float scrollY, contentH;
-        readonly List<float> sectionY = new List<float>();
-        int pendingNav = -1;               // na het leegmaken van het zoekvak: naar deze sectie scrollen zodra de opmaak klopt
-        string inboxProblem;               // uitkomst van de laatste controle van de inbox (niet bij elke keer tekenen controleren)
-        bool inboxChecked;
+        string saved;                     // bevestiging na Opslaan
+        readonly Timer savedTimer = new Timer { Interval = 3500 };
+        string updateStatus;              // uitkomst van "Nu zoeken"
+        string inboxProblem; bool inboxChecked;
 
         // klikvlakken, opnieuw berekend bij elke keer tekenen
-        class Zone { public RectangleF R; public string Id; public Action Click; }
+        class Zone { public RectangleF R; public string Id; public Action Click; public bool Fixed; }
         readonly List<Zone> zones = new List<Zone>();
         string hot, pressed;
         bool draggingThumb; float dragFrom, dragScroll;
@@ -64,6 +66,7 @@ namespace Kapture
         public SettingsForm(Settings settings, App owner)
         {
             cfg = settings; app = owner;
+            Reload();
             Text = "Kapture · Instellingen";
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
@@ -75,11 +78,42 @@ namespace Kapture
             search.TextChanged += delegate { scrollY = 0; Invalidate(); };
             search.KeyDown += delegate(object o, KeyEventArgs e) { if (e.KeyCode == Keys.Escape) { search.Text = ""; e.Handled = true; e.SuppressKeyPress = true; } };
             Controls.Add(search);
+            savedTimer.Tick += delegate { savedTimer.Stop(); saved = null; Invalidate(); };
             Build();
             ApplyScale(W.ScaleAt(Cursor.Position.X, Cursor.Position.Y));
         }
 
         int P(float v) { return (int)Math.Round(v * s); }
+
+        // ---- werkkopie
+        void Reload()
+        {
+            work = cfg.Clone();
+            autostartNow = Autostart.IsOn; autostartWork = autostartNow;
+            inboxChecked = false;
+        }
+
+        public bool Dirty { get { return work.DiffersFrom(cfg) || autostartWork != autostartNow; } }
+
+        void Edited() { saved = null; ApplyTheme(); Invalidate(); }
+
+        // Opslaan: de werkkopie wordt wat Kapture gebruikt, met een bevestiging onderaan
+        public void SaveNow()
+        {
+            if (!Dirty) return;
+            cfg.CopyFrom(work);
+            cfg.Save();
+            if (autostartWork != autostartNow) { Autostart.Set(autostartWork); autostartNow = Autostart.IsOn; autostartWork = autostartNow; }
+            if (app != null) app.SettingsChanged();
+            work = cfg.Clone();
+            inboxChecked = false;
+            saved = "Instellingen opgeslagen";
+            savedTimer.Stop(); savedTimer.Start();
+            ApplyTheme();
+            Invalidate();
+        }
+
+        void Revert() { Reload(); saved = null; ApplyTheme(); Invalidate(); }
 
         void ApplyScale(float scale)
         {
@@ -92,42 +126,42 @@ namespace Kapture
             Invalidate();
         }
 
+        // Het venster laat het gekozen thema meteen zien (voorbeeld); de rest van Kapture pas na Opslaan
         void ApplyTheme()
         {
-            t = Theme.Current;
+            t = Program.ForceTheme ?? (work.ThemeMode == 1 ? Theme.Light : work.ThemeMode == 2 ? Theme.DarkTheme : SystemTheme());
             BackColor = t.Surface;
             search.BackColor = t.Surface;
             search.ForeColor = t.OnSurface;
             if (IsHandleCreated) { try { int v = t.Dark ? 1 : 0; W.DwmSetWindowAttribute(Handle, 20, ref v, 4); } catch { } }
         }
 
+        static Theme SystemTheme() { int keep = Theme.Mode; Theme.Mode = 0; Theme r = Theme.Current; Theme.Mode = keep; return r; }
+
         public void ShowAndFocus()
         {
-            CheckInbox();
-            RefreshValues();
+            if (!Dirty) Reload();
+            ApplyTheme();
             if (!Visible) Show();
             if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
             W.SetForegroundWindow(Handle);
             Activate();
+            Invalidate();
         }
 
-        // Waarden opnieuw lezen (bijvoorbeeld na Sneltoetsen pauzeren uit het tray-menu)
-        public void RefreshValues() { ApplyTheme(); Invalidate(); }
+        // Waarden opnieuw lezen (bijvoorbeeld na Sneltoetsen pauzeren uit het tray-menu); niet als je zelf aan het wijzigen bent
+        public void RefreshValues() { if (!Dirty) Reload(); ApplyTheme(); Invalidate(); }
 
         protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplyTheme(); }
 
-        // De inbox controleren (map aanmaken, proefbestand schrijven): alleen bij openen en na een wijziging
-        void CheckInbox() { inboxProblem = InboxFolder.Check(InboxFolder.Resolve(cfg)); inboxChecked = true; }
-
-        string InboxProblem { get { if (!inboxChecked) CheckInbox(); return inboxProblem; } }
-
-        void Changed()
+        // De inbox controleren (map aanmaken, proefbestand schrijven): niet bij elke keer tekenen
+        string InboxProblem
         {
-            cfg.Save();
-            CheckInbox();
-            if (app != null) app.SettingsChanged();
-            ApplyTheme();
-            Invalidate();
+            get
+            {
+                if (!inboxChecked) { inboxProblem = InboxFolder.Check(InboxFolder.Resolve(work)); inboxChecked = true; }
+                return inboxProblem;
+            }
         }
 
         // ---- de inhoud
@@ -140,7 +174,7 @@ namespace Kapture
                 Id = "thema", Title = "Thema", Keywords = "licht donker kleur systeem dark mode uiterlijk",
                 Sub = delegate { return "Geldt voor de werkbalk, de melding, het menu en dit venster."; },
                 Kind = RowKind.Segments, Segments = new string[] { "Systeem", "Licht", "Donker" },
-                GetIndex = delegate { return cfg.ThemeMode; }, SetIndex = delegate(int i) { cfg.ThemeMode = i; Changed(); }
+                GetIndex = delegate { return work.ThemeMode; }, SetIndex = delegate(int i) { work.ThemeMode = i; Edited(); }
             });
             algemeen.Cards.Add(thema);
             Card start = new Card { Title = "Opstarten en meldingen", Icon = "settings", Desc = "Wanneer Kapture start en hoe lang de melding blijft staan." };
@@ -148,41 +182,42 @@ namespace Kapture
             {
                 Id = "autostart", Title = "Starten met Windows", Keywords = "opstarten automatisch aanmelden",
                 Sub = delegate { return "Kapture staat dan meteen bij de klok."; },
-                Kind = RowKind.Toggle, Get = delegate { return Autostart.IsOn; }, Set = delegate(bool v) { Autostart.Set(v); Invalidate(); }
+                Kind = RowKind.Toggle, Get = delegate { return autostartWork; }, Set = delegate(bool v) { autostartWork = v; Edited(); }
             });
             start.Rows.Add(new Row
             {
                 Id = "melding", Title = "Melding zichtbaar", Keywords = "seconden tijd toast rechtsonder",
                 Sub = delegate { return "Hoe lang de melding rechtsonder blijft staan. Zolang je muis erboven hangt, blijft hij staan."; },
-                Kind = RowKind.Stepper, GetNumber = delegate { return cfg.ToastSeconds; }, SetNumber = delegate(int n) { cfg.ToastSeconds = n; Changed(); },
+                Kind = RowKind.Stepper, GetNumber = delegate { return work.ToastSeconds; }, SetNumber = delegate(int n) { work.ToastSeconds = n; Edited(); },
                 Min = 2, Max = 60, Unit = " s"
             });
             algemeen.Cards.Add(start);
             Sections.Add(algemeen);
 
             Section toetsen = new Section { Name = "Sneltoetsen", Icon = "keyboard", Desc = "Elke sneltoets kun je los aan of uit zetten." };
+            Card knip = new Card { Title = "Print Screen en het Knipprogramma", Icon = "info", Desc = "Windows 11 stuurt Print Screen standaard naar het Knipprogramma. Dan krijgt Kapture hem niet." };
+            Row knipRow = new Row
+            {
+                Id = "knipprogramma", Title = "Print Screen voor Kapture", Keywords = "knipprogramma snipping windows instelling werkt niet prtsc",
+                Sub = delegate { return App.SnippingUsesPrintScreen() ? "Windows vangt Print Screen nu af voor het Knipprogramma. Klik op Zet uit, dan regelt Kapture het." : "In orde: Print Screen is vrij voor Kapture."; },
+                Warn = delegate { return App.SnippingUsesPrintScreen(); },
+                Kind = RowKind.Buttons
+            };
+            knipRow.Buttons.Add(new Btn { Label = "Zet uit", Icon = "check", Primary = true, Show = delegate { return App.SnippingUsesPrintScreen(); }, Click = delegate { if (app != null) app.FixSnipping(); else App.TurnOffSnippingPrintScreen(); Invalidate(); } });
+            knipRow.Buttons.Add(new Btn { Label = "Windows-instelling", Icon = "external-link", Click = delegate { App.OpenSnippingSetting(); } });
+            knip.Rows.Add(knipRow);
+            toetsen.Cards.Add(knip);
             Card keys = new Card { Title = "Sneltoetsen", Icon = "keyboard", Desc = "Werkt overal, ook als Kapture op de achtergrond staat." };
-            keys.Rows.Add(HotkeyRow("toets-screenshot", "Screenshot", "PrtSc", "print screen prtsc", App.HotkeyCapture, delegate { return cfg.HotkeyCapture; }, delegate(bool v) { cfg.HotkeyCapture = v; }));
-            keys.Rows.Add(HotkeyRow("toets-notitie", "Screenshot met notitie", "Shift+PrtSc", "notitie shift", App.HotkeyNote, delegate { return cfg.HotkeyNote; }, delegate(bool v) { cfg.HotkeyNote = v; }));
-            keys.Rows.Add(HotkeyRow("toets-laatste", "Notitie bij de laatste screenshot", "Ctrl+PrtSc", "notitie ctrl laatste achteraf", App.HotkeyLastNote, delegate { return cfg.HotkeyLastNote; }, delegate(bool v) { cfg.HotkeyLastNote = v; }));
+            keys.Rows.Add(HotkeyRow("toets-screenshot", "Screenshot", "PrtSc", "print screen prtsc", App.HotkeyCapture, delegate { return work.HotkeyCapture; }, delegate(bool v) { work.HotkeyCapture = v; }));
+            keys.Rows.Add(HotkeyRow("toets-notitie", "Screenshot met notitie", "Shift+PrtSc", "notitie shift", App.HotkeyNote, delegate { return work.HotkeyNote; }, delegate(bool v) { work.HotkeyNote = v; }));
+            keys.Rows.Add(HotkeyRow("toets-laatste", "Notitie bij de laatste screenshot", "Ctrl+PrtSc", "notitie ctrl laatste achteraf", App.HotkeyLastNote, delegate { return work.HotkeyLastNote; }, delegate(bool v) { work.HotkeyLastNote = v; }));
             keys.Rows.Add(new Row
             {
                 Id = "pauze", Title = "Alle sneltoetsen pauzeren", Keywords = "pauze uit tijdelijk",
                 Sub = delegate { return "Handig als een ander programma Print Screen even nodig heeft. Ook in het menu bij de klok."; },
-                Kind = RowKind.Toggle, Get = delegate { return cfg.HotkeysPaused; }, Set = delegate(bool v) { cfg.HotkeysPaused = v; Changed(); }
+                Kind = RowKind.Toggle, Get = delegate { return work.HotkeysPaused; }, Set = delegate(bool v) { work.HotkeysPaused = v; Edited(); }
             });
             toetsen.Cards.Add(keys);
-            Card knip = new Card { Title = "Print Screen en het Knipprogramma", Icon = "info", Desc = "Windows 11 opent standaard het Knipprogramma met Print Screen." };
-            Row knipRow = new Row
-            {
-                Id = "knipprogramma", Title = "Print Screen voor Kapture", Keywords = "knipprogramma snipping windows instelling",
-                Sub = delegate { return App.SnippingUsesPrintScreen() ? "Windows gebruikt Print Screen nog voor het Knipprogramma. Zet in de instelling \"Print Screen gebruiken om het Knipprogramma te openen\" uit." : "In orde: Print Screen is vrij voor Kapture."; },
-                Warn = delegate { return App.SnippingUsesPrintScreen(); },
-                Kind = RowKind.Buttons
-            };
-            knipRow.Buttons.Add(new Btn { Label = "Windows-instelling openen", Icon = "external-link", Click = delegate { App.OpenSnippingSetting(); } });
-            knip.Rows.Add(knipRow);
-            toetsen.Cards.Add(knip);
             Sections.Add(toetsen);
 
             Section opslaan = new Section { Name = "Opslaan en mappen", Icon = "folder", Desc = "Waar je screenshots komen en hoe ze heten." };
@@ -192,29 +227,29 @@ namespace Kapture
                 Id = "inbox", Title = "Map voor je screenshots", Keywords = "inbox map onedrive pictures screenshots opslaan pad locatie",
                 Sub = delegate
                 {
-                    string f = InboxFolder.Resolve(cfg);
+                    string f = InboxFolder.Resolve(work);
                     string problem = InboxProblem;
-                    return f + (problem != null ? "\n" + problem : (string.IsNullOrEmpty(cfg.Inbox) ? "\nStandaardmap" : ""));
+                    return f + (problem != null ? "\n" + problem : (string.IsNullOrEmpty(work.Inbox) ? "\nStandaardmap" : ""));
                 },
                 Warn = delegate { return InboxProblem != null; },
                 MonoSub = true, Kind = RowKind.Buttons
             };
             inboxRow.Buttons.Add(new Btn { Label = "Wijzig...", Icon = "folder", Click = ChooseInbox });
-            inboxRow.Buttons.Add(new Btn { Label = "Openen", Icon = "external-link", Click = delegate { if (app != null) app.OpenInbox(); } });
+            inboxRow.Buttons.Add(new Btn { Label = "Openen", Icon = "external-link", Click = delegate { OpenFolder(InboxFolder.Resolve(work)); } });
             inbox.Rows.Add(inboxRow);
             Row standaard = new Row
             {
                 Id = "inbox-standaard", Title = "Terug naar de standaardmap", Keywords = "standaard onedrive herstellen",
                 Sub = delegate { return InboxFolder.Default(); }, MonoSub = true, Kind = RowKind.Buttons,
-                Enabled = delegate { return !string.IsNullOrEmpty(cfg.Inbox); }
+                Enabled = delegate { return !string.IsNullOrEmpty(work.Inbox); }
             };
-            standaard.Buttons.Add(new Btn { Label = "Standaard", Icon = "rotate-ccw", Click = delegate { cfg.Inbox = ""; Changed(); } });
+            standaard.Buttons.Add(new Btn { Label = "Standaard", Icon = "rotate-ccw", Click = delegate { work.Inbox = ""; inboxChecked = false; Edited(); } });
             inbox.Rows.Add(standaard);
             inbox.Rows.Add(new Row
             {
                 Id = "maand", Title = "Elke maand een eigen map", Keywords = "maand submap ordenen structuur mappen",
-                Sub = delegate { return "Bijvoorbeeld " + Path.Combine(Path.GetFileName(InboxFolder.Resolve(cfg).TrimEnd('\\')), DateTime.Now.ToString("yyyy-MM")) + ". Handig als de inbox vol raakt."; },
-                Kind = RowKind.Toggle, Get = delegate { return cfg.MonthFolders; }, Set = delegate(bool v) { cfg.MonthFolders = v; Changed(); }
+                Sub = delegate { return "Bijvoorbeeld " + Path.Combine(Path.GetFileName(InboxFolder.Resolve(work).TrimEnd('\\')), DateTime.Now.ToString("yyyy-MM")) + ". Handig als de inbox vol raakt."; },
+                Kind = RowKind.Toggle, Get = delegate { return work.MonthFolders; }, Set = delegate(bool v) { work.MonthFolders = v; Edited(); }
             });
             inbox.Rows.Add(new Row
             {
@@ -240,13 +275,13 @@ namespace Kapture
             {
                 Id = "strook", Title = "Notitiestrook op het klembord", Keywords = "klembord plakken claude strook",
                 Sub = delegate { return "Plak je de screenshot in Claude, dan staat je notitie eronder. Het bestand blijft schoon."; },
-                Kind = RowKind.Toggle, Get = delegate { return cfg.NoteStrip; }, Set = delegate(bool v) { cfg.NoteStrip = v; Changed(); }
+                Kind = RowKind.Toggle, Get = delegate { return work.NoteStrip; }, Set = delegate(bool v) { work.NoteStrip = v; Edited(); }
             });
             notes.Rows.Add(new Row
             {
                 Id = "tekstbestand", Title = "Lange notitie ook als tekstbestand", Keywords = "txt tekst lang regels",
                 Sub = delegate { return "Past de notitie niet in de naam, of heeft hij meerdere regels, dan staat de hele tekst in een .txt met dezelfde naam."; },
-                Kind = RowKind.Toggle, Get = delegate { return cfg.NoteTextFile; }, Set = delegate(bool v) { cfg.NoteTextFile = v; Changed(); }
+                Kind = RowKind.Toggle, Get = delegate { return work.NoteTextFile; }, Set = delegate(bool v) { work.NoteTextFile = v; Edited(); }
             });
             notes.Rows.Add(new Row
             {
@@ -257,20 +292,61 @@ namespace Kapture
             notities.Cards.Add(notes);
             Sections.Add(notities);
 
-            Section over = new Section { Name = "Over", Icon = "info", Desc = "Versie en privacy." };
+            Section over = new Section { Name = "Over en bijwerken", Icon = "info", Desc = "Versie, nieuwe versies en privacy." };
             Card about = new Card { Title = "Kapture " + Program.Version, Icon = "camera", Desc = "Je eigen screenshot-tool voor Windows." };
             Row versie = new Row
             {
-                Id = "versie", Title = "Nieuwe versie", Keywords = "update versie bijwerken github release",
-                Sub = delegate { return "Nieuwe versies staan op GitHub. Installeer de nieuwe Kapture-Setup over de oude heen; je instellingen blijven staan."; },
+                Id = "versie", Title = "Nieuwe versie", Keywords = "update versie bijwerken github release downloaden",
+                Sub = delegate
+                {
+                    if (app != null && app.Updating) return "Bezig met bijwerken...";
+                    if (app != null && app.PendingUpdate != null) return "Versie " + app.PendingUpdate.Version + " staat klaar. Bijwerken duurt een paar seconden; Kapture start daarna vanzelf weer.";
+                    return updateStatus ?? "Je hebt versie " + Program.Version + ". Klik op Nu zoeken om te kijken of er een nieuwere is.";
+                },
                 Kind = RowKind.Buttons
             };
-            versie.Buttons.Add(new Btn { Label = "Versies bekijken", Icon = "external-link", Click = delegate { App.Open("https://github.com/ridaabouhayan-hue/kapture/releases"); } });
+            versie.Buttons.Add(new Btn
+            {
+                LabelNow = delegate { return app != null && app.PendingUpdate != null ? "Bijwerken naar " + app.PendingUpdate.Version : ""; },
+                Icon = "download", Primary = true,
+                Show = delegate { return app != null && app.PendingUpdate != null && !app.Updating; },
+                Click = delegate { if (app != null) app.InstallUpdate(); }
+            });
+            versie.Buttons.Add(new Btn
+            {
+                Label = "Nu zoeken", Icon = "refresh-cw",
+                Show = delegate { return app == null || app.PendingUpdate == null; },
+                Click = delegate
+                {
+                    if (app == null) return;
+                    updateStatus = "Even kijken op GitHub...";
+                    Invalidate();
+                    app.CheckForUpdateNow(delegate(int r)
+                    {
+                        updateStatus = r == 1 ? null : r == 0 ? "Je hebt de nieuwste versie (" + Program.Version + ")." : "Kon niet kijken. Is er internet?";
+                        if (!IsDisposed) Invalidate();
+                    });
+                }
+            });
             about.Rows.Add(versie);
             about.Rows.Add(new Row
             {
+                Id = "zoeken-auto", Title = "Zelf zoeken naar nieuwe versies", Keywords = "automatisch update bijwerken internet",
+                Sub = delegate { return "Bij het starten kijkt Kapture op GitHub of er een nieuwe versie is. Er gaat niets van jou mee."; },
+                Kind = RowKind.Toggle, Get = delegate { return work.UpdateCheck; }, Set = delegate(bool v) { work.UpdateCheck = v; Edited(); }
+            });
+            Row page = new Row
+            {
+                Id = "versies", Title = "Alle versies", Keywords = "github downloadpagina release notes",
+                Sub = delegate { return "Wat er in elke versie nieuw is, en de installers om zelf te downloaden."; },
+                Kind = RowKind.Buttons
+            };
+            page.Buttons.Add(new Btn { Label = "Downloadpagina", Icon = "external-link", Click = delegate { App.Open(Updates.Page); } });
+            about.Rows.Add(page);
+            about.Rows.Add(new Row
+            {
                 Id = "privacy", Title = "Privacy", Keywords = "privacy internet gegevens",
-                Sub = delegate { return "Kapture stuurt nooit vanzelf iets naar internet. Het foutlog bevat nooit bestandsnamen, notities of wat er op een screenshot staat."; },
+                Sub = delegate { return "Kapture stuurt nooit vanzelf iets naar internet; alleen de vraag aan GitHub of er een nieuwe versie is. Het foutlog bevat nooit bestandsnamen, notities of wat er op een screenshot staat."; },
                 Kind = RowKind.Info
             });
             over.Cards.Add(about);
@@ -284,13 +360,19 @@ namespace Kapture
                 Id = id, Title = title, Keycap = keycap, Keywords = keywords + " sneltoets toets",
                 Sub = delegate
                 {
-                    if (cfg.HotkeysPaused) return "Op pauze";
+                    if (work.HotkeysPaused) return "Op pauze";
                     if (!get()) return "Uit";
-                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet: een ander programma gebruikt deze toets, bijvoorbeeld ShareX.";
+                    if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return "Gaat nu naar het Knipprogramma. Zie hierboven: Zet uit.";
+                    if (app != null && cfg.HotkeysPaused == work.HotkeysPaused && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet: een ander programma gebruikt deze toets, bijvoorbeeld ShareX.";
                     return "Aan";
                 },
-                Warn = delegate { return app != null && get() && !cfg.HotkeysPaused && app.HotkeyTaken.ContainsKey(hotkeyId); },
-                Kind = RowKind.Toggle, Get = get, Set = delegate(bool v) { set(v); Changed(); }
+                Warn = delegate
+                {
+                    if (work.HotkeysPaused || !get()) return false;
+                    if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return true;
+                    return app != null && app.HotkeyTaken.ContainsKey(hotkeyId);
+                },
+                Kind = RowKind.Toggle, Get = get, Set = delegate(bool v) { set(v); Edited(); }
             };
         }
 
@@ -299,14 +381,21 @@ namespace Kapture
             using (FolderBrowserDialog d = new FolderBrowserDialog())
             {
                 d.Description = "Kies de map voor je screenshots";
-                d.SelectedPath = InboxFolder.Resolve(cfg);
+                d.SelectedPath = InboxFolder.Resolve(work);
                 d.ShowNewFolderButton = true;
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 string problem = InboxFolder.Check(d.SelectedPath);
                 if (problem != null) { MessageBox.Show(this, problem, "Kapture", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-                cfg.Inbox = string.Equals(d.SelectedPath.TrimEnd('\\'), InboxFolder.Default().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) ? "" : d.SelectedPath;
-                Changed();
+                work.Inbox = string.Equals(d.SelectedPath.TrimEnd('\\'), InboxFolder.Default().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) ? "" : d.SelectedPath;
+                inboxChecked = false;
+                Edited();
             }
+        }
+
+        static void OpenFolder(string f)
+        {
+            try { Directory.CreateDirectory(f); System.Diagnostics.Process.Start("explorer.exe", "\"" + f + "\""); }
+            catch (Exception ex) { Log.Error("Map openen mislukt", ex); }
         }
 
         // ---- zoeken: een regel past als alle woorden in de titel, de uitleg of de trefwoorden staan
@@ -319,14 +408,14 @@ namespace Kapture
             return true;
         }
 
-        // Een regel met Enabled = false staat er (nog) niet, bijvoorbeeld "Terug naar de standaardmap" als je die al gebruikt
         static bool ShowsRow(Row r) { return r.Enabled == null || r.Enabled(); }
 
         public string Query { get { return search.Text; } set { search.Text = value; } }
 
         // ---- indeling
         RectangleF SearchBox { get { float w = Math.Min(P(SearchW), ClientSize.Width - P(NavW) - P(48)); w = Math.Max(w, P(240)); return new RectangleF((ClientSize.Width - w) / 2f, (P(TopH) - P(SearchH)) / 2f, w, P(SearchH)); } }
-        RectangleF Content { get { return new RectangleF(P(NavW), P(TopH), ClientSize.Width - P(NavW), ClientSize.Height - P(TopH)); } }
+        RectangleF ContentOf(Size size) { return new RectangleF(P(NavW), P(TopH), size.Width - P(NavW), size.Height - P(TopH) - P(FootH)); }
+        RectangleF Content { get { return ContentOf(ClientSize); } }
 
         void LayoutSearch()
         {
@@ -351,6 +440,30 @@ namespace Kapture
             base.WndProc(ref m);
         }
 
+        // ---- tekst via Windows (ClearType): scherp, zoals in NexusPen en Verkenner
+        const TextFormatFlags Base = TextFormatFlags.NoPrefix | TextFormatFlags.NoPadding;
+
+        static void Txt(Graphics g, string text, Font f, RectangleF r, Color c, bool wrap) { Txt(g, text, f, r, c, wrap, StringAlignment.Near); }
+
+        static void Txt(Graphics g, string text, Font f, RectangleF r, Color c, bool wrap, StringAlignment align)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            TextFormatFlags fl = Base;
+            fl |= align == StringAlignment.Center ? TextFormatFlags.HorizontalCenter : align == StringAlignment.Far ? TextFormatFlags.Right : TextFormatFlags.Left;
+            if (wrap) fl |= TextFormatFlags.WordBreak | TextFormatFlags.Top | TextFormatFlags.TextBoxControl;
+            else fl |= TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis;
+            Rectangle ri = Rectangle.FromLTRB((int)Math.Round(r.Left), (int)Math.Round(r.Top), (int)Math.Round(r.Right), (int)Math.Round(r.Bottom));
+            TextRenderer.DrawText(g, text, f, ri, c, fl);
+        }
+
+        static float TextW(string text, Font f) { return TextRenderer.MeasureText(text ?? "", f, new Size(int.MaxValue, int.MaxValue), Base | TextFormatFlags.SingleLine).Width; }
+
+        static float TextH(string text, Font f, float width)
+        {
+            if (string.IsNullOrEmpty(text)) return 0;
+            return TextRenderer.MeasureText(text, f, new Size((int)Math.Max(1, width), int.MaxValue), Base | TextFormatFlags.WordBreak | TextFormatFlags.TextBoxControl).Height;
+        }
+
         // ---- tekenen
         protected override void OnPaint(PaintEventArgs e) { Draw(e.Graphics, ClientSize, true); }
 
@@ -359,26 +472,16 @@ namespace Kapture
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;
             zones.Clear();
             using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, 0, 0, size.Width, size.Height);
 
-            // inhoud (eerst, zodat de bovenbalk en het menu eroverheen liggen)
-            RectangleF content = new RectangleF(P(NavW), P(TopH), size.Width - P(NavW), size.Height - P(TopH));
+            RectangleF content = ContentOf(size);
             GraphicsState st = g.Save();
             g.SetClip(content);
             DrawContent(g, content);
-            if (pendingNav >= 0 && pendingNav < sectionY.Count)
-            {
-                // nu kloppen de posities: naar de gekozen sectie en nog een keer tekenen
-                scrollY = sectionY[pendingNav]; pendingNav = -1;
-                float max = Math.Max(0, contentH - content.Height);
-                scrollY = Math.Max(0, Math.Min(max, scrollY));
-                zones.Clear();
-                using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, content);
-                DrawContent(g, content);
-            }
             g.Restore(st);
+
+            DrawFooter(g, size);
 
             // bovenbalk met zoekvak
             using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, 0, 0, size.Width, P(TopH));
@@ -391,10 +494,8 @@ namespace Kapture
             Icons.Draw(g, "search", new RectangleF(sb.X + P(16), sb.Y, P(18), sb.Height), 18 * s, t.Variant, 2);
             if (!live || search.Text.Length == 0)
             {
-                StringFormat sf = Line();
-                string shown = !live && search.Text.Length > 0 ? search.Text : "Zoek een instelling...";
-                using (SolidBrush b = new SolidBrush(!live && search.Text.Length > 0 ? t.OnSurface : t.Outline))
-                    g.DrawString(shown, Fonts.Ui(14 * s, 0), b, new RectangleF(sb.X + P(46), sb.Y, sb.Width - P(60), sb.Height), sf);
+                bool typed = !live && search.Text.Length > 0;
+                Txt(g, typed ? search.Text : "Zoek een instelling...", Fonts.Ui(14 * s, 0), new RectangleF(sb.X + P(46), sb.Y, sb.Width - P(60), sb.Height), typed ? t.OnSurface : t.Outline, false);
             }
 
             // menu links
@@ -407,61 +508,94 @@ namespace Kapture
                 RectangleF r = new RectangleF(P(NavPad), y, P(NavW) - 2 * P(NavPad), P(NavItemH));
                 bool sel = !searching && i == navIndex;
                 string id = "nav" + i;
+                Color bg = sel ? t.PrimaryContainer : (hot == id ? t.Container : t.SurfaceLow);
                 if (sel || hot == id)
                     using (GraphicsPath gp = Svg.RoundRect(r, P(8)))
-                    using (SolidBrush b = new SolidBrush(sel ? t.PrimaryContainer : t.Container)) g.FillPath(b, gp);
-                Color fg = sel ? t.OnPrimaryContainer : t.OnSurface;
+                    using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, gp);
                 Icons.Draw(g, Sections[i].Icon, new RectangleF(r.X + P(12), r.Y, P(16), r.Height), 16 * s, sel ? t.Primary : t.Variant, 2);
-                using (SolidBrush b = new SolidBrush(fg)) g.DrawString(Sections[i].Name, Fonts.Ui(13 * s, sel ? 1 : 0), b, new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), Line());
+                Txt(g, Sections[i].Name, Fonts.Ui(13 * s, sel ? 1 : 0), new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), sel ? t.OnPrimaryContainer : t.OnSurface, false);
                 int idx = i;
-                zones.Add(new Zone { R = r, Id = id, Click = delegate { GoTo(idx); } });
+                zones.Add(new Zone { R = r, Id = id, Click = delegate { GoTo(idx); }, Fixed = true });
                 y += P(NavItemH) + P(4);
             }
         }
 
-        static StringFormat Line()
+        // Onderaan: links de stand van zaken (of de bevestiging), rechts Annuleren en Opslaan
+        void DrawFooter(Graphics g, Size size)
         {
-            StringFormat f = new StringFormat(StringFormat.GenericTypographic);
-            f.LineAlignment = StringAlignment.Center; f.FormatFlags |= StringFormatFlags.NoWrap; f.Trimming = StringTrimming.EllipsisCharacter;
-            return f;
+            RectangleF foot = new RectangleF(P(NavW), size.Height - P(FootH), size.Width - P(NavW), P(FootH));
+            using (SolidBrush b = new SolidBrush(t.SurfaceLow)) g.FillRectangle(b, foot);
+            using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, foot.X, foot.Y + 0.5f, foot.Right, foot.Y + 0.5f);
+            bool dirty = Dirty;
+            Font bf = Fonts.Ui(13 * s, 1);
+            float bh = P(36), by = foot.Y + (foot.Height - bh) / 2;
+            float sw = TextW("Opslaan", bf) + P(16) + P(22) + P(16);
+            RectangleF saveR = new RectangleF(foot.Right - P(ContentPadX) - sw, by, sw, bh);
+            float cw = TextW("Annuleren", bf) + P(32);
+            RectangleF cancelR = new RectangleF(saveR.X - P(8) - cw, by, cw, bh);
+
+            // Opslaan: blauw als er iets te bewaren is, anders grijs
+            using (GraphicsPath gp = Svg.RoundRect(saveR, P(8)))
+            using (SolidBrush b = new SolidBrush(dirty ? (hot == "opslaan" ? Theme.Mix(t.Primary, t.OnSurface, 0.15f) : t.Primary) : t.Container))
+                g.FillPath(b, gp);
+            Color sc = dirty ? t.OnPrimary : Color.FromArgb(255, Theme.Mix(t.Container, t.OnSurface, 0.4f));
+            Icons.Draw(g, "save", new RectangleF(saveR.X + P(16), saveR.Y, P(16), saveR.Height), 16 * s, sc, 2);
+            Txt(g, "Opslaan", bf, new RectangleF(saveR.X + P(38), saveR.Y, saveR.Width - P(46), saveR.Height), sc, false);
+            if (dirty) zones.Add(new Zone { R = saveR, Id = "opslaan", Click = SaveNow, Fixed = true });
+
+            if (dirty)
+            {
+                using (GraphicsPath gp = Svg.RoundRect(new RectangleF(cancelR.X + 0.5f, cancelR.Y + 0.5f, cancelR.Width - 1, cancelR.Height - 1), P(8)))
+                using (SolidBrush b = new SolidBrush(hot == "annuleren" ? t.Container : t.Surface))
+                using (Pen p = new Pen(t.OutlineVariant)) { g.FillPath(b, gp); g.DrawPath(p, gp); }
+                Txt(g, "Annuleren", bf, cancelR, t.OnSurface, false, StringAlignment.Center);
+                zones.Add(new Zone { R = cancelR, Id = "annuleren", Click = Revert, Fixed = true });
+            }
+
+            // links: bevestiging, of wat er nog niet bewaard is
+            float lx = foot.X + P(ContentPadX), lw = cancelR.X - P(16) - lx;
+            Font mf = Fonts.Ui(13 * s, 0);
+            if (saved != null)
+            {
+                RectangleF dot = new RectangleF(lx, foot.Y + (foot.Height - P(22)) / 2, P(22), P(22));
+                using (SolidBrush db = new SolidBrush(t.PrimaryContainer)) g.FillEllipse(db, dot);
+                Icons.Draw(g, "check", dot, 14 * s, t.Primary, 2.5f);
+                Txt(g, saved + ". Kapture gebruikt ze nu.", Fonts.Ui(13 * s, 1), new RectangleF(lx + P(30), foot.Y, lw - P(30), foot.Height), t.OnSurface, false);
+            }
+            else if (dirty)
+                Txt(g, "Je hebt wijzigingen die nog niet bewaard zijn.", mf, new RectangleF(lx, foot.Y, lw, foot.Height), t.OnSurface, false);
+            else
+                Txt(g, "Wijzigingen worden bewaard als je op Opslaan klikt.", mf, new RectangleF(lx, foot.Y, lw, foot.Height), t.Variant, false);
         }
 
-        static StringFormat Wrap() { return new StringFormat(StringFormat.GenericTypographic); }
-
-        float TextH(Graphics g, string text, Font f, float width)
-        {
-            if (string.IsNullOrEmpty(text)) return 0;
-            return (float)Math.Ceiling(g.MeasureString(text, f, (int)Math.Max(1, width), Wrap()).Height);
-        }
-
-        // Maakt de inhoud op (en tekent hem als 'draw'), met de scroll erbij. Geeft de totale hoogte.
+        // Eén pagina (de gekozen sectie), of bij zoeken alle regels die passen
         void DrawContent(Graphics g, RectangleF area)
         {
             string q = search.Text.Trim();
+            bool searching = q.Length > 0;
             float x = area.X + P(ContentPadX), w = Math.Min(area.Width - 2 * P(ContentPadX) - P(8), P(820));
             float y = area.Y + P(ContentPadTop) - scrollY;
             float top = y;
-            sectionY.Clear();
             bool any = false;
             for (int si = 0; si < Sections.Count; si++)
             {
+                if (!searching && si != navIndex) continue;
                 Section sec = Sections[si];
                 List<Card> cards = new List<Card>();
                 foreach (Card c in sec.Cards) foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) { cards.Add(c); break; }
-                sectionY.Add(y - top);
                 if (cards.Count == 0) continue;
                 any = true;
-                using (SolidBrush b = new SolidBrush(t.OnSurface)) g.DrawString(sec.Name, Fonts.Ui(22 * s, 1), b, x, y, Wrap());
-                y += P(32);
-                using (SolidBrush b = new SolidBrush(t.Variant)) g.DrawString(sec.Desc, Fonts.Ui(13 * s, 0), b, new RectangleF(x, y, w, P(40)), Wrap());
-                y += TextH(g, sec.Desc, Fonts.Ui(13 * s, 0), w) + P(16);
+                Txt(g, sec.Name, Fonts.Ui(22 * s, 1), new RectangleF(x, y, w, P(32)), t.OnSurface, false);
+                y += P(34);
+                Font df = Fonts.Ui(13 * s, 0);
+                Txt(g, sec.Desc, df, new RectangleF(x, y, w, P(60)), t.Variant, true);
+                y += TextH(sec.Desc, df, w) + P(16);
                 foreach (Card c in cards) { y += DrawCard(g, c, x, y, w, q); y += P(CardGap); }
                 y += P(SectionGap) - P(CardGap);
             }
             if (!any)
-                using (SolidBrush b = new SolidBrush(t.Variant))
-                    g.DrawString("Niets gevonden voor \"" + q + "\". Probeer een ander woord, bijvoorbeeld map, notitie of sneltoets.", Fonts.Ui(14 * s, 0), b, new RectangleF(x, y, w, P(60)), Wrap());
-            contentH = (y + scrollY) - (area.Y + P(ContentPadTop)) + P(ContentPadTop) + P(40);
+                Txt(g, "Niets gevonden voor \"" + q + "\". Probeer een ander woord, bijvoorbeeld map, notitie of sneltoets.", Fonts.Ui(14 * s, 0), new RectangleF(x, y, w, P(60)), t.Variant, true);
+            contentH = (y - top) + P(ContentPadTop);
             DrawScrollbar(g, area);
         }
 
@@ -469,26 +603,24 @@ namespace Kapture
         {
             Font titleF = Fonts.Ui(15 * s, 1), descF = Fonts.Ui(12 * s, 0);
             float pad = P(CardPad), inner = w - 2 * pad;
-            // hoogte eerst uitrekenen
-            float headH = Math.Max(P(40), P(22) + TextH(g, c.Desc, descF, inner - P(56)));
+            float headH = Math.Max(P(40), P(24) + TextH(c.Desc, descF, inner - P(56)));
             List<Row> rows = new List<Row>();
             foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) rows.Add(r);
             List<float> rowH = new List<float>();
             float total = pad + headH + P(16);
-            foreach (Row r in rows) { float h = RowHeight(g, r, inner); rowH.Add(h); total += h; }
+            foreach (Row r in rows) { float h = RowHeight(r, inner); rowH.Add(h); total += h; }
             total += P(4) + pad - P(RowPadY);
 
             RectangleF cr = new RectangleF(x, y, w, total);
             using (GraphicsPath gp = Svg.RoundRect(new RectangleF(cr.X + 0.5f, cr.Y + 0.5f, cr.Width - 1, cr.Height - 1), P(12)))
             using (SolidBrush b = new SolidBrush(t.Surface))
             using (Pen p = new Pen(t.OutlineVariant)) { g.FillPath(b, gp); g.DrawPath(p, gp); }
-            // kop: blauw tegeltje met icoon, titel en uitleg
             RectangleF tile = new RectangleF(x + pad, y + pad, P(40), P(40));
             using (GraphicsPath tp = Svg.RoundRect(tile, P(10))) using (SolidBrush b = new SolidBrush(t.Primary)) g.FillPath(b, tp);
             Icons.Draw(g, c.Icon, tile, 20 * s, Color.White, 2);
             float tx = tile.Right + P(16);
-            using (SolidBrush b = new SolidBrush(t.OnSurface)) g.DrawString(c.Title, titleF, b, tx, y + pad, Wrap());
-            using (SolidBrush b = new SolidBrush(t.Variant)) g.DrawString(c.Desc, descF, b, new RectangleF(tx, y + pad + P(22), inner - P(56), P(60)), Wrap());
+            Txt(g, c.Title, titleF, new RectangleF(tx, y + pad, inner - P(56), P(22)), t.OnSurface, false);
+            Txt(g, c.Desc, descF, new RectangleF(tx, y + pad + P(24), inner - P(56), P(60)), t.Variant, true);
             float ry = y + pad + headH + P(16);
             for (int i = 0; i < rows.Count; i++)
             {
@@ -499,46 +631,52 @@ namespace Kapture
             return total;
         }
 
-        float ControlWidth(Graphics g, Row r)
+        List<Btn> VisibleButtons(Row r)
+        {
+            List<Btn> list = new List<Btn>();
+            foreach (Btn b in r.Buttons) if (b.Show == null || b.Show()) list.Add(b);
+            return list;
+        }
+
+        static string LabelOf(Btn b) { return b.LabelNow != null ? b.LabelNow() : b.Label; }
+
+        float ControlWidth(Row r)
         {
             switch (r.Kind)
             {
                 case RowKind.Toggle:
-                    return P(40) + (r.Keycap != null ? KeycapW(g, r.Keycap) + P(12) : 0);
+                    return P(40) + (r.Keycap != null ? KeycapW(r.Keycap) + P(12) : 0);
                 case RowKind.Segments:
-                    { float w = 0; foreach (string seg in r.Segments) w += SegW(g, seg); return w + P(8); }
+                    { float w = 0; foreach (string seg in r.Segments) w += SegW(seg); return w + P(8); }
                 case RowKind.Stepper: return P(120);
                 case RowKind.Buttons:
-                    { float w = 0; foreach (Btn b in r.Buttons) w += BtnW(g, b) + P(8); return Math.Max(0, w - P(8)); }
+                    { float w = 0; foreach (Btn b in VisibleButtons(r)) w += BtnW(b) + P(8); return Math.Max(0, w - P(8)); }
             }
             return 0;
         }
 
-        float KeycapW(Graphics g, string k) { return g.MeasureString(k, Fonts.Mono(12 * s), PointF.Empty, StringFormat.GenericTypographic).Width + P(16); }
-        float SegW(Graphics g, string seg) { return g.MeasureString(seg, Fonts.Ui(13 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width + P(28); }
-        float BtnW(Graphics g, Btn b) { return g.MeasureString(b.Label, Fonts.Ui(13 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width + P(24) + (b.Icon != null ? P(22) : 0); }
+        float KeycapW(string k) { return TextW(k, Fonts.Mono(12 * s)) + P(16); }
+        float SegW(string seg) { return TextW(seg, Fonts.Ui(13 * s, 1)) + P(28); }
+        float BtnW(Btn b) { return TextW(LabelOf(b), Fonts.Ui(13 * s, 1)) + P(24) + (b.Icon != null ? P(24) : 0); }
 
         Font SubFont(Row r) { return r.MonoSub ? Fonts.Mono(12 * s) : Fonts.Ui(12 * s, 0); }
 
-        float RowHeight(Graphics g, Row r, float inner)
+        float RowHeight(Row r, float inner)
         {
-            float cw = ControlWidth(g, r);
+            float cw = ControlWidth(r);
             float tw = inner - (cw > 0 ? cw + P(ControlGap) : 0);
-            float h = P(RowPadY) + P(20) + P(4) + TextH(g, r.Sub != null ? r.Sub() : "", SubFont(r), tw) + P(RowPadY);
+            float h = P(RowPadY) + P(20) + P(4) + TextH(r.Sub != null ? r.Sub() : "", SubFont(r), tw) + P(RowPadY);
             return Math.Max(P(60), h);
         }
 
         void DrawRow(Graphics g, Row r, RectangleF rr)
         {
-            bool enabled = r.Enabled == null || r.Enabled();
-            float cw = ControlWidth(g, r);
+            float cw = ControlWidth(r);
             float tw = rr.Width - (cw > 0 ? cw + P(ControlGap) : 0);
-            Color titleC = enabled ? t.OnSurface : Color.FromArgb(120, t.OnSurface);
-            using (SolidBrush b = new SolidBrush(titleC)) g.DrawString(r.Title, Fonts.Ui(14 * s, 0), b, new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), Line());
+            Txt(g, r.Title, Fonts.Ui(14 * s, 0), new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), t.OnSurface, false);
             string sub = r.Sub != null ? r.Sub() : "";
             bool warn = r.Warn != null && r.Warn();
-            using (SolidBrush b = new SolidBrush(warn ? t.Error : t.Variant))
-                g.DrawString(sub, SubFont(r), b, new RectangleF(rr.X, rr.Y + P(RowPadY) + P(24), tw, rr.Height), Wrap());
+            Txt(g, sub, SubFont(r), new RectangleF(rr.X, rr.Y + P(RowPadY) + P(24), tw, rr.Height), warn ? t.Error : t.Variant, true);
 
             float cx = rr.Right - cw, cy = rr.Y + P(RowPadY) - P(2);
             switch (r.Kind)
@@ -547,32 +685,30 @@ namespace Kapture
                     {
                         if (r.Keycap != null)
                         {
-                            float kw = KeycapW(g, r.Keycap);
+                            float kw = KeycapW(r.Keycap);
                             RectangleF key = new RectangleF(cx, cy, kw, P(26));
                             using (GraphicsPath kp = Svg.RoundRect(key, P(6)))
                             using (SolidBrush kb = new SolidBrush(t.SurfaceLow))
                             using (Pen kpn = new Pen(t.OutlineVariant)) { g.FillPath(kb, kp); g.DrawPath(kpn, kp); }
-                            StringFormat c = Line(); c.Alignment = StringAlignment.Center;
-                            using (SolidBrush fb = new SolidBrush(t.OnSurface)) g.DrawString(r.Keycap, Fonts.Mono(12 * s), fb, key, c);
+                            Txt(g, r.Keycap, Fonts.Mono(12 * s), key, t.OnSurface, false, StringAlignment.Center);
                             cx += kw + P(12);
                         }
                         RectangleF tr = new RectangleF(cx, cy + P(2), P(40), P(22));
                         DrawToggle(g, tr, r.Get(), hot == r.Id);
                         RectangleF hit = tr; hit.Inflate(P(6), P(6));
                         Row row = r;
-                        zones.Add(new Zone { R = hit, Id = r.Id, Click = delegate { row.Set(!row.Get()); Invalidate(); } });
+                        zones.Add(new Zone { R = hit, Id = r.Id, Click = delegate { row.Set(!row.Get()); } });
                         break;
                     }
                 case RowKind.Segments:
                     {
-                        float total = ControlWidth(g, r);
-                        RectangleF box = new RectangleF(cx, cy, total, P(32));
+                        RectangleF box = new RectangleF(cx, cy, ControlWidth(r), P(32));
                         using (GraphicsPath bp = Svg.RoundRect(box, P(8))) using (SolidBrush bb = new SolidBrush(t.Container)) g.FillPath(bb, bp);
                         float sx = box.X + P(4);
                         int cur = r.GetIndex();
                         for (int i = 0; i < r.Segments.Length; i++)
                         {
-                            float sw = SegW(g, r.Segments[i]);
+                            float sw = SegW(r.Segments[i]);
                             RectangleF seg = new RectangleF(sx, box.Y + P(3), sw, box.Height - P(6));
                             string id = r.Id + ":" + i;
                             if (i == cur)
@@ -581,8 +717,7 @@ namespace Kapture
                                 using (Pen spn = new Pen(t.OutlineVariant)) { g.FillPath(sb, sp); g.DrawPath(spn, sp); }
                             else if (hot == id)
                                 using (GraphicsPath sp = Svg.RoundRect(seg, P(6))) using (SolidBrush sb = new SolidBrush(t.ContainerHigh)) g.FillPath(sb, sp);
-                            StringFormat c = Line(); c.Alignment = StringAlignment.Center;
-                            using (SolidBrush fb = new SolidBrush(i == cur ? t.OnSurface : t.Variant)) g.DrawString(r.Segments[i], Fonts.Ui(13 * s, 1), fb, seg, c);
+                            Txt(g, r.Segments[i], Fonts.Ui(13 * s, 1), seg, i == cur ? t.OnSurface : t.Variant, false, StringAlignment.Center);
                             int idx = i; Row row = r;
                             zones.Add(new Zone { R = seg, Id = id, Click = delegate { row.SetIndex(idx); } });
                             sx += sw;
@@ -609,35 +744,32 @@ namespace Kapture
                             }
                             zones.Add(new Zone { R = b, Id = id, Click = delegate { int n = row.GetNumber() + (isPlus ? 1 : -1); row.SetNumber(Math.Max(row.Min, Math.Min(row.Max, n))); } });
                         }
-                        StringFormat c = Line(); c.Alignment = StringAlignment.Center;
-                        using (SolidBrush fb = new SolidBrush(t.OnSurface)) g.DrawString(r.GetNumber() + r.Unit, Fonts.Ui(14 * s, 1), fb, new RectangleF(minus.Right, box.Y, plus.X - minus.Right, box.Height), c);
+                        Txt(g, r.GetNumber() + r.Unit, Fonts.Ui(14 * s, 1), new RectangleF(minus.Right, box.Y, plus.X - minus.Right, box.Height), t.OnSurface, false, StringAlignment.Center);
                         break;
                     }
                 case RowKind.Buttons:
                     {
                         float bx = cx;
-                        for (int i = 0; i < r.Buttons.Count; i++)
+                        List<Btn> shown = VisibleButtons(r);
+                        for (int i = 0; i < shown.Count; i++)
                         {
-                            Btn b = r.Buttons[i];
-                            float bw = BtnW(g, b);
+                            Btn b = shown[i];
+                            float bw = BtnW(b);
                             RectangleF br = new RectangleF(bx, cy, bw, P(32));
                             string id = r.Id + ":b" + i;
-                            Color bg = !enabled ? Color.Empty : (hot == id ? t.Container : t.Surface);
+                            Color bg = b.Primary ? (hot == id ? Theme.Mix(t.Primary, t.OnSurface, 0.15f) : t.Primary) : (hot == id ? t.Container : t.Surface);
                             using (GraphicsPath bp = Svg.RoundRect(new RectangleF(br.X + 0.5f, br.Y + 0.5f, br.Width - 1, br.Height - 1), P(8)))
-                            using (Pen pn = new Pen(t.OutlineVariant))
+                            using (SolidBrush bb = new SolidBrush(bg))
                             {
-                                if (bg != Color.Empty) using (SolidBrush bb = new SolidBrush(bg)) g.FillPath(bb, bp);
-                                g.DrawPath(pn, bp);
+                                g.FillPath(bb, bp);
+                                if (!b.Primary) using (Pen pn = new Pen(t.OutlineVariant)) g.DrawPath(pn, bp);
                             }
-                            Color fc = enabled ? t.OnSurface : Color.FromArgb(110, t.OnSurface);
+                            Color fc = b.Primary ? t.OnPrimary : t.OnSurface;
                             float lx = br.X + P(12);
-                            if (b.Icon != null) { Icons.Draw(g, b.Icon, new RectangleF(lx, br.Y, P(16), br.Height), 16 * s, enabled ? t.Primary : fc, 2); lx += P(22); }
-                            using (SolidBrush fb = new SolidBrush(fc)) g.DrawString(b.Label, Fonts.Ui(13 * s, 1), fb, new RectangleF(lx, br.Y, br.Right - lx, br.Height), Line());
-                            if (enabled)
-                            {
-                                Action click = b.Click;
-                                zones.Add(new Zone { R = br, Id = id, Click = delegate { try { click(); } catch (Exception ex) { Log.Error("Knop in Instellingen mislukt", ex); } } });
-                            }
+                            if (b.Icon != null) { Icons.Draw(g, b.Icon, new RectangleF(lx, br.Y, P(16), br.Height), 16 * s, b.Primary ? t.OnPrimary : t.Primary, 2); lx += P(24); }
+                            Txt(g, LabelOf(b), Fonts.Ui(13 * s, 1), new RectangleF(lx, br.Y, br.Right - lx - P(4), br.Height), fc, false);
+                            Action click = b.Click;
+                            zones.Add(new Zone { R = br, Id = id, Click = delegate { try { click(); } catch (Exception ex) { Log.Error("Knop in Instellingen mislukt", ex); } } });
                             bx += bw + P(8);
                         }
                         break;
@@ -658,7 +790,7 @@ namespace Kapture
             }
             float d = on ? r.Height - P(6) : r.Height - P(10);
             float kx = on ? r.Right - P(3) - d : r.X + P(5);
-            using (SolidBrush k = new SolidBrush(on ? t.OnPrimary : t.Outline)) g.FillEllipse(k, kx, r.Y + (r.Height - d) / 2, d, d);
+            using (SolidBrush k = new SolidBrush(on ? Color.White : t.Outline)) g.FillEllipse(k, kx, r.Y + (r.Height - d) / 2, d, d);
         }
 
         void DrawScrollbar(Graphics g, RectangleF area)
@@ -683,16 +815,8 @@ namespace Kapture
         void GoTo(int i)
         {
             navIndex = i;
-            if (search.Text.Length > 0)
-            {
-                // de posities horen nog bij de gefilterde lijst: na het tekenen van de volledige lijst scrollen
-                pendingNav = i;
-                search.Text = "";
-                Invalidate();
-                return;
-            }
-            if (i < sectionY.Count) scrollY = sectionY[i];
-            ClampScroll();
+            scrollY = 0;
+            if (search.Text.Length > 0) search.Text = "";
             Invalidate();
         }
 
@@ -700,15 +824,7 @@ namespace Kapture
         {
             scrollY -= e.Delta * P(60) / 120f;
             ClampScroll();
-            UpdateNavFromScroll();
             Invalidate();
-        }
-
-        void UpdateNavFromScroll()
-        {
-            if (search.Text.Trim().Length > 0) return;
-            for (int i = sectionY.Count - 1; i >= 0; i--) if (scrollY + P(40) >= sectionY[i]) { navIndex = i; return; }
-            navIndex = 0;
         }
 
         string HitTest(Point p)
@@ -718,8 +834,8 @@ namespace Kapture
             for (int i = zones.Count - 1; i >= 0; i--)
             {
                 if (!zones[i].R.Contains(p)) continue;
-                // knoppen van de inhoud die onder de bovenbalk of het menu weggescrold zijn, tellen niet
-                if (!zones[i].Id.StartsWith("nav", StringComparison.Ordinal) && !inContent) continue;
+                // knoppen van de pagina die onder de bovenbalk of de onderbalk weggescrold zijn, tellen niet
+                if (!zones[i].Fixed && !inContent) continue;
                 return zones[i].Id;
             }
             return null;
@@ -731,7 +847,7 @@ namespace Kapture
             {
                 float range = trackR.Height - thumbR.Height;
                 if (range > 0) scrollY = dragScroll + (e.Y - dragFrom) * (contentH - Content.Height) / range;
-                ClampScroll(); UpdateNavFromScroll(); Invalidate();
+                ClampScroll(); Invalidate();
                 return;
             }
             string h = HitTest(e.Location);
@@ -763,6 +879,7 @@ namespace Kapture
         protected override bool ProcessCmdKey(ref Message msg, Keys key)
         {
             if (key == (Keys.Control | Keys.F)) { search.Focus(); search.SelectAll(); return true; }
+            if (key == (Keys.Control | Keys.S)) { SaveNow(); return true; }
             if (key == Keys.Escape && !search.Focused) { Close(); return true; }
             if (!search.Focused)
             {
@@ -772,22 +889,35 @@ namespace Kapture
                     if (key == Keys.PageDown) scrollY += page; else if (key == Keys.PageUp) scrollY -= page;
                     else if (key == Keys.Down) scrollY += P(40); else if (key == Keys.Up) scrollY -= P(40);
                     else if (key == Keys.Home) scrollY = 0; else scrollY = contentH;
-                    ClampScroll(); UpdateNavFromScroll(); Invalidate();
+                    ClampScroll(); Invalidate();
                     return true;
                 }
             }
             return base.ProcessCmdKey(ref msg, key);
         }
 
-        // Sluiten verbergt alleen; zo blijft de plek en de zoekterm bewaard tot Kapture stopt
+        // Sluiten met wijzigingen die nog niet bewaard zijn: eerst vragen. Daarna verbergen (zoekterm en pagina blijven).
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing) { e.Cancel = true; Hide(); return; }
+            if (e.CloseReason == CloseReason.UserClosing)
+            {
+                if (Dirty)
+                {
+                    DialogResult a = MessageBox.Show(this, "Je hebt wijzigingen die nog niet bewaard zijn. Wil je ze opslaan?", "Kapture",
+                        MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                    if (a == DialogResult.Cancel) { e.Cancel = true; return; }
+                    if (a == DialogResult.Yes) SaveNow(); else Revert();
+                }
+                e.Cancel = true; Hide();
+                return;
+            }
             base.OnFormClosing(e);
         }
 
         // ---- voor de zelftest: het venster als plaatje, zonder het op het scherm te zetten
-        public Bitmap RenderForTest(Theme theme, float scale, int section, string query)
+        public Bitmap RenderForTest(Theme theme, float scale, int section, string query) { return RenderForTest(theme, scale, section, query, false); }
+
+        public Bitmap RenderForTest(Theme theme, float scale, int section, string query, bool edited)
         {
             Program.ForceTheme = theme;
             try
@@ -796,18 +926,16 @@ namespace Kapture
                 search.Font = Fonts.Ui(14 * s, 0);
                 Size size = new Size(P(1040), P(720));
                 search.Text = query ?? "";
-                navIndex = section;
+                navIndex = section; scrollY = 0;
+                if (edited) { work.MonthFolders = !work.MonthFolders; work.ToastSeconds = 8; }
                 Bitmap b = new Bitmap(size.Width, size.Height);
-                // twee keer: de eerste keer leert de posities van de secties
-                using (Graphics g = Graphics.FromImage(b)) Draw(g, size, false);
-                scrollY = section < sectionY.Count && string.IsNullOrEmpty(query) ? sectionY[section] : 0;
-                float max = Math.Max(0, contentH - (size.Height - P(TopH)));
-                scrollY = Math.Max(0, Math.Min(max, scrollY));
                 using (Graphics g = Graphics.FromImage(b)) Draw(g, size, false);
                 return b;
             }
             finally { Program.ForceTheme = null; }
         }
+
+        public void ShowSavedForTest() { saved = "Instellingen opgeslagen"; }
 
         public int ZoneCountForTest { get { return zones.Count; } }
     }

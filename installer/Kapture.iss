@@ -1,6 +1,6 @@
 ; Kapture installer (Inno Setup 6). Installeert voor de huidige gebruiker, zonder beheerdersrechten.
 #ifndef AppVersion
-  #define AppVersion "0.2.0"
+  #define AppVersion "0.2.1"
 #endif
 
 [Setup]
@@ -49,6 +49,8 @@ Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: 
 
 [Run]
 Filename: "{app}\Kapture.exe"; Description: "Kapture starten"; Flags: nowait postinstall skipifsilent
+; bijwerken vanuit Kapture (met /BIJWERKEN): Kapture daarna vanzelf weer starten
+Filename: "{app}\Kapture.exe"; Flags: nowait; Check: IsUpdateRun
 
 [UninstallRun]
 Filename: "{cmd}"; Parameters: "/C taskkill /IM Kapture.exe /F"; Flags: runhidden; RunOnceId: "StopKapture"
@@ -60,6 +62,37 @@ fr.AskDeleteData=Voulez-vous aussi supprimer les paramètres et le journal des e
 es.AskDeleteData=¿Quieres borrar también los ajustes y el registro de errores de Kapture? Tus capturas de pantalla se quedan siempre.
 
 [Code]
+var
+  Installed: Boolean;
+
+// Is deze installer gestart door "bijwerken met een klik" in Kapture?
+function IsUpdateRun: Boolean;
+var
+  i: Integer;
+begin
+  Result := False;
+  for i := 1 to ParamCount do
+    if CompareText(ParamStr(i), '/BIJWERKEN') = 0 then Result := True;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then Installed := True;
+end;
+
+// Mislukt het bijwerken (virusscanner, volle schijf): Kapture toch weer starten, de oude versie staat er nog
+procedure DeinitializeSetup;
+var
+  rc: Integer;
+  exe: String;
+begin
+  if IsUpdateRun and (not Installed) then
+  begin
+    exe := ExpandConstant('{localappdata}\Programs\Kapture\Kapture.exe');
+    if FileExists(exe) then Exec(exe, '', '', SW_SHOWNORMAL, ewNoWait, rc);
+  end;
+end;
+
 // Na het verwijderen: vragen of %APPDATA%\Kapture ook weg mag. Screenshots staan daar niet in.
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var

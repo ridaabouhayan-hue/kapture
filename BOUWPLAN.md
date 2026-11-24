@@ -21,7 +21,7 @@ Dit document legt alle afspraken vast. Bij twijfel gaat dit bouwplan voor.
 - Sneltoetsen alleen via RegisterHotKey. Geen toetsenbordhooks.
 - Schermafbeelding met GDI (BitBlt van het bureaublad). Schermopname (video) later: dan Windows.Graphics.Capture en mogelijk een nieuwere .NET. Het ontwerp houdt daar ruimte voor (de vorm "Opname" past als vijfde knop in de werkbalk).
 - Gaat zelf niet het internet op, behalve de optionele check op een nieuwe versie (GitHub Releases).
-- Lettertypes: voor nu Segoe UI Variable en Cascadia Mono, die in Windows 11 zitten (geen download nodig). Inter en JetBrains Mono uit het Stitch-ontwerp komen erbij zodra Rida het downloaden goedkeurt. Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static.
+- Lettertypes: voor nu Segoe UI en Cascadia Mono, die in Windows zitten (geen download nodig), net als NexusPen. Tekst op een dichte achtergrond met ClearType, zodat hij scherp is. Niet Segoe UI Variable: die gaf gekartelde letters (Rida 24-11). Inter en JetBrains Mono uit het Stitch-ontwerp komen erbij zodra Rida het downloaden goedkeurt. Icoontjes: Lucide (ISC), paden letterlijk uit lucide-static.
 - Licenties van Lucide, Inter en JetBrains Mono meeleveren.
 
 ### Hergebruik uit NexusPen
@@ -168,6 +168,7 @@ Resultaat: `docs/SPIKE.md` (ronde 2, 24-11-2026). Gekozen: eerst een donker vens
 |---|---|
 | 0.1 | Repo, build, tests, installer, automatische release. Tray-icoon, PrtSc, overlay met kader, opslaan in de inbox, klembord, eenvoudige melding. |
 | 0.2 | Notities: notitieveld in de melding, Shift+PrtSc met notitiebalk, Ctrl+PrtSc, bestandsnaam en tekstbestand, notitiestrook op het klembord. Op verzoek van Rida (24-11) ook al Instellingen met zoekbalk (Algemeen, Sneltoetsen, Opslaan en mappen, Notities, Over) en een map per maand. |
+| 0.2.1 | Bijwerken met een klik (uit NexusPen), Instellingen per pagina met Opslaan en bevestiging, scherpe tekst (Segoe UI met ClearType), Print Screen losmaken van het Knipprogramma met een klik. |
 | 0.3 | Laatste screenshots en het volledige tray-menu. Hernoemen achteraf. |
 | 0.4 | Vormen Vrij, Venster, Hele scherm. Presets en Opslaan in... |
 | 0.5 | Editor: tekenmotor uit NexusPen, vervagen, uitsnijden, kleurkiezer, ongedaan en opnieuw. Doorsturen. |

@@ -59,6 +59,7 @@ namespace Kapture
         [DllImport("user32.dll")] public static extern IntPtr GetWindow(IntPtr h, uint cmd);
         [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
         [DllImport("user32.dll")] public static extern bool IsWindow(IntPtr h);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern IntPtr SendMessageTimeout(IntPtr h, int msg, IntPtr w, string l, int flags, int timeout, out IntPtr result);
         [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h, out RECT r);
         [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out int v, int size);
         [StructLayout(LayoutKind.Sequential)] public struct RECT { public int Left, Top, Right, Bottom; }

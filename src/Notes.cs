@@ -200,7 +200,7 @@ namespace Kapture
                 Rectangle strip = new Rectangle(0, img.Height, w, stripH);
                 using (SolidBrush bg = new SolidBrush(Color.FromArgb(0xFF, 0xF3, 0xF3, 0xFE))) g.FillRectangle(bg, strip);
                 using (Pen line = new Pen(Color.FromArgb(0xFF, 0xC3, 0xC6, 0xD7))) g.DrawLine(line, 0, img.Height, w, img.Height);
-                g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
+                g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
                 using (SolidBrush ink = new SolidBrush(Color.FromArgb(0xFF, 0x19, 0x1B, 0x23)))
                 using (SolidBrush accent = new SolidBrush(Color.FromArgb(0xFF, 0x25, 0x63, 0xEB)))
                 {

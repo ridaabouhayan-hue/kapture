@@ -69,6 +69,14 @@ namespace Kapture
             string inboxProblem = InboxFolder.Check(InboxFolder.Resolve(cfg));
             if (inboxProblem != null)
                 Notify("Inbox-map niet bereikbaar", inboxProblem + " Kies een andere map in Instellingen.", "Instellingen", "settings", delegate { OpenSettings(); }, true);
+
+            // bijwerken: is Kapture net bijgewerkt, en staat er een nieuwe versie klaar?
+            int flag = Updates.ReadFlag();
+            Updates.CleanUp();
+            if (flag == 1) Info("Kapture is bijgewerkt naar " + Program.Version, "Je instellingen zijn gebleven.", "download");
+            else if (flag == -1) Notify("Bijwerken lukte niet", "Kapture draait nog de vorige versie. Probeer het later nog eens via Instellingen, Over.", null, null, null, false);
+            if (cfg.UpdateCheck && !Program.SelfTest)
+                Updates.CheckLater(20000, delegate(Updates.Info info) { try { overlay.BeginInvoke((Action)delegate { UpdateFound(info, false); }); } catch { } });
             Log.Info("Gestart " + Program.Version + " op Windows " + Environment.OSVersion.Version);
         }
 
@@ -83,6 +91,7 @@ namespace Kapture
                 if (e.Button != MouseButtons.Left && e.Button != MouseButtons.Right) return;
                 FillMenu(menu, cfg, history.Last != null, delegate { StartCapture(false); }, delegate { StartCapture(true); }, delegate { NoteForLast(); },
                     delegate { OpenInbox(); }, delegate { OpenSettings(); }, delegate { TogglePause(); }, delegate { Quit(); });
+                if (PendingUpdate != null) menu.InsertUpdate("Bijwerken naar " + PendingUpdate.Version, delegate { InstallUpdate(); });
                 menu.ShowAt(Cursor.Position);
             };
             tray.Visible = true;
@@ -158,16 +167,37 @@ namespace Kapture
 
         public static void OpenSnippingSetting() { Open("ms-settings:easeofaccess-keyboard"); }
 
+        // De Windows-instelling "Print Screen opent het Knipprogramma" uitzetten (alleen voor jou, geen beheerder nodig).
+        // Windows leest hem meestal meteen; anders na opnieuw aanmelden. Geeft true als het register nu "uit" zegt.
+        public static bool TurnOffSnippingPrintScreen()
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Control Panel\Keyboard"))
+                    k.SetValue("PrintScreenKeyForSnippingEnabled", 0, RegistryValueKind.DWord);
+                IntPtr res;
+                W.SendMessageTimeout(new IntPtr(0xFFFF), 0x001A, IntPtr.Zero, "Control Panel\\Keyboard", 2, 1000, out res);   // WM_SETTINGCHANGE
+                Log.Info("Print Screen losgemaakt van het Knipprogramma");
+            }
+            catch (Exception ex) { Log.Error("Print Screen-instelling aanpassen mislukt", ex); }
+            return !SnippingUsesPrintScreen();
+        }
+
         void CheckSnippingSetting()
         {
-            if (cfg.SnipHintShown || !SnippingUsesPrintScreen()) return;
-            Notify("Zet Print Screen vrij voor Kapture", "Windows opent nu het Knipprogramma met Print Screen. Zet in de instelling \"Print Screen gebruiken om het Knipprogramma te openen\" uit.",
-                "Open instelling", "settings-2", delegate
-                {
-                    OpenSnippingSetting();
-                    cfg.SnipHintShown = true;   // pas als gezien markeren als Rida de instelling echt opende
-                    cfg.Save();
-                }, true);
+            // elke start opnieuw zolang Windows Print Screen nog naar het Knipprogramma stuurt: anders doet PrtSc niets in Kapture
+            if (!cfg.HotkeyCapture || !SnippingUsesPrintScreen()) return;
+            Notify("Print Screen gaat nu naar het Knipprogramma", "Windows vangt Print Screen af, dus Kapture krijgt hem niet (Ctrl+PrtSc en Shift+PrtSc werken wel). Klik op Zet uit, dan regelt Kapture het.",
+                "Zet uit", "keyboard", delegate { FixSnipping(); }, true);
+        }
+
+        public void FixSnipping()
+        {
+            bool off = TurnOffSnippingPrintScreen();
+            RegisterHotkeys(false);
+            if (off) Info("Print Screen is nu van Kapture", "Druk op Print Screen om het te proberen. Opent het Knipprogramma toch nog? Meld je dan een keer af en weer aan bij Windows.", "check");
+            else Notify("Uitzetten lukte niet", "Zet het zelf uit in de Windows-instelling: \"Print Screen gebruiken om het Knipprogramma te openen\".", "Open instelling", "settings-2", delegate { OpenSnippingSetting(); }, true);
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
         }
 
         void OnHotkey(int id)
@@ -406,6 +436,95 @@ namespace Kapture
             }
         }
 
+        // Een gewone, goede melding (blauw icoon), bijvoorbeeld "bijgewerkt"
+        void Info(string title, string sub, string icon)
+        {
+            ToastContent c = new ToastContent();
+            c.Ok = true; c.Icon = icon; c.Title = title; c.Sub = sub; c.Seconds = 8;
+            toast.ShowToast(c, Theme.Current);
+        }
+
+        // ---- bijwerken met een klik (zoals in NexusPen)
+        public Updates.Info PendingUpdate;
+        bool updating;
+        public bool Updating { get { return updating; } }
+
+        void UpdateFound(Updates.Info info, bool fromSettings)
+        {
+            PendingUpdate = info;
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
+            if (fromSettings || overlay.IsActive || overlay.InNoteMode || toast.IsEditing) return;
+            ToastContent c = new ToastContent();
+            c.Ok = true; c.Icon = "download"; c.Title = "Nieuwe versie: Kapture " + info.Version;
+            c.Sub = "Bijwerken duurt een paar seconden. Kapture start daarna vanzelf weer; je instellingen blijven.";
+            c.ActionLabel = "Bijwerken"; c.ActionIcon = "download"; c.OnAction = delegate { InstallUpdate(); };
+            c.Seconds = 15;
+            toast.ShowToast(c, Theme.Current);
+        }
+
+        // Nu kijken (vanuit Instellingen). result: 1 = er is iets nieuws, 0 = je hebt de nieuwste, -1 = kon niet kijken
+        public void CheckForUpdateNow(Action<int> result)
+        {
+            Updates.CheckLater(0, delegate(Updates.Info info)
+            {
+                try { overlay.BeginInvoke((Action)delegate { UpdateFound(info, true); if (result != null) result(1); }); } catch { }
+            }, delegate
+            {
+                try { overlay.BeginInvoke((Action)delegate { if (result != null) result(0); }); } catch { }
+            }, delegate
+            {
+                try { overlay.BeginInvoke((Action)delegate { if (result != null) result(-1); }); } catch { }
+            });
+        }
+
+        // Downloaden, controleren (sha256 van GitHub), de installer stil laten lopen; die start Kapture daarna weer
+        public void InstallUpdate()
+        {
+            Updates.Info info = PendingUpdate;
+            if (info == null || updating) return;
+            if (info.SetupUrl == null || info.Sha256 == null)
+            {
+                // geen controlecode bij deze versie: dan niet zelf installeren, alleen de pagina openen
+                if (info.PageUrl != null && info.PageUrl.StartsWith("https://github.com/")) Open(info.PageUrl);
+                return;
+            }
+            updating = true;
+            IWin32Window owner = settingsForm != null && !settingsForm.IsDisposed && settingsForm.Visible ? (IWin32Window)settingsForm : null;
+            if (MessageBox.Show(owner, "Kapture bijwerken naar " + info.Version + "? Kapture sluit even en start daarna vanzelf weer. Je instellingen en screenshots blijven staan.",
+                "Kapture", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { updating = false; return; }
+            Info("De nieuwe versie wordt opgehaald...", "Even geduld, dit duurt een paar seconden.", "download");
+            Updates.Download(info, delegate(string file)
+            {
+                try
+                {
+                    overlay.BeginInvoke((Action)delegate
+                    {
+                        updating = false;
+                        if (file == null)
+                        {
+                            Notify("Bijwerken lukte niet", "Probeer het later nog eens, of download hem zelf van de downloadpagina.", "Downloadpagina", "external-link", delegate { Open(Updates.Page); }, true);
+                            return;
+                        }
+                        try
+                        {
+                            Updates.WriteFlag(info.Version);   // bij de volgende start melden dat het gelukt is (of niet)
+                            ProcessStartInfo psi = new ProcessStartInfo(file, "/SILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /BIJWERKEN");
+                            psi.UseShellExecute = true;
+                            Process.Start(psi);
+                            Quit();   // de installer vervangt Kapture en start het daarna weer
+                        }
+                        catch (Exception ex)
+                        {
+                            Log.Error("Installer starten", ex);
+                            try { File.Delete(Updates.FlagPath); } catch { }
+                            Notify("Bijwerken lukte niet", "Probeer het later nog eens, of download hem zelf van de downloadpagina.", "Downloadpagina", "external-link", delegate { Open(Updates.Page); }, true);
+                        }
+                    });
+                }
+                catch (Exception ex) { Log.Error("Bijwerken starten", ex); updating = false; }
+            });
+        }
+
         void Notify(string title, string sub, string action, string icon, Action onAction, bool stay)
         {
             ToastContent c = new ToastContent();
@@ -438,7 +557,9 @@ namespace Kapture
             catch (Exception ex) { Log.Error("Instellingen openen mislukt", ex); }
         }
 
-        // Komt uit Instellingen na elke wijziging (al bewaard)
+        public Settings Config { get { return cfg; } }
+
+        // Komt uit Instellingen na Opslaan (al bewaard)
         public void SettingsChanged()
         {
             Theme.Mode = cfg.ThemeMode;

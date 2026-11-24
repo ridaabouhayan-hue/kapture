@@ -79,6 +79,24 @@ namespace Kapture
             }
             finally { try { Directory.Delete(dir, true); } catch { } }
 
+            // werkkopie voor Instellingen: pas na Opslaan echt
+            Settings live = new Settings();
+            Settings copy = live.Clone();
+            Is(!copy.DiffersFrom(live), "kopie is gelijk");
+            copy.MonthFolders = true; copy.UpdateCheck = false;
+            Is(copy.DiffersFrom(live) && !live.MonthFolders, "wijzigen in de kopie raakt de echte instellingen niet");
+            live.CopyFrom(copy);
+            Is(live.MonthFolders && !live.UpdateCheck && !copy.DiffersFrom(live), "opslaan neemt de kopie over");
+
+            // bijwerken: versies vergelijken en het antwoord van GitHub lezen
+            Is(Updates.IsNewer("0.2.1", "0.2.0") && Updates.IsNewer("v1.0", "0.9.9") && !Updates.IsNewer("0.2.0", "0.2.0") && !Updates.IsNewer("0.1.9", "0.2.0"), "nieuwere versie herkennen");
+            string sha = new string('a', 64);
+            string json = "{\"tag_name\":\"v0.2.1\",\"html_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\"assets\":[{\"name\":\"Kapture-Setup.exe\",\"digest\":\"sha256:" + sha + "\",\"browser_download_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapture-Setup.exe\"},{\"name\":\"Kapture.exe\"}]}";
+            Updates.Info ui = Updates.Parse(json);
+            Is(ui != null && ui.Version == "0.2.1" && ui.Sha256 == sha && ui.SetupUrl.EndsWith("/Kapture-Setup.exe"), "antwoord van GitHub lezen");
+            Is(Updates.Parse(json.Replace("ridaabouhayan-hue/kapture/releases/download", "iemand-anders/kapture/releases/download")).SetupUrl == null, "installer van een ander adres wordt niet gebruikt");
+            Is(Updates.Parse("onzin") == null, "raar antwoord: geen versie");
+
             // notities: wanneer een tekstbestand, en is de naam al goed
             Is(!Notes.NeedsTextFile(t, "Chrome", "Opslaan-knop werkt niet"), "korte notitie: geen tekstbestand");
             Is(Notes.NeedsTextFile(t, "Chrome", "regel een\nregel twee"), "notitie met regels: tekstbestand");
