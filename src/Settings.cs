@@ -35,19 +35,21 @@ namespace Kapture
         // Een werkkopie voor Instellingen: wijzigen zonder dat Kapture het meteen gebruikt, tot je op Opslaan klikt
         public Settings Clone() { return (Settings)MemberwiseClone(); }
 
+        // Neemt over wat je in Instellingen met Opslaan bewaart. Pauze en de Knipprogramma-melding horen daar niet bij:
+        // die veranderen meteen (ook via het tray-menu) en mogen niet door een oudere werkkopie teruggezet worden.
         public void CopyFrom(Settings o)
         {
             ThemeMode = o.ThemeMode; ToastSeconds = o.ToastSeconds;
-            HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote; HotkeysPaused = o.HotkeysPaused;
+            HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote;
             Inbox = o.Inbox; MonthFolders = o.MonthFolders; NoteStrip = o.NoteStrip; NoteTextFile = o.NoteTextFile;
-            UpdateCheck = o.UpdateCheck; SnipHintShown = o.SnipHintShown;
+            UpdateCheck = o.UpdateCheck;
         }
 
         // Verschilt deze kopie van 'o' in iets wat je in Instellingen kunt wijzigen?
         public bool DiffersFrom(Settings o)
         {
             return ThemeMode != o.ThemeMode || ToastSeconds != o.ToastSeconds || HotkeyCapture != o.HotkeyCapture || HotkeyNote != o.HotkeyNote
-                || HotkeyLastNote != o.HotkeyLastNote || HotkeysPaused != o.HotkeysPaused || (Inbox ?? "") != (o.Inbox ?? "")
+                || HotkeyLastNote != o.HotkeyLastNote || (Inbox ?? "") != (o.Inbox ?? "")
                 || MonthFolders != o.MonthFolders || NoteStrip != o.NoteStrip || NoteTextFile != o.NoteTextFile || UpdateCheck != o.UpdateCheck;
         }
 

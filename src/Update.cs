@@ -41,8 +41,8 @@ namespace Kapture
                     using (WebResponse resp = req.GetResponse())
                     using (StreamReader r = new StreamReader(resp.GetResponseStream()))
                     {
-                        char[] buf = new char[65536];
-                        int n = r.ReadBlock(buf, 0, buf.Length);  // nooit meer dan 64 kB lezen
+                        char[] buf = new char[262144];
+                        int n = r.ReadBlock(buf, 0, buf.Length);  // nooit meer dan 256 kB lezen
                         body = new string(buf, 0, n);
                     }
                     Info info = Parse(body);
@@ -67,10 +67,13 @@ namespace Kapture
             info.Version = tag.Groups[1].Value;
             info.PageUrl = url.Success ? url.Groups[1].Value : Page;
             // het stuk van de lijst dat over Kapture-Setup.exe gaat (tot de naam van het volgende bestand)
-            int at = body.IndexOf("\"name\":\"Kapture-Setup.exe\"", StringComparison.Ordinal);
+            // GitHub stuurt het antwoord soms met spaties ("name": "..."), soms zonder: beide goed lezen
+            Match start = Regex.Match(body, "\"name\"\\s*:\\s*\"Kapture-Setup\\.exe\"");
+            int at = start.Success ? start.Index : -1;
             if (at >= 0)
             {
-                int end = body.IndexOf("\"name\":", at + 10, StringComparison.Ordinal);
+                Match next = Regex.Match(body.Substring(at + start.Length), "\"name\"\\s*:");
+                int end = next.Success ? at + start.Length + next.Index : -1;
                 string seg = body.Substring(at, (end < 0 ? body.Length : end) - at);
                 Match dg = Regex.Match(seg, "\"digest\"\\s*:\\s*\"sha256:([0-9a-f]{64})\"");
                 Match dl = Regex.Match(seg, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\"");

@@ -214,8 +214,9 @@ namespace Kapture
             keys.Rows.Add(new Row
             {
                 Id = "pauze", Title = "Alle sneltoetsen pauzeren", Keywords = "pauze uit tijdelijk",
-                Sub = delegate { return "Handig als een ander programma Print Screen even nodig heeft. Ook in het menu bij de klok."; },
-                Kind = RowKind.Toggle, Get = delegate { return work.HotkeysPaused; }, Set = delegate(bool v) { work.HotkeysPaused = v; Edited(); }
+                Sub = delegate { return "Handig als een ander programma Print Screen even nodig heeft. Werkt meteen, ook in het menu bij de klok."; },
+                Kind = RowKind.Toggle, Get = delegate { return cfg.HotkeysPaused; },
+                Set = delegate(bool v) { if (app != null) app.SetPaused(v); else cfg.HotkeysPaused = v; Invalidate(); }
             });
             toetsen.Cards.Add(keys);
             Sections.Add(toetsen);
@@ -360,15 +361,15 @@ namespace Kapture
                 Id = id, Title = title, Keycap = keycap, Keywords = keywords + " sneltoets toets",
                 Sub = delegate
                 {
-                    if (work.HotkeysPaused) return "Op pauze";
+                    if (cfg.HotkeysPaused) return "Op pauze";
                     if (!get()) return "Uit";
                     if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return "Gaat nu naar het Knipprogramma. Zie hierboven: Zet uit.";
-                    if (app != null && cfg.HotkeysPaused == work.HotkeysPaused && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet: een ander programma gebruikt deze toets, bijvoorbeeld ShareX.";
+                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet: een ander programma gebruikt deze toets, bijvoorbeeld ShareX.";
                     return "Aan";
                 },
                 Warn = delegate
                 {
-                    if (work.HotkeysPaused || !get()) return false;
+                    if (cfg.HotkeysPaused || !get()) return false;
                     if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return true;
                     return app != null && app.HotkeyTaken.ContainsKey(hotkeyId);
                 },
@@ -896,10 +897,15 @@ namespace Kapture
             return base.ProcessCmdKey(ref msg, key);
         }
 
+        bool quitting;
+
+        // Kapture stopt: sluiten zonder vragen (de vraag over opslaan is dan al gesteld, of niet nodig)
+        public void CloseForQuit() { quitting = true; Close(); }
+
         // Sluiten met wijzigingen die nog niet bewaard zijn: eerst vragen. Daarna verbergen (zoekterm en pagina blijven).
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
-            if (e.CloseReason == CloseReason.UserClosing)
+            if (e.CloseReason == CloseReason.UserClosing && !quitting)
             {
                 if (Dirty)
                 {
@@ -933,6 +939,17 @@ namespace Kapture
                 return b;
             }
             finally { Program.ForceTheme = null; }
+        }
+
+        // Voor bijwerken: zijn er wijzigingen, dan eerst vragen. Geeft false als je Annuleren kiest.
+        public bool AskSaveBeforeQuit()
+        {
+            if (!Dirty) return true;
+            DialogResult a = MessageBox.Show(Visible ? this : null, "Je hebt wijzigingen in Instellingen die nog niet bewaard zijn. Wil je ze opslaan voor het bijwerken?", "Kapture",
+                MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+            if (a == DialogResult.Cancel) return false;
+            if (a == DialogResult.Yes) SaveNow(); else Revert();
+            return true;
         }
 
         public void ShowSavedForTest() { saved = "Instellingen opgeslagen"; }

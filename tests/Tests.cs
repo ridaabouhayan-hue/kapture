@@ -96,6 +96,9 @@ namespace Kapture
             Is(ui != null && ui.Version == "0.2.1" && ui.Sha256 == sha && ui.SetupUrl.EndsWith("/Kapture-Setup.exe"), "antwoord van GitHub lezen");
             Is(Updates.Parse(json.Replace("ridaabouhayan-hue/kapture/releases/download", "iemand-anders/kapture/releases/download")).SetupUrl == null, "installer van een ander adres wordt niet gebruikt");
             Is(Updates.Parse("onzin") == null, "raar antwoord: geen versie");
+            string pretty = "{\n  \"tag_name\": \"v0.2.1\",\n  \"html_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\n  \"assets\": [\n    {\n      \"name\": \"Kapture-Setup.exe\",\n      \"digest\": \"sha256:" + sha + "\",\n      \"browser_download_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapture-Setup.exe\"\n    },\n    {\n      \"name\": \"Kapture.exe\"\n    }\n  ]\n}";
+            Updates.Info up = Updates.Parse(pretty);
+            Is(up != null && up.Sha256 == sha && up.SetupUrl != null, "antwoord van GitHub met spaties en regels lezen");
 
             // notities: wanneer een tekstbestand, en is de naam al goed
             Is(!Notes.NeedsTextFile(t, "Chrome", "Opslaan-knop werkt niet"), "korte notitie: geen tekstbestand");

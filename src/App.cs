@@ -147,9 +147,12 @@ namespace Kapture
             UpdateTrayText();
         }
 
-        void TogglePause()
+        void TogglePause() { SetPaused(!cfg.HotkeysPaused); }
+
+        // Pauze werkt meteen (tray-menu en Instellingen); staat los van Opslaan in Instellingen
+        public void SetPaused(bool paused)
         {
-            cfg.HotkeysPaused = !cfg.HotkeysPaused;
+            cfg.HotkeysPaused = paused;
             cfg.Save();
             RegisterHotkeys(true);
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
@@ -175,8 +178,11 @@ namespace Kapture
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Control Panel\Keyboard"))
                     k.SetValue("PrintScreenKeyForSnippingEnabled", 0, RegistryValueKind.DWord);
-                IntPtr res;
-                W.SendMessageTimeout(new IntPtr(0xFFFF), 0x001A, IntPtr.Zero, "Control Panel\\Keyboard", 2, 1000, out res);   // WM_SETTINGCHANGE
+                // WM_SETTINGCHANGE aan alle vensters, op de achtergrond: een traag venster mag Kapture niet laten hangen
+                System.Threading.ThreadPool.QueueUserWorkItem(delegate
+                {
+                    try { IntPtr res; W.SendMessageTimeout(new IntPtr(0xFFFF), 0x001A, IntPtr.Zero, "Control Panel\\Keyboard", 2, 1000, out res); } catch { }
+                });
                 Log.Info("Print Screen losgemaakt van het Knipprogramma");
             }
             catch (Exception ex) { Log.Error("Print Screen-instelling aanpassen mislukt", ex); }
@@ -489,6 +495,7 @@ namespace Kapture
                 return;
             }
             updating = true;
+            if (settingsForm != null && !settingsForm.IsDisposed && !settingsForm.AskSaveBeforeQuit()) { updating = false; return; }
             IWin32Window owner = settingsForm != null && !settingsForm.IsDisposed && settingsForm.Visible ? (IWin32Window)settingsForm : null;
             if (MessageBox.Show(owner, "Kapture bijwerken naar " + info.Version + "? Kapture sluit even en start daarna vanzelf weer. Je instellingen en screenshots blijven staan.",
                 "Kapture", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { updating = false; return; }
@@ -499,26 +506,32 @@ namespace Kapture
                 {
                     overlay.BeginInvoke((Action)delegate
                     {
-                        updating = false;
                         if (file == null)
                         {
+                            updating = false;
                             Notify("Bijwerken lukte niet", "Probeer het later nog eens, of download hem zelf van de downloadpagina.", "Downloadpagina", "external-link", delegate { Open(Updates.Page); }, true);
                             return;
                         }
-                        try
+                        PendingUpdate = null;   // updating blijft aan: geen tweede download of installer
+                        // eerst afronden (notitiebalk, opslaan, hernoemen), pas dan de installer: die sluit Kapture hard af
+                        Quit(delegate
                         {
                             Updates.WriteFlag(info.Version);   // bij de volgende start melden dat het gelukt is (of niet)
-                            ProcessStartInfo psi = new ProcessStartInfo(file, "/SILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /BIJWERKEN");
+                            // keuzes van de vorige installatie respecteren: starten met Windows en de snelkoppeling niet terugzetten
+                            string tasks = "";
+                            if (!Autostart.IsOn) tasks += "!autostart";
+                            if (!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Kapture.lnk"))) tasks += (tasks.Length > 0 ? "," : "") + "!desktop";
+                            string args = "/SILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /BIJWERKEN" + (tasks.Length > 0 ? " /MERGETASKS=\"" + tasks + "\"" : "");
+                            ProcessStartInfo psi = new ProcessStartInfo(file, args);
                             psi.UseShellExecute = true;
                             Process.Start(psi);
-                            Quit();   // de installer vervangt Kapture en start het daarna weer
-                        }
-                        catch (Exception ex)
+                        }, delegate(Exception ex)
                         {
                             Log.Error("Installer starten", ex);
                             try { File.Delete(Updates.FlagPath); } catch { }
+                            updating = false;
                             Notify("Bijwerken lukte niet", "Probeer het later nog eens, of download hem zelf van de downloadpagina.", "Downloadpagina", "external-link", delegate { Open(Updates.Page); }, true);
-                        }
+                        });
                     });
                 }
                 catch (Exception ex) { Log.Error("Bijwerken starten", ex); updating = false; }
@@ -596,22 +609,35 @@ namespace Kapture
             catch (Exception ex) { Log.Error("Openen mislukt", ex); }
         }
 
-        void Quit()
+        bool quitting;
+
+        void Quit() { Quit(null, null); }
+
+        // Stoppen. 'last' draait na het afronden maar voor het opruimen (de installer bij bijwerken);
+        // mislukt 'last', dan blijft Kapture gewoon draaien en krijgt 'failed' de fout.
+        void Quit(Action last, Action<Exception> failed)
         {
-            // een open notitiebalk afronden, en wachten tot opslaan en hernoemen klaar zijn (hooguit 5 seconden)
+            if (quitting) return;   // al bezig met stoppen (bijvoorbeeld twee keer op Afsluiten geklikt)
+            quitting = true;
+            // een open notitiebalk of notitie in de melding afronden, en wachten tot opslaan en hernoemen klaar zijn (hooguit 5 seconden)
             if (overlay.InNoteMode) overlay.FinishNoteNow();
+            if (toast.IsEditing) toast.Dismiss();
             Stopwatch wait = Stopwatch.StartNew();
             while (System.Threading.Thread.VolatileRead(ref running) > 0 && wait.ElapsedMilliseconds < 5000)
             {
                 Application.DoEvents();
                 System.Threading.Thread.Sleep(30);
             }
+            if (last != null)
+            {
+                try { last(); }
+                catch (Exception ex) { quitting = false; if (failed != null) failed(ex); return; }
+            }
             foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote }) W.UnregisterHotKey(hot.Handle, id);
-            if (toast.IsEditing) toast.Dismiss();
             tray.Visible = false;
             tray.Dispose();
             SafeReset();
-            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.Close();
+            if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.CloseForQuit();
             ExitThread();
         }
 
