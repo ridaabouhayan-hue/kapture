@@ -1,4 +1,9 @@
-# Kapture 0.3.4
+# Kapture 0.3.5
+
+Nieuw in 0.3.5:
+- **Werkbalk weg tijdens het slepen**: zodra je een kader begint te slepen verdwijnt de werkbalk bovenin, zoals in het Knipprogramma van Windows. Laat je los zonder kader (te klein), dan komt hij terug. Bij de notitiebalk staat hij ook niet meer in beeld.
+
+## Kapture 0.3.4
 
 Nieuw in 0.3.4:
 - **Print Screen werkt ook op Windows-versies die de toets niet doorgeven**: sommige versies van Windows 11 kopiëren bij Print Screen zelf het hele scherm naar het klembord en geven de toets niet aan Kapture. Kapture merkt dat nu aan het klembord (een afbeelding precies zo groot als je scherm) en opent dan het donkere scherm. Kapture kijkt alleen naar de maat van die afbeelding, niet naar wat erop staat, en luistert niet mee met je toetsenbord. Shift + PrtSc opent zo ook de notitiebalk. Windows-toets + PrtSc en Alt + PrtSc blijven van Windows.

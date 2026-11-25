@@ -303,7 +303,7 @@ namespace Kapture
                 g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
                 if (sel.Width > 0 && sel.Height > 0) DrawFrame(g);
                 else DrawHint(g);
-                if (clip.IntersectsWith(bar.Bounds)) bar.Draw(g, theme, hover);
+                if (!dragging && !noteMode && clip.IntersectsWith(bar.Bounds)) bar.Draw(g, theme, hover);   // tijdens het slepen en bij de notitie weg, zoals in Windows
                 if (noteMode) DrawNoteBar(g);
             }
         }
@@ -417,13 +417,14 @@ namespace Kapture
         {
             if (noteMode) { if (e.Button == MouseButtons.Right) FinishNote(false); return; }
             if (!active) return;
-            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; SetSelection(Rectangle.Empty); } else Cancel("rechtermuisknop"); return; }
+            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; Capture = false; Invalidate(bar.Bounds); SetSelection(Rectangle.Empty); } else Cancel("rechtermuisknop"); return; }
             if (e.Button != MouseButtons.Left) return;
             Toolbar.Item it = bar.HitTest(e.Location);
             if (it != null) { OnToolbarClick(it); return; }
             if (bar.Rect.Contains(e.Location)) return;
-            dragging = true; start = e.Location;
+            dragging = true; start = e.Location; hover = null;
             Capture = true;
+            Invalidate(bar.Bounds);   // de werkbalk gaat weg zolang je sleept
             SetSelection(Rectangle.Empty);
         }
 
@@ -449,7 +450,7 @@ namespace Kapture
             if (!active || !dragging || e.Button != MouseButtons.Left) return;
             dragging = false; Capture = false;
             if (sel.Width >= 4 && sel.Height >= 4) Finish(sel);
-            else SetSelection(Rectangle.Empty);
+            else { Invalidate(bar.Bounds); SetSelection(Rectangle.Empty); }   // te klein: werkbalk terug
         }
 
         void OnToolbarClick(Toolbar.Item it)
@@ -523,6 +524,7 @@ namespace Kapture
             note.Set(""); note.AllowNewLine = true;
             note.PasteText = delegate { return pasteText; };
             noteMode = true;
+            Invalidate(bar.Bounds);   // de werkbalk hoort niet bij de notitie
             RelayoutNote();
             blink.Start();
             W.SetForegroundWindow(Handle); Activate(); Focus();
@@ -645,5 +647,6 @@ namespace Kapture
 
         // Voor de zelftest: een kader zetten zonder muis
         public void SetSelectionForTest(Rectangle r) { sel = r; }
+        public void SetDraggingForTest(bool on) { dragging = on; }
     }
 }

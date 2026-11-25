@@ -34,6 +34,7 @@ namespace Kapture
                     {
                         string tag = (t.Dark ? "donker" : "licht") + "-" + (int)(scale * 100);
                         OverlayShot(dir, t, scale, true, "overlay-kader-" + tag + ".png");
+                        OverlayShot(dir, t, scale, true, "overlay-slepen-" + tag + ".png", true);
                         if (scale > 1) OverlayShot(dir, t, scale, false, "overlay-leeg-" + tag + ".png");
                         ToastShot(dir, t, scale, "melding-" + tag + ".png");
                         NoteToastShot(dir, t, scale, "melding-notitie-" + tag + ".png");
@@ -143,7 +144,10 @@ namespace Kapture
             return d;
         }
 
-        static void OverlayShot(string dir, Theme t, float scale, bool withFrame, string name)
+        static void OverlayShot(string dir, Theme t, float scale, bool withFrame, string name) { OverlayShot(dir, t, scale, withFrame, name, false); }
+
+        // 'dragging': terwijl je het kader sleept (dan hoort de werkbalk weg te zijn)
+        static void OverlayShot(string dir, Theme t, float scale, bool withFrame, string name, bool dragging)
         {
             int w = (int)(1440 * scale), h = (int)(900 * scale);
             using (Bitmap desk = FakeDesktop(w, h, scale))
@@ -155,6 +159,7 @@ namespace Kapture
                 Check(ok, "overlay voorbereiden " + name);
                 if (!ok) return;
                 if (withFrame) o.SetSelectionForTest(new Rectangle((int)(150 * scale), (int)(260 * scale), (int)(560 * scale), (int)(340 * scale)));
+                o.SetDraggingForTest(dragging);
                 o.Compose(new Rectangle(0, 0, w, h));
                 using (Bitmap v = o.WorkBuffer.View()) v.Save(Path.Combine(dir, name), ImageFormat.Png);
                 o.End();
