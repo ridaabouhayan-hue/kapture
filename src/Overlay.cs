@@ -225,14 +225,7 @@ namespace Kapture
             regains++;
             IntPtr fg = W.GetForegroundWindow();
             uint pid = 0, fgThread = fg != IntPtr.Zero ? W.GetWindowThreadProcessId(fg, out pid) : 0;
-            string who = "";
-            try
-            {
-                // alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel
-                if (pid != 0 && pid != (uint)System.Diagnostics.Process.GetCurrentProcess().Id)
-                    using (System.Diagnostics.Process p = System.Diagnostics.Process.GetProcessById((int)pid)) who = p.ProcessName;
-            }
-            catch { }   // het programma is al weg: dan weten we de naam niet, maar terugpakken gaat gewoon door
+            string who = ProcessName(pid);
             LastThief = who;
             uint me = W.GetCurrentThreadId();
             bool attached = fgThread != 0 && fgThread != me && W.AttachThreadInput(me, fgThread, true);
@@ -252,9 +245,32 @@ namespace Kapture
                 W.SetForegroundWindow(Handle); Activate();
                 if (W.GetForegroundWindow() == Handle) return;
                 Log.Info("Overlay: focus bleef weg, overlay gesloten");
-                if (noteMode) FinishNote(true); else Cancel();
+                if (noteMode) FinishNote(true); else Cancel("focus bleef weg");
             };
             again.Start();
+        }
+
+        // Alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel. Leeg als het Kapture zelf is
+        // of als het programma al weg is.
+        public static string ProcessName(uint pid)
+        {
+            try
+            {
+                if (pid != 0 && pid != (uint)System.Diagnostics.Process.GetCurrentProcess().Id)
+                    using (System.Diagnostics.Process p = System.Diagnostics.Process.GetProcessById((int)pid)) return p.ProcessName;
+            }
+            catch { }
+            return "";
+        }
+
+        // Het programma dat nu vooraan staat, voor het spoor in het foutlog
+        public static string ForegroundName()
+        {
+            IntPtr fg = W.GetForegroundWindow();
+            if (fg == IntPtr.Zero) return "niets";
+            uint pid; W.GetWindowThreadProcessId(fg, out pid);
+            string n = ProcessName(pid);
+            return n.Length > 0 ? n : "Kapture of onbekend";
         }
 
         public void End()
@@ -401,7 +417,7 @@ namespace Kapture
         {
             if (noteMode) { if (e.Button == MouseButtons.Right) FinishNote(false); return; }
             if (!active) return;
-            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; SetSelection(Rectangle.Empty); } else Cancel(); return; }
+            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; SetSelection(Rectangle.Empty); } else Cancel("rechtermuisknop"); return; }
             if (e.Button != MouseButtons.Left) return;
             Toolbar.Item it = bar.HitTest(e.Location);
             if (it != null) { OnToolbarClick(it); return; }
@@ -440,7 +456,7 @@ namespace Kapture
         {
             if (!it.Enabled) return;
             if (it.Key == "notitie") { withNote = !withNote; it.Active = withNote; Invalidate(bar.Bounds); return; }
-            if (it.Key == "sluiten") Cancel();
+            if (it.Key == "sluiten") Cancel("knop Sluiten");
             else if (it.Key == "scherm") Finish(monitor);
         }
 
@@ -454,7 +470,7 @@ namespace Kapture
                 if (note.OnKey(keyData)) { Invalidate(noteBar); return true; }
                 return base.ProcessCmdKey(ref msg, keyData);
             }
-            if (active && keyData == Keys.Escape) { Cancel(); return true; }
+            if (active && keyData == Keys.Escape) { Cancel("Esc"); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
@@ -476,7 +492,7 @@ namespace Kapture
                 return;
             }
             if (noteMode) { FinishNote(true); return; }   // weggeklikt: de notitie tot nu toe bewaren
-            if (active && wasActivated && !dragging) Cancel();
+            if (active && wasActivated && !dragging) Cancel("weggeklikt naar " + ForegroundName());
         }
 
         void Finish(Rectangle r)
@@ -487,9 +503,12 @@ namespace Kapture
             if (h != null) h(r);
         }
 
-        public void Cancel()
+        public void Cancel() { Cancel(null); }
+
+        public void Cancel(string why)
         {
             if (!active) return;
+            if (why != null) Log.Trace("Donker scherm dicht: " + why);
             active = false;
             Action h = Cancelled;
             if (h != null) h();

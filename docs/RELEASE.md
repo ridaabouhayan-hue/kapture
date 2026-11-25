@@ -1,4 +1,9 @@
-# Kapture 0.3.2
+# Kapture 0.3.3
+
+Nieuw in 0.3.3:
+- **Spoor in het foutlog om Print Screen uit te zoeken**: Kapture schrijft nu op welke sneltoetsen vastgelegd zijn, welke sneltoets binnenkomt, of het donkere scherm opent en waarom het weer dichtgaat. Er staan alleen toetsnamen en programmanamen in, nooit een screenshot, notitie, bestandsnaam of venstertitel.
+
+## Kapture 0.3.2
 
 Nieuw in 0.3.2:
 - **Print Screen sluit niet meer meteen**: bij het loslaten van Print Screen haalde Windows (of het Knipprogramma) soms een eigen venster naar voren, waardoor Kapture het donkere scherm meteen weer sloot. Nu pakt Kapture in het eerste ogenblik de focus terug. In het foutlog staat welk programma het was (alleen de programmanaam).

@@ -205,9 +205,14 @@ namespace Kapture
                         BusyHelp + " Kapture probeert het zelf elke 15 seconden opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
                 }
             }
+            Log.Trace("Sneltoetsen: " + (cfg.HotkeysPaused ? "op pauze" : "PrtSc " + State(cfg.HotkeyCapture, HotkeyCapture) + ", Shift+PrtSc " + State(cfg.HotkeyNote, HotkeyNote)
+                + ", Ctrl+PrtSc " + State(cfg.HotkeyLastNote, HotkeyLastNote) + ", eigen " + (cfg.CustomKey == 0 ? "geen" : State(true, HotkeyCustom)))
+                + "; Knipprogramma met PrtSc " + (SnippingUsesPrintScreen() ? "aan" : "uit"));
             UpdateTrayText();
             if (HotkeyTaken.Count > 0) retry.Start(); else retry.Stop();
         }
+
+        string State(bool on, int id) { return !on ? "uit" : HotkeyTaken.ContainsKey(id) ? "bezet" : "ok"; }
 
         public const string BusyHelp = "Een ander programma gebruikt deze toets. Vaak is dat OneDrive (instelling \"Schermafbeeldingen opslaan in OneDrive\") of ShareX.";
 
@@ -293,6 +298,7 @@ namespace Kapture
 
         void OnHotkey(int id)
         {
+            Log.Trace("Sneltoets binnen: " + (id == HotkeyCapture ? "PrtSc" : id == HotkeyNote ? "Shift+PrtSc" : id == HotkeyLastNote ? "Ctrl+PrtSc" : id == HotkeyCustom ? "eigen sneltoets" : "onbekend"));
             if (id == HotkeyCapture || id == HotkeyCustom) StartCapture(false);
             else if (id == HotkeyNote) StartCapture(true);
             else if (id == HotkeyLastNote) NoteForLast();
@@ -301,7 +307,11 @@ namespace Kapture
         // ---- een screenshot: donker, vastleggen, kader, opslaan
         public void StartCapture(bool withNote)
         {
-            if (busy || overlay.IsActive || overlay.InNoteMode) return;
+            if (busy || overlay.IsActive || overlay.InNoteMode)
+            {
+                Log.Trace("Screenshot niet gestart: " + (overlay.InNoteMode ? "notitiebalk staat nog open" : overlay.IsActive ? "donker scherm staat al open" : "Kapture is nog bezig met de vorige"));
+                return;
+            }
             busy = true;
             try
             {
@@ -330,6 +340,7 @@ namespace Kapture
                 }
                 overlay.ShowNow();
                 dim.HideNow();
+                Log.Trace("Donker scherm open; vooraan staat " + (W.GetForegroundWindow() == overlay.Handle ? "Kapture" : Overlay.ForegroundName()));
                 Watchdog.Arm(overlay.Handle, dim.Handle);
             }
             catch (Exception ex)

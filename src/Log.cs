@@ -16,6 +16,11 @@ namespace Kapture
 
         public static void Info(string msg) { Write("INFO ", msg); }
 
+        // Spoor van een screenshot (welke sneltoets binnenkwam, waarom het donkere scherm dichtging), om storingen te vinden.
+        // Alleen toetsnamen en programmanamen; hooguit 200 regels per keer dat Kapture draait.
+        static int traces;
+        public static void Trace(string msg) { if (System.Threading.Interlocked.Increment(ref traces) <= 200) Write("SPOOR ", msg); }
+
         public static void Error(string msg, Exception ex)
         {
             string text = msg;
