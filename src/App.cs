@@ -570,8 +570,42 @@ namespace Kapture
             c.Seconds = cfg.ToastSeconds;
             c.NoteField = true; c.Note = note; c.Tag = entry;
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
+            c.OnDelete = delegate { DeleteShot(entry); };
             toast.ShowToast(c, Theme.Current);
             if (edit) toast.BeginEdit();
+        }
+
+        // Prullenbak-knop in de melding: de screenshot (en zijn notitiebestand) naar de prullenbak. Terug te halen
+        // via de Prullenbak van Windows. Het klembord blijft zoals het is.
+        void DeleteShot(Shot entry)
+        {
+            EditorForm open;
+            if (editors.TryGetValue(entry, out open) && !open.IsDisposed)
+            {
+                Notify("Eerst de editor sluiten", "Deze screenshot staat nog open in de editor.", null, null, null, false);
+                return;
+            }
+            bool ok = true;
+            lock (noteGate)   // nooit tijdens hernoemen met een notitie
+            {
+                try
+                {
+                    string png = entry.Path;
+                    if (png != null && File.Exists(png)) ToRecycleBin(png);
+                    string txt = png != null ? Notes.TextPath(png) : null;
+                    if (txt != null && File.Exists(txt)) ToRecycleBin(txt);
+                }
+                catch (Exception ex) { ok = false; Log.Error("Verwijderen mislukt", ex); }
+            }
+            if (!ok) { Notify("Verwijderen lukte niet", "Het bestand is misschien open in een ander programma.", null, null, null, false); return; }
+            history.Remove(entry);
+            Info("Screenshot verwijderd", "Hij staat in de Prullenbak, als je hem toch nog nodig hebt.", "trash-2");
+        }
+
+        static void ToRecycleBin(string path)
+        {
+            Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(path, Microsoft.VisualBasic.FileIO.UIOption.OnlyErrorDialogs,
+                Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin, Microsoft.VisualBasic.FileIO.UICancelOption.ThrowException);
         }
 
         // ---- de editor (Stitch-scherm 5)

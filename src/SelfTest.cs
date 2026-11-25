@@ -206,6 +206,7 @@ namespace Kapture
                 c.Thumb = Saver.Thumbnail(desk, 160, 96);
                 c.Title = "Opgeslagen en gekopieerd"; c.Sub = "Preset: Naar Claude";
                 c.ActionLabel = "Map openen"; c.ActionIcon = "folder-open";
+                c.OnDelete = delegate { };   // prullenbak-knop in beeld
                 using (Bitmap tb = toast.RenderForTest(c, t, scale))
                     Save(dir, name, tb, t);
                 c.Thumb.Dispose();

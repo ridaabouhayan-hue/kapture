@@ -16,6 +16,7 @@ namespace Kapture
         public string Title = "", Sub = "";
         public string ActionLabel, ActionIcon; public Action OnAction;
         public string Action2Label, Action2Icon; public Action OnAction2;   // tweede knop (bijvoorbeeld Map openen naast Bewerken)
+        public Action OnDelete;   // prullenbak-knop naast Sluiten: de screenshot meteen weg (foutje)
         public Action OnThumb;
         public int Seconds = 6;
         public bool Stay;               // blijft staan tot je hem wegklikt (voor een probleem)
@@ -37,7 +38,7 @@ namespace Kapture
         float s = 1;
         int margin;                     // ruimte voor de schaduw
         int bodyH;                      // hoogte van miniatuur plus tekst
-        Rectangle card, thumbR, closeR, actionR, action2R, dismissR, noteR, helpR;
+        Rectangle card, thumbR, closeR, actionR, action2R, dismissR, deleteR, noteR, helpR;
         Rectangle workArea;
         string hot;                     // knop onder de muis
         readonly Timer tick = new Timer();
@@ -160,6 +161,7 @@ namespace Kapture
             }
             SizeF ds = Measure("Sluiten");
             dismissR = new Rectangle(card.Right - pad - ((int)ds.Width + P(16)), ay, (int)ds.Width + P(16), P(28));
+            deleteR = c.OnDelete != null ? new Rectangle(dismissR.X - P(6) - P(28), ay, P(28), P(28)) : Rectangle.Empty;
         }
 
         // Breedte voor de tekst in het notitieveld: na het icoon, voor de sneltoets rechts
@@ -264,6 +266,12 @@ namespace Kapture
                 if (c.ActionLabel != null) DrawButton(g, actionR, c.ActionIcon, c.ActionLabel, hot == "action", true);
                 if (c.Action2Label != null) DrawButton(g, action2R, c.Action2Icon, c.Action2Label, hot == "action2", false);
                 DrawButton(g, dismissR, null, "Sluiten", hot == "dismiss", false);
+                if (!deleteR.IsEmpty)
+                {
+                    // alleen een prullenbakje; bij aanwijzen rood, zodat je ziet dat het weggaat
+                    if (hot == "delete") using (GraphicsPath dp = Svg.RoundRect(deleteR, P(8))) using (SolidBrush db = new SolidBrush(t.Container)) g.FillPath(db, dp);
+                    Icons.Draw(g, "trash-2", deleteR, 16 * s, hot == "delete" ? t.Error : t.Variant, 2);
+                }
             }
             return b;
         }
@@ -436,6 +444,7 @@ namespace Kapture
             if (c.ActionLabel != null && actionR.Contains(p)) return "action";
             if (c.Action2Label != null && action2R.Contains(p)) return "action2";
             if (dismissR.Contains(p)) return "dismiss";
+            if (c.OnDelete != null && deleteR.Contains(p)) return "delete";
             if (c.NoteField && noteR.Contains(p)) return "note";
             if (c.Thumb != null && c.OnThumb != null && thumbR.Contains(p)) return "thumb";
             return null;
@@ -462,6 +471,7 @@ namespace Kapture
                 if (h == "close" || h == "dismiss") Dismiss();
                 else if (h == "action" && c.OnAction != null) { if (editing) EndEdit(true); c.OnAction(); Dismiss(); }
                 else if (h == "action2" && c.OnAction2 != null) { if (editing) EndEdit(true); c.OnAction2(); Dismiss(); }
+                else if (h == "delete" && c.OnDelete != null) { if (editing) EndEdit(false); Action del = c.OnDelete; Dismiss(); del(); }
                 else if (h == "thumb" && c.OnThumb != null) c.OnThumb();
                 else if (h == "note") BeginEdit();
             }

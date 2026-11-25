@@ -57,6 +57,11 @@ namespace Kapture
             Save();
         }
 
+        public void Remove(Shot s)
+        {
+            if (items.Remove(s)) Save();
+        }
+
         public static History Load(string path)
         {
             History h = new History(path);

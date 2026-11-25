@@ -9,6 +9,7 @@ Nieuw in 0.4: **de werkbalk doet alles**.
   - **Bewaren**: alleen opslaan; wat er op je klembord stond blijft staan.
   - **Doorsturen**: opslaan en meteen de editor open, zonder notitie.
   Kapture onthoudt je keuze; het menu bij de klok laat zien welke aan staat.
+- **Meteen weg bij een foutje**: in de melding rechtsonder staat een prullenbakje naast Sluiten. Eén klik en de screenshot (met zijn notitiebestand) staat in de Prullenbak van Windows; daar kun je hem terughalen als het toch nodig was.
 - **Editor groter**: de editor opent op 90% van je scherm, en een kleine screenshot wordt tot twee keer vergroot zodat je hem goed ziet. Het bestand zelf blijft even groot.
 
 ## Kapture 0.3.5
