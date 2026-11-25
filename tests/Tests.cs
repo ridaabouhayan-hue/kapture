@@ -65,6 +65,15 @@ namespace Kapture
                 Is(nb.ThemeMode == 2 && !nb.HotkeyNote && !nb.HotkeyLastNote && nb.HotkeyCapture && nb.MonthFolders && !nb.NoteStrip && !nb.NoteTextFile, "thema, sneltoetsen, mappen en notities heen en terug");
                 File.WriteAllText(sp, "thema=9");
                 Is(Settings.Load(sp).ThemeMode == 2, "thema wordt begrensd");
+                // preset: heen en terug, onzin wordt Nu naar Claude, en Opslaan in Instellingen zet hem niet terug
+                new Settings { Preset = Presets.Forward }.Save(sp);
+                Is(Settings.Load(sp).Preset == Presets.Forward, "preset heen en terug");
+                File.WriteAllText(sp, "preset=7");
+                Is(Settings.Load(sp).Preset == Presets.NowToClaude, "onbekende preset wordt Nu naar Claude");
+                Settings keepP = new Settings { Preset = Presets.SaveForClaude };
+                keepP.CopyFrom(new Settings());
+                Is(keepP.Preset == Presets.SaveForClaude && !new Settings().DiffersFrom(keepP), "preset blijft staan bij Opslaan in Instellingen");
+                Is(Presets.Names.Length == Presets.Chips.Length && Presets.Chips.Length == Presets.Icons.Length, "elke preset heeft naam, knop en icoon");
                 Settings def = new Settings();
                 Is(def.HotkeyCapture && def.HotkeyNote && def.HotkeyLastNote && def.NoteStrip && def.NoteTextFile && !def.MonthFolders, "standaard: alles aan, geen maandmappen");
 

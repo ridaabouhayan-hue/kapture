@@ -99,7 +99,8 @@ namespace Kapture
             if (!IsHandleCreated)
             {
                 Rectangle wa = Screen.FromPoint(Cursor.Position).WorkingArea;
-                ClientSize = new Size(Math.Min(wa.Width - P(40), P(1280)), Math.Min(wa.Height - P(40), P(820)));
+                // groot openen: 90% van het scherm, zodat de screenshot ruim in beeld staat
+                ClientSize = new Size(Math.Max(P(900), (int)(wa.Width * 0.9f)), Math.Max(P(600), (int)(wa.Height * 0.9f)));
             }
             noteBox.Font = Fonts.Ui(13 * s, 0);
             ApplyTheme();
@@ -133,13 +134,16 @@ namespace Kapture
 
         protected override void OnResize(EventArgs e) { base.OnResize(e); LayoutNote(); Invalidate(); }
 
-        // De afbeelding zo groot mogelijk in het canvas, onder de werkbalk, nooit groter dan 100%
+        // De afbeelding zo groot mogelijk in het canvas, onder de werkbalk. Een kleine screenshot mag groter dan echt
+        // (tot twee keer), zodat je hem goed ziet tijdens het bewerken; het bestand blijft zijn eigen grootte.
+        public const float MaxZoom = 2f;
+
         RectangleF FitImage(RectangleF canvas)
         {
             Rectangle c = doc.Crop;
-            float top = canvas.Y + P(BarTop) + P(BarH) + P(20);
-            RectangleF room = RectangleF.FromLTRB(canvas.X + P(32), top, canvas.Right - P(32), canvas.Bottom - P(24));
-            float k = Math.Min(1f, Math.Min(room.Width / c.Width, room.Height / c.Height));   // nooit groter dan echt
+            float top = canvas.Y + P(BarTop) + P(BarH) + P(16);
+            RectangleF room = RectangleF.FromLTRB(canvas.X + P(20), top, canvas.Right - P(20), canvas.Bottom - P(20));
+            float k = Math.Min(MaxZoom, Math.Min(room.Width / c.Width, room.Height / c.Height));
             float w = c.Width * k, h = c.Height * k;
             return new RectangleF((float)Math.Round(room.X + (room.Width - w) / 2), (float)Math.Round(room.Y + (room.Height - h) / 2), (float)Math.Round(w), (float)Math.Round(h));
         }
@@ -157,7 +161,8 @@ namespace Kapture
             view = new Bitmap(want.Width, want.Height, PixelFormat.Format32bppPArgb);
             using (Graphics g = Graphics.FromImage(view))
             {
-                g.InterpolationMode = want.Width < doc.Crop.Width ? InterpolationMode.HighQualityBicubic : InterpolationMode.NearestNeighbor;
+                // precies 1 op 1: pixel voor pixel (scherpst); kleiner of groter: zacht schalen, zodat tekst leesbaar blijft
+                g.InterpolationMode = want.Width == doc.Crop.Width ? InterpolationMode.NearestNeighbor : InterpolationMode.HighQualityBicubic;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
                 g.DrawImage(doc.Image, new Rectangle(0, 0, want.Width, want.Height), doc.Crop, GraphicsUnit.Pixel);
             }

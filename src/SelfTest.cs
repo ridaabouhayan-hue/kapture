@@ -35,6 +35,7 @@ namespace Kapture
                         string tag = (t.Dark ? "donker" : "licht") + "-" + (int)(scale * 100);
                         OverlayShot(dir, t, scale, true, "overlay-kader-" + tag + ".png");
                         OverlayShot(dir, t, scale, true, "overlay-slepen-" + tag + ".png", true);
+                        LassoShot(dir, t, scale, "overlay-vrij-" + tag + ".png");
                         if (scale > 1) OverlayShot(dir, t, scale, false, "overlay-leeg-" + tag + ".png");
                         ToastShot(dir, t, scale, "melding-" + tag + ".png");
                         NoteToastShot(dir, t, scale, "melding-notitie-" + tag + ".png");
@@ -162,6 +163,36 @@ namespace Kapture
                 o.SetDraggingForTest(dragging);
                 o.Compose(new Rectangle(0, 0, w, h));
                 using (Bitmap v = o.WorkBuffer.View()) v.Save(Path.Combine(dir, name), ImageFormat.Png);
+                o.End();
+            }
+        }
+
+        // Vrij: een vorm tekenen (werkbalk weg, lijn zichtbaar); en de werkbalk met Venster gekozen en Bewaren als preset
+        static void LassoShot(string dir, Theme t, float scale, string name)
+        {
+            int w = (int)(1440 * scale), h = (int)(900 * scale);
+            using (Bitmap desk = FakeDesktop(w, h, scale))
+            using (Dib d = ToDib(desk))
+            using (Overlay o = new Overlay())
+            {
+                o.TestScale = scale;
+                o.Preset = Presets.SaveForClaude;
+                o.SetShapeForTest(Overlay.Shape.Venster);
+                bool ok = o.Prepare(d, new Rectangle(0, 0, w, h), t, new Point(w / 2, h / 2), new Rectangle(0, 0, w, h));
+                Check(ok, "overlay voorbereiden " + name);
+                if (!ok) return;
+                o.Compose(new Rectangle(0, 0, w, h));
+                using (Bitmap v = o.WorkBuffer.View()) v.Save(Path.Combine(dir, name.Replace("vrij", "venster-bewaren")), ImageFormat.Png);
+                System.Collections.Generic.List<Point> pts = new System.Collections.Generic.List<Point>();
+                for (int i = 0; i <= 60; i++)
+                {
+                    double a = i / 60.0 * Math.PI * 2;
+                    pts.Add(new Point((int)((430 + 260 * Math.Cos(a) + 30 * Math.Sin(a * 5)) * scale), (int)((430 + 170 * Math.Sin(a)) * scale)));
+                }
+                o.SetLassoForTest(pts.ToArray());
+                o.Compose(new Rectangle(0, 0, w, h));
+                using (Bitmap v = o.WorkBuffer.View()) v.Save(Path.Combine(dir, name), ImageFormat.Png);
+                o.SetShapeForTest(Overlay.Shape.Kader);   // de volgende schermen weer met een kader
                 o.End();
             }
         }

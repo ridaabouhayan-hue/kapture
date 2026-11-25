@@ -1,6 +1,6 @@
 ; Kapture installer (Inno Setup 6). Installeert voor de huidige gebruiker, zonder beheerdersrechten.
 #ifndef AppVersion
-  #define AppVersion "0.3.5"
+  #define AppVersion "0.4.0"
 #endif
 
 [Setup]

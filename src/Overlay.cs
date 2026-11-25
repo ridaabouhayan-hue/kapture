@@ -24,11 +24,11 @@ namespace Kapture
         public Toolbar()
         {
             Items.Add(new Item { Key = "kader", Icon = "square-dashed", Label = "Kader", Kind = Kind.Mode, Active = true });
-            Items.Add(new Item { Key = "vrij", Icon = "lasso", Label = "Vrij", Kind = Kind.Mode, Enabled = false });
-            Items.Add(new Item { Key = "venster", Icon = "app-window", Label = "Venster", Kind = Kind.Mode, Enabled = false });
+            Items.Add(new Item { Key = "vrij", Icon = "lasso", Label = "Vrij", Kind = Kind.Mode });
+            Items.Add(new Item { Key = "venster", Icon = "app-window", Label = "Venster", Kind = Kind.Mode });
             Items.Add(new Item { Key = "scherm", Icon = "monitor", Label = "Hele scherm", Kind = Kind.Mode });
             Items.Add(new Item { Key = "", Kind = Kind.Separator });
-            Items.Add(new Item { Key = "preset", Icon = "sparkles", Label = "Naar Claude", Kind = Kind.Chip, Enabled = false });
+            Items.Add(new Item { Key = "preset", Icon = "sparkles", Label = "Naar Claude", Kind = Kind.Chip });
             Items.Add(new Item { Key = "notitie", Icon = "sticky-note", Label = "Met notitie", Kind = Kind.Icon });
             Items.Add(new Item { Key = "sluiten", Icon = "x", Label = "Sluiten", Kind = Kind.Icon });
         }
@@ -134,6 +134,24 @@ namespace Kapture
         readonly Toolbar bar = new Toolbar();
         Toolbar.Item hover;
 
+        // De vorm: kader slepen, vrij tekenen of een venster aanklikken. Blijft bewaard tot de volgende screenshot.
+        public enum Shape { Kader, Vrij, Venster }
+        Shape shape = Shape.Kader;
+        readonly List<Point> lasso = new List<Point>();   // Vrij: de getekende lijn (coordinaten van het beeld)
+        Point[] lassoDone;                                // Vrij: de gesloten vorm na loslaten, voor App
+        readonly List<Rectangle> windows = new List<Rectangle>();   // Venster: de zichtbare vensters, bovenste eerst
+        Rectangle hoverWin = Rectangle.Empty;
+
+        public Shape CurrentShape { get { return shape; } }
+
+        // De preset (Presets): App zet hem voor het tonen; een klik op de knop of 1, 2, 3 wisselt hem
+        int preset;
+        public event Action<int> PresetChanged;
+        public int Preset { get { return preset; } set { preset = Presets.Clamp(value); } }
+
+        // De vrije vorm van de laatste keuze (of null bij een kader of venster); daarna is hij weg
+        public Point[] TakeLasso() { Point[] p = lassoDone; lassoDone = null; return p; }
+
         // Met notitie (Shift+PrtSc of de knop in de werkbalk): na loslaten blijft het kader staan met de notitiebalk eronder
         bool withNote, noteMode;
         readonly TextField note = new TextField();
@@ -187,8 +205,11 @@ namespace Kapture
             Dib.Darken(bright, dimmed, DimFactor);
             s = TestScale > 0 ? TestScale : W.ScaleAt(cursor.X, cursor.Y);
             monitor = monitorScreen; monitor.Offset(-origin.X, -origin.Y);
+            SyncShapeButtons();
             using (Graphics g = Graphics.FromHdc(work.Dc)) bar.Layout(monitor, s, g);
             sel = Rectangle.Empty; dragging = false; hover = null; wasActivated = false;
+            lasso.Clear(); lassoDone = null; hoverWin = Rectangle.Empty;
+            FindWindows(origin);
             Bounds = origin;
             return true;
         }
@@ -273,6 +294,75 @@ namespace Kapture
             return n.Length > 0 ? n : "Kapture of onbekend";
         }
 
+        void SyncShapeButtons()
+        {
+            Toolbar.Item chip = bar.Find("preset");
+            chip.Label = Presets.Chips[preset]; chip.Icon = Presets.Icons[preset];
+            bar.Find("kader").Active = shape == Shape.Kader;
+            bar.Find("vrij").Active = shape == Shape.Vrij;
+            bar.Find("venster").Active = shape == Shape.Venster;
+        }
+
+        void SetPreset(int next)
+        {
+            next = Presets.Clamp(next);
+            if (next == preset) return;
+            preset = next;
+            Rectangle old = bar.Bounds;
+            SyncShapeButtons();
+            using (Graphics g = Graphics.FromHdc(work.Dc)) bar.Layout(monitor, s, g);   // ander woord: andere breedte
+            Invalidate(Rectangle.Union(old, bar.Bounds));
+            Update();
+            Action<int> h = PresetChanged;
+            if (h != null) h(preset);
+        }
+
+        void SetShape(Shape next)
+        {
+            if (next == shape) return;
+            shape = next;
+            Rectangle old = bar.Bounds;
+            SyncShapeButtons();
+            using (Graphics g = Graphics.FromHdc(work.Dc)) bar.Layout(monitor, s, g);   // het gekozen woord is vet: andere breedte
+            lasso.Clear(); hoverWin = Rectangle.Empty;
+            Rectangle dirty = Rectangle.Union(Rectangle.Union(old, bar.Bounds), FrameBounds(sel));
+            sel = Rectangle.Empty;
+            Invalidate(Rectangle.Union(dirty, HintRect()));
+            Update();
+        }
+
+        // Alle zichtbare vensters van andere programma's, van boven naar onder, in de coordinaten van het beeld.
+        // Nu al, voordat de overlay zelf vooraan staat. Geen titels, alleen de plek.
+        void FindWindows(Rectangle origin)
+        {
+            windows.Clear();
+            try
+            {
+                uint me = (uint)System.Diagnostics.Process.GetCurrentProcess().Id;
+                IntPtr h = W.GetTopWindow(IntPtr.Zero);
+                for (int guard = 0; h != IntPtr.Zero && guard < 2000; guard++, h = W.GetWindow(h, W.GW_HWNDNEXT))
+                {
+                    if (!W.IsWindowVisible(h) || W.IsIconic(h)) continue;
+                    int cloaked = 0;
+                    try { W.DwmGetWindowAttribute(h, 14, out cloaked, 4); } catch { }
+                    if (cloaked != 0) continue;
+                    uint pid; W.GetWindowThreadProcessId(h, out pid);
+                    if (pid == 0 || pid == me) continue;
+                    W.RECT rc;
+                    // de zichtbare rand (zonder de onzichtbare sleeprand van Windows 11)
+                    if (W.DwmGetWindowAttribute(h, 9, out rc, 16) != 0 && !W.GetWindowRect(h, out rc)) continue;
+                    Rectangle r = Rectangle.FromLTRB(rc.Left, rc.Top, rc.Right, rc.Bottom);
+                    r.Offset(-origin.X, -origin.Y);
+                    r.Intersect(new Rectangle(0, 0, origin.Width, origin.Height));
+                    if (r.Width < 8 || r.Height < 8) continue;
+                    windows.Add(r);
+                }
+            }
+            catch { }
+        }
+
+        Rectangle WindowAt(Point p) { foreach (Rectangle r in windows) if (r.Contains(p)) return r; return Rectangle.Empty; }
+
         public void End()
         {
             active = false; dragging = false; noteMode = false; blink.Stop();
@@ -301,7 +391,8 @@ namespace Kapture
             {
                 g.SetClip(clip);
                 g.TextRenderingHint = TextRenderingHint.ClearTypeGridFit;   // dichte achtergrond: scherpe ClearType-tekst, zoals NexusPen
-                if (sel.Width > 0 && sel.Height > 0) DrawFrame(g);
+                if (shape == Shape.Vrij && dragging) DrawLasso(g);
+                else if (sel.Width > 0 && sel.Height > 0) DrawFrame(g);
                 else DrawHint(g);
                 if (!dragging && !noteMode && clip.IntersectsWith(bar.Bounds)) bar.Draw(g, theme, hover);   // tijdens het slepen en bij de notitie weg, zoals in Windows
                 if (noteMode) DrawNoteBar(g);
@@ -353,6 +444,30 @@ namespace Kapture
             DrawLabel(g, sel.Width + " x " + sel.Height, LabelRect(sel));
         }
 
+        // Vrij: de lijn die je tekent, wit met een kobalt streep erover (zoals de rand van het kader)
+        void DrawLasso(Graphics g)
+        {
+            if (lasso.Count < 2) return;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            float lw = Math.Max(1.5f, 2 * s);
+            using (Pen white = new Pen(Color.White, lw + 2 * s))
+            using (Pen line = new Pen(theme.Primary, lw))
+            {
+                white.LineJoin = line.LineJoin = LineJoin.Round;
+                Point[] pts = lasso.ToArray();
+                g.DrawLines(white, pts);
+                g.DrawLines(line, pts);
+            }
+        }
+
+        Rectangle LassoBounds()
+        {
+            if (lasso.Count == 0) return Rectangle.Empty;
+            int x0 = int.MaxValue, y0 = int.MaxValue, x1 = int.MinValue, y1 = int.MinValue;
+            foreach (Point p in lasso) { x0 = Math.Min(x0, p.X); y0 = Math.Min(y0, p.Y); x1 = Math.Max(x1, p.X); y1 = Math.Max(y1, p.Y); }
+            return Rectangle.FromLTRB(x0, y0, x1 + 1, y1 + 1);
+        }
+
         Rectangle LabelRect(Rectangle r)
         {
             Font f = Fonts.Mono(11 * s);
@@ -384,7 +499,8 @@ namespace Kapture
             g.SmoothingMode = SmoothingMode.AntiAlias;
             using (GraphicsPath gp = Svg.RoundRect(r, P(16)))
             using (SolidBrush b = new SolidBrush(Color.FromArgb(220, theme.Inverse))) g.FillPath(b, gp);
-            TextRenderer.DrawText(g, "Sleep een kader  ·  Esc of rechtsklik annuleert", Fonts.Ui(12 * s, 0), r, theme.OnInverse,
+            string what = shape == Shape.Vrij ? "Teken een vorm" : shape == Shape.Venster ? "Klik op een venster" : "Sleep een kader";
+            TextRenderer.DrawText(g, what + "  ·  Esc of rechtsklik annuleert", Fonts.Ui(12 * s, 0), r, theme.OnInverse,
                 TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
         }
 
@@ -417,14 +533,21 @@ namespace Kapture
         {
             if (noteMode) { if (e.Button == MouseButtons.Right) FinishNote(false); return; }
             if (!active) return;
-            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; Capture = false; Invalidate(bar.Bounds); SetSelection(Rectangle.Empty); } else Cancel("rechtermuisknop"); return; }
+            if (e.Button == MouseButtons.Right) { if (dragging) { dragging = false; Capture = false; Invalidate(bar.Bounds); Invalidate(Inflate(LassoBounds(), P(6))); lasso.Clear(); SetSelection(Rectangle.Empty); } else Cancel("rechtermuisknop"); return; }
             if (e.Button != MouseButtons.Left) return;
             Toolbar.Item it = bar.HitTest(e.Location);
             if (it != null) { OnToolbarClick(it); return; }
             if (bar.Rect.Contains(e.Location)) return;
+            if (shape == Shape.Venster)
+            {
+                Rectangle w = WindowAt(e.Location);
+                if (w.Width > 0) Finish(w);
+                return;
+            }
             dragging = true; start = e.Location; hover = null;
             Capture = true;
             Invalidate(bar.Bounds);   // de werkbalk gaat weg zolang je sleept
+            if (shape == Shape.Vrij) { lasso.Clear(); lasso.Add(e.Location); Invalidate(Inflate(FrameBounds(sel), P(4))); sel = Rectangle.Empty; Invalidate(HintRect()); Update(); return; }
             SetSelection(Rectangle.Empty);
         }
 
@@ -434,10 +557,26 @@ namespace Kapture
             if (dragging)
             {
                 Point p = new Point(Math.Max(0, Math.Min(ClientSize.Width - 1, e.X)), Math.Max(0, Math.Min(ClientSize.Height - 1, e.Y)));
+                if (shape == Shape.Vrij)
+                {
+                    Point last = lasso[lasso.Count - 1];
+                    if (Math.Abs(p.X - last.X) + Math.Abs(p.Y - last.Y) < 2) return;
+                    lasso.Add(p);
+                    Rectangle seg = Rectangle.FromLTRB(Math.Min(p.X, last.X), Math.Min(p.Y, last.Y), Math.Max(p.X, last.X) + 1, Math.Max(p.Y, last.Y) + 1);
+                    Invalidate(Inflate(seg, P(6)));
+                    Update();
+                    return;
+                }
                 Rectangle next = Norm(start, p);
                 if (next != sel) SetSelection(next);
                 return;
             }
+            if (shape == Shape.Venster && !bar.Rect.Contains(e.Location))
+            {
+                Rectangle w = WindowAt(e.Location);
+                if (w != hoverWin) { hoverWin = w; SetSelection(w); }
+            }
+            else if (shape == Shape.Venster && hoverWin.Width > 0) { hoverWin = Rectangle.Empty; SetSelection(Rectangle.Empty); }
             Toolbar.Item h = bar.HitTest(e.Location);
             if (h != null && !h.Enabled) h = null;
             if (h != hover) { hover = h; Invalidate(bar.Bounds); }
@@ -449,6 +588,22 @@ namespace Kapture
         {
             if (!active || !dragging || e.Button != MouseButtons.Left) return;
             dragging = false; Capture = false;
+            if (shape == Shape.Vrij)
+            {
+                Rectangle lb = LassoBounds();
+                if (lasso.Count >= 3 && lb.Width >= 4 && lb.Height >= 4)
+                {
+                    lassoDone = lasso.ToArray();
+                    lasso.Clear();
+                    sel = lb;
+                    Invalidate(Inflate(lb, P(6)));
+                    Finish(lb);
+                    return;
+                }
+                Invalidate(Inflate(lb, P(6))); lasso.Clear();
+                Invalidate(bar.Bounds); Invalidate(HintRect());   // te klein: werkbalk terug
+                return;
+            }
             if (sel.Width >= 4 && sel.Height >= 4) Finish(sel);
             else { Invalidate(bar.Bounds); SetSelection(Rectangle.Empty); }   // te klein: werkbalk terug
         }
@@ -457,6 +612,10 @@ namespace Kapture
         {
             if (!it.Enabled) return;
             if (it.Key == "notitie") { withNote = !withNote; it.Active = withNote; Invalidate(bar.Bounds); return; }
+            if (it.Key == "preset") { SetPreset((preset + 1) % Presets.Names.Length); return; }
+            if (it.Key == "kader") { SetShape(Shape.Kader); return; }
+            if (it.Key == "vrij") { SetShape(Shape.Vrij); return; }
+            if (it.Key == "venster") { SetShape(Shape.Venster); return; }
             if (it.Key == "sluiten") Cancel("knop Sluiten");
             else if (it.Key == "scherm") Finish(monitor);
         }
@@ -472,6 +631,8 @@ namespace Kapture
                 return base.ProcessCmdKey(ref msg, keyData);
             }
             if (active && keyData == Keys.Escape) { Cancel("Esc"); return true; }
+            if (active && !dragging && keyData >= Keys.D1 && keyData < Keys.D1 + Presets.Names.Length) { SetPreset(keyData - Keys.D1); return true; }
+            if (active && !dragging && keyData >= Keys.NumPad1 && keyData < Keys.NumPad1 + Presets.Names.Length) { SetPreset(keyData - Keys.NumPad1); return true; }
             return base.ProcessCmdKey(ref msg, keyData);
         }
 
@@ -648,5 +809,7 @@ namespace Kapture
         // Voor de zelftest: een kader zetten zonder muis
         public void SetSelectionForTest(Rectangle r) { sel = r; }
         public void SetDraggingForTest(bool on) { dragging = on; }
+        public void SetLassoForTest(Point[] pts) { shape = Shape.Vrij; SyncShapeButtons(); lasso.Clear(); lasso.AddRange(pts); dragging = true; }
+        public void SetShapeForTest(Shape sh) { shape = sh; SyncShapeButtons(); }
     }
 }

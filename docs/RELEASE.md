@@ -1,4 +1,17 @@
-# Kapture 0.3.5
+# Kapture 0.4.0
+
+Nieuw in 0.4: **de werkbalk doet alles**.
+- **Vrij**: teken met de muis een vorm om wat je wilt. Alleen wat binnen de vorm valt komt in de screenshot; daarbuiten wordt het wit.
+- **Venster**: beweeg over het scherm en het venster onder de muis licht op; klik en dat venster is je screenshot.
+- **Kader** en **Hele scherm** werken zoals altijd. Kapture onthoudt welke vorm je het laatst gebruikte.
+- **De knop Naar Claude kiest wat er daarna gebeurt** (klik om te wisselen, of druk op 1, 2 of 3):
+  - **Naar Claude**: opslaan en kopiëren, zoals altijd.
+  - **Bewaren**: alleen opslaan; wat er op je klembord stond blijft staan.
+  - **Doorsturen**: opslaan en meteen de editor open, zonder notitie.
+  Kapture onthoudt je keuze; het menu bij de klok laat zien welke aan staat.
+- **Editor groter**: de editor opent op 90% van je scherm, en een kleine screenshot wordt tot twee keer vergroot zodat je hem goed ziet. Het bestand zelf blijft even groot.
+
+## Kapture 0.3.5
 
 Nieuw in 0.3.5:
 - **Werkbalk weg tijdens het slepen**: zodra je een kader begint te slepen verdwijnt de werkbalk bovenin, zoals in het Knipprogramma van Windows. Laat je los zonder kader (te klein), dan komt hij terug. Bij de notitiebalk staat hij ook niet meer in beeld.

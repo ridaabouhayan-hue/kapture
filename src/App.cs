@@ -126,6 +126,7 @@ namespace Kapture
             overlay.Selected += OnSelected;
             overlay.Cancelled += OnCancelled;
             overlay.NoteDone += OnNoteDone;
+            overlay.PresetChanged += delegate(int p) { cfg.Preset = p; cfg.Save(); };   // het menu leest hem bij het openen
             BuildTray();
             if (!retryHooked) { retry.Tick += delegate { RetryTaken(); }; retryHooked = true; }
             RegisterHotkeys(true);
@@ -167,7 +168,7 @@ namespace Kapture
         {
             bool keys = !c.HotkeysPaused;
             m.Clear();
-            m.AddHeader("Kapture", "Naar Claude");
+            m.AddHeader("Kapture", Presets.Chips[Presets.Clamp(c.Preset)]);
             m.Add("Nieuwe screenshot", "camera", keys && c.HotkeyCapture ? "PrtSc" : null, shot);
             m.Add("Screenshot met notitie", "sticky-note", keys && c.HotkeyNote ? "Shift+PrtSc" : null, shotNote);
             m.Add("Notitie bij laatste", "pencil", keys && c.HotkeyLastNote ? "Ctrl+PrtSc" : null, hasLast ? lastNote : null);
@@ -397,6 +398,7 @@ namespace Kapture
                 shotOrigin = v;
                 Point cur = Cursor.Position;
                 Rectangle mon = Screen.FromPoint(cur).Bounds;
+                overlay.Preset = cfg.Preset;
                 if (!overlay.Prepare(shot, v, Theme.Current, cur, mon, withNote))
                 {
                     FreeShot(); dim.HideNow(); busy = false;
@@ -420,7 +422,10 @@ namespace Kapture
             try
             {
                 Bitmap piece = shot.Crop(r);
-                bool note = overlay.WithNote && piece != null;
+                Point[] lasso = overlay.TakeLasso();
+                if (lasso != null && piece != null) piece = OnlyInside(piece, lasso, r);
+                int preset = overlay.Preset;
+                bool note = overlay.WithNote && piece != null && preset != Presets.Forward;   // Doorsturen: nooit de notitie
                 if (!note)
                 {
                     Watchdog.Disarm();
@@ -433,7 +438,7 @@ namespace Kapture
                 string under = Naming.AppAt(shotOrigin.X + r.X + r.Width / 2, shotOrigin.Y + r.Y + r.Height / 2);
                 if (under != "" && under != "Verkenner") shotApp = under;
                 else if (shotApp == "Verkenner") shotApp = under;
-                Shot entry = new Shot { Time = DateTime.Now, App = shotApp ?? "" };
+                Shot entry = new Shot { Time = DateTime.Now, App = shotApp ?? "", Preset = Presets.Names[preset] };
                 string folder = InboxFolder.ForShot(cfg, entry.Time);
                 if (note)
                 {
@@ -442,7 +447,7 @@ namespace Kapture
                     overlay.BeginNote(r, delegate(string n) { return Naming.Base(entry.Time, entry.App, n) + ".png"; }, paste);
                 }
                 System.Threading.Interlocked.Increment(ref running);
-                Saver.SaveAndCopy(piece, entry, folder, true, cfg.NoteStrip, cfg.NoteTextFile, overlay, delegate(SaveResult sr)
+                Saver.SaveAndCopy(piece, entry, folder, preset == Presets.NowToClaude, cfg.NoteStrip, cfg.NoteTextFile, overlay, delegate(SaveResult sr)
                 {
                     System.Threading.Interlocked.Decrement(ref running);
                     OnSaved(sr);
@@ -455,11 +460,41 @@ namespace Kapture
             }
         }
 
+        // Vrij: alleen wat binnen de getekende vorm valt; daarbuiten wit (wit plakt overal netjes, ook waar
+        // doorzichtig zwart zou worden)
+        static Bitmap OnlyInside(Bitmap piece, Point[] lasso, Rectangle r)
+        {
+            Bitmap result = new Bitmap(piece.Width, piece.Height, System.Drawing.Imaging.PixelFormat.Format24bppRgb);
+            try
+            {
+                using (Graphics g = Graphics.FromImage(result))
+                using (GraphicsPath path = new GraphicsPath())
+                {
+                    g.Clear(Color.White);
+                    Point[] pts = new Point[lasso.Length];
+                    for (int i = 0; i < lasso.Length; i++) pts[i] = new Point(lasso[i].X - r.X, lasso[i].Y - r.Y);
+                    path.AddPolygon(pts);
+                    g.SetClip(path);
+                    g.DrawImage(piece, new Rectangle(0, 0, piece.Width, piece.Height), 0, 0, piece.Width, piece.Height, GraphicsUnit.Pixel);
+                }
+            }
+            catch { result.Dispose(); return piece; }   // lukt het niet, dan het hele kader: beter dan niets
+            piece.Dispose();
+            return result;
+        }
+
         void OnSaved(SaveResult r)
         {
             Trim();
             if (!r.Failed) history.Add(r.Shot);
             if (noteShot == r.Shot && overlay.InNoteMode) { noteResult = r; return; }   // de melding komt na de notitie
+            if (!r.Failed && r.Shot.Preset == Presets.Names[Presets.Forward])
+            {
+                // Doorsturen: meteen de editor, zonder melding
+                if (r.Thumb != null) r.Thumb.Dispose();
+                OpenEditor(r.Shot);
+                return;
+            }
             string pending = r.Shot.PendingNote; r.Shot.PendingNote = null;
             if (!r.Failed && !string.IsNullOrEmpty(pending)) ApplyNote(r.Shot, pending);
             ShowSaved(r, pending);
@@ -524,7 +559,9 @@ namespace Kapture
             ToastContent c = new ToastContent();
             c.Thumb = thumb;
             c.Title = note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
-            c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png" : (copied || edit ? "Preset: Nu naar Claude" : "Kopieren lukte niet; het bestand staat wel in je inbox.");
+            bool wantCopy = entry.Preset == Presets.Names[Presets.NowToClaude];
+            c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png"
+                : (copied || edit || !wantCopy ? "Preset: " + entry.Preset : "Kopieren lukte niet; het bestand staat wel in je inbox.");
             c.ActionLabel = "Bewerken"; c.ActionIcon = "pencil";
             c.OnAction = delegate { OpenEditor(entry, c.Note); };   // c.Note: net getypt in de melding
             c.Action2Label = "Map openen"; c.Action2Icon = "folder-open";
