@@ -51,6 +51,17 @@ namespace Kapture
         [DllImport("user32.dll")] public static extern IntPtr GetAncestor(IntPtr h, uint flags);
         [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr h, int c);
         [DllImport("user32.dll")] public static extern uint GetClipboardSequenceNumber();
+        // Klembord-luisteraar: Windows meldt alleen DAT het klembord veranderde (geen toetsen, geen inhoud)
+        public const int WM_CLIPBOARDUPDATE = 0x031D, CF_BITMAP = 2;
+        [DllImport("user32.dll", SetLastError = true)] public static extern bool AddClipboardFormatListener(IntPtr h);
+        [DllImport("user32.dll")] public static extern IntPtr GetClipboardOwner();
+        [DllImport("user32.dll")] public static extern bool OpenClipboard(IntPtr h);
+        [DllImport("user32.dll")] public static extern bool CloseClipboard();
+        [DllImport("user32.dll")] public static extern bool IsClipboardFormatAvailable(uint f);
+        [DllImport("user32.dll")] public static extern IntPtr GetClipboardData(uint f);
+        [DllImport("user32.dll")] public static extern short GetAsyncKeyState(int vk);
+        [DllImport("gdi32.dll")] public static extern int GetObject(IntPtr h, int size, out BITMAP bm);
+        [StructLayout(LayoutKind.Sequential)] public struct BITMAP { public int bmType, bmWidth, bmHeight, bmWidthBytes; public short bmPlanes, bmBitsPixel; public IntPtr bmBits; }
         [DllImport("user32.dll")] public static extern int GetWindowLong(IntPtr h, int i);
         [DllImport("user32.dll")] public static extern int SetWindowLong(IntPtr h, int i, int v);
         public const int GWL_EXSTYLE = -20;

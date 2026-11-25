@@ -13,6 +13,7 @@ namespace Kapture
     {
         public Action<int> OnHotkey;
         public Action OnShowRequest;
+        public Action OnClipboard;
         public static readonly int ShowMessage = W.RegisterWindowMessage("Kapture.AlGestart");
 
         public HotkeyWindow() { CreateHandle(new CreateParams()); }
@@ -20,6 +21,7 @@ namespace Kapture
         protected override void WndProc(ref Message m)
         {
             if (m.Msg == W.WM_HOTKEY && OnHotkey != null) { OnHotkey(m.WParam.ToInt32()); return; }
+            if (m.Msg == W.WM_CLIPBOARDUPDATE && OnClipboard != null) { OnClipboard(); return; }
             if (m.Msg == ShowMessage && ShowMessage != 0 && OnShowRequest != null) { OnShowRequest(); return; }
             base.WndProc(ref m);
         }
@@ -119,6 +121,8 @@ namespace Kapture
             history = History.Load(History.DefaultPath);
             hot.OnHotkey = OnHotkey;
             hot.OnShowRequest = delegate { OpenSettings(); };   // Kapture nog eens gestart: open Instellingen
+            hot.OnClipboard = OnClipboardChanged;
+            if (!W.AddClipboardFormatListener(hot.Handle)) Log.Info("Klembord volgen lukte niet");
             overlay.Selected += OnSelected;
             overlay.Cancelled += OnCancelled;
             overlay.NoteDone += OnNoteDone;
@@ -296,8 +300,69 @@ namespace Kapture
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
         }
 
+        // Sommige Windows-versies geven Print Screen niet door aan Kapture (ook al is hij vastgelegd), maar kopiëren dan
+        // zelf het hele scherm naar het klembord. Dat merken we hier: een afbeelding precies zo groot als het scherm,
+        // van Windows zelf (geen eigenaar) of terwijl Print Screen net ingedrukt was. We kijken alleen naar de maat,
+        // nooit naar wat erop staat. Geen toetsenbordhook: Windows meldt alleen dat het klembord veranderde.
+        DateTime lastPrtSc = DateTime.MinValue;
+
+        static readonly uint ownPid = (uint)Process.GetCurrentProcess().Id;
+
+        void OnClipboardChanged()
+        {
+            try
+            {
+                // Toetsen bij elke wijziging uitlezen: zo blijft het "net ingedrukt" van een oudere toetsdruk niet hangen
+                bool prt = (W.GetAsyncKeyState(W.VK_SNAPSHOT) & 0x8001) != 0;
+                bool win = (W.GetAsyncKeyState(0x5B) & 0x8001) != 0 || (W.GetAsyncKeyState(0x5C) & 0x8001) != 0;
+                bool alt = (W.GetAsyncKeyState(0x12) & 0x8001) != 0;
+                bool shift = (W.GetAsyncKeyState(0x10) & 0x8001) != 0;
+                if (!cfg.HotkeyCapture || cfg.HotkeysPaused) return;
+                if ((DateTime.UtcNow - lastPrtSc).TotalSeconds < 3) return;   // de sneltoets kwam zelf al binnen
+                IntPtr owner = W.GetClipboardOwner();
+                uint pid = 0;
+                if (owner != IntPtr.Zero) W.GetWindowThreadProcessId(owner, out pid);
+                if (pid != 0 && pid == ownPid) return;   // Kapture zette het er zelf op
+                bool fromWindows = owner == IntPtr.Zero;
+                // Eerst de goedkope controles: de afbeelding opvragen laat het andere programma hem soms pas maken (traag)
+                if (!(fromWindows || prt)) return;
+                Size size;
+                if (!ClipboardBitmapSize(out size)) return;
+                bool screenSize = size == VirtualScreen.Bounds.Size;
+                foreach (Screen sc in Screen.AllScreens) if (size == sc.Bounds.Size) screenSize = true;
+                Log.Trace("Klembord: afbeelding " + (screenSize ? "zo groot als het scherm" : "met een andere maat") + ", van "
+                    + (fromWindows ? "Windows zelf" : "een programma") + ", PrtSc " + (prt ? "net ingedrukt" : "niet ingedrukt")
+                    + (win ? ", met Windows-toets" : "") + (alt ? ", met Alt" : ""));
+                if (!screenSize) return;
+                if (win || alt) return;   // Windows-toets + PrtSc of Alt + PrtSc: dat is van Windows zelf, niet voor Kapture
+                lastPrtSc = DateTime.UtcNow;
+                if (shift && cfg.HotkeyNote) StartCapture(true); else StartCapture(false);
+            }
+            catch (Exception ex) { Log.Error("Klembord bekijken mislukt", ex); }
+        }
+
+        // Alleen de maat van de afbeelding op het klembord (als die er is)
+        bool ClipboardBitmapSize(out Size size)
+        {
+            size = Size.Empty;
+            if (!W.IsClipboardFormatAvailable(W.CF_BITMAP)) return false;
+            bool open = false;
+            for (int i = 0; i < 5 && !open; i++) { open = W.OpenClipboard(hot.Handle); if (!open) System.Threading.Thread.Sleep(15); }
+            if (!open) return false;
+            try
+            {
+                IntPtr h = W.GetClipboardData(W.CF_BITMAP);
+                W.BITMAP bm;
+                if (h == IntPtr.Zero || W.GetObject(h, System.Runtime.InteropServices.Marshal.SizeOf(typeof(W.BITMAP)), out bm) == 0) return false;
+                size = new Size(bm.bmWidth, Math.Abs(bm.bmHeight));
+                return true;
+            }
+            finally { W.CloseClipboard(); }
+        }
+
         void OnHotkey(int id)
         {
+            if (id == HotkeyCapture || id == HotkeyNote) lastPrtSc = DateTime.UtcNow;
             Log.Trace("Sneltoets binnen: " + (id == HotkeyCapture ? "PrtSc" : id == HotkeyNote ? "Shift+PrtSc" : id == HotkeyLastNote ? "Ctrl+PrtSc" : id == HotkeyCustom ? "eigen sneltoets" : "onbekend"));
             if (id == HotkeyCapture || id == HotkeyCustom) StartCapture(false);
             else if (id == HotkeyNote) StartCapture(true);

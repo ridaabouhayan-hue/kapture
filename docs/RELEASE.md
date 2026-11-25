@@ -1,4 +1,9 @@
-# Kapture 0.3.3
+# Kapture 0.3.4
+
+Nieuw in 0.3.4:
+- **Print Screen werkt ook op Windows-versies die de toets niet doorgeven**: sommige versies van Windows 11 kopiëren bij Print Screen zelf het hele scherm naar het klembord en geven de toets niet aan Kapture. Kapture merkt dat nu aan het klembord (een afbeelding precies zo groot als je scherm) en opent dan het donkere scherm. Kapture kijkt alleen naar de maat van die afbeelding, niet naar wat erop staat, en luistert niet mee met je toetsenbord. Shift + PrtSc opent zo ook de notitiebalk. Windows-toets + PrtSc en Alt + PrtSc blijven van Windows.
+
+## Kapture 0.3.3
 
 Nieuw in 0.3.3:
 - **Spoor in het foutlog om Print Screen uit te zoeken**: Kapture schrijft nu op welke sneltoetsen vastgelegd zijn, welke sneltoets binnenkomt, of het donkere scherm opent en waarom het weer dichtgaat. Er staan alleen toetsnamen en programmanamen in, nooit een screenshot, notitie, bestandsnaam of venstertitel.
