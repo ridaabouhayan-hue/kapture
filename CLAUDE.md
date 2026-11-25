@@ -11,6 +11,7 @@ Kapture is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-doc
 - Schrijf in het Nederlands. Gebruik nooit het lange gedachtestreepje, ook niet in code-commentaar, teksten of commits.
 - Begin een bericht nooit met zijn naam.
 - Begin pas met bouwen als Rida "begin met bouwen" zegt. Vraag eerst voordat je iets groots verandert.
+- Op `main` zetten mag altijd zonder toestemming te vragen (afspraak van Rida, 25-11), mits de bouw op GitHub groen is en de code-review gedaan is.
 - Rida is geen programmeur. Leg kort en in gewone woorden uit wat je doet en wat hij moet doen: wat, waarom, genummerde stappen, en hoe hij ziet dat het lukte.
 - Neem zelf de technische beslissingen en vraag alleen wat alleen Rida kan weten.
 - Stitch maakt het gezicht, Claude de motor. Ontwerp geen schermen zelf. Een nieuw of ander scherm begint met een Stitch-ontwerp; jij vertaalt het zo precies mogelijk naar code en zegt wat er technisch anders moet.
