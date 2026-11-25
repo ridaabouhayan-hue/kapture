@@ -468,7 +468,7 @@ namespace Kapture
             try
             {
                 using (Graphics g = Graphics.FromImage(result))
-                using (GraphicsPath path = new GraphicsPath())
+                using (GraphicsPath path = new GraphicsPath(FillMode.Winding))   // dubbel omcirkeld telt ook als binnen
                 {
                     g.Clear(Color.White);
                     Point[] pts = new Point[lasso.Length];
@@ -568,7 +568,7 @@ namespace Kapture
             c.OnAction2 = delegate { ShowInFolder(entry.Path); };
             c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry, c.Note); else Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
-            c.NoteField = true; c.Note = note; c.Tag = entry;
+            c.NoteField = entry.Preset != Presets.Names[Presets.Forward]; c.Note = note; c.Tag = entry;
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
             c.OnDelete = delegate { DeleteShot(entry); };
             toast.ShowToast(c, Theme.Current);
@@ -644,6 +644,7 @@ namespace Kapture
                 h.Copy = delegate(Bitmap b, string n, bool sameAsFile)
                 {
                     bool ok;
+                    if (entry.Preset == Presets.Names[Presets.Forward]) n = null;   // Doorsturen: geen notitiestrook
                     if (cfg.NoteStrip && !string.IsNullOrEmpty(n)) using (Bitmap withNote = Notes.WithStrip(b, n)) ok = Saver.Copy(withNote, null);
                     else ok = Saver.Copy(b, null);
                     // alleen als het klembord precies het bestand is, mag een latere notitie het klembord bijwerken
@@ -651,6 +652,7 @@ namespace Kapture
                     return ok;
                 };
                 h.NoteChanged = delegate(string changed) { ApplyNote(entry, changed); };
+                h.NoNote = entry.Preset == Presets.Names[Presets.Forward];
                 EditorForm f = new EditorForm(img, path, note ?? entry.Note, h);
                 editors[entry] = f;
                 f.FormClosed += delegate { editors.Remove(entry); };
@@ -682,6 +684,7 @@ namespace Kapture
         // De notitie in de naam zetten (op de achtergrond, met nieuwe pogingen), daarna het klembord en de melding bijwerken
         void ApplyNote(Shot entry, string note)
         {
+            if (entry.Preset == Presets.Names[Presets.Forward]) return;   // Doorsturen: nooit een notitie
             note = (note ?? "").Trim();
             if (entry.Path == null) { entry.PendingNote = note; return; }
             bool textFile = cfg.NoteTextFile;

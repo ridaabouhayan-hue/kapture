@@ -348,6 +348,19 @@ namespace Kapture
                     if (cloaked != 0) continue;
                     uint pid; W.GetWindowThreadProcessId(h, out pid);
                     if (pid == 0 || pid == me) continue;
+                    // doorklikbare, onzichtbare en hulpvensters overslaan (bijvoorbeeld de laag van schermdelen of een spelbalk)
+                    int ex = W.GetWindowLong(h, W.GWL_EXSTYLE);
+                    if ((ex & 0x20) != 0 || (ex & 0x80) != 0) continue;   // WS_EX_TRANSPARENT, WS_EX_TOOLWINDOW
+                    if ((ex & 0x80000) != 0)                               // WS_EX_LAYERED: helemaal doorzichtig?
+                    {
+                        uint key; byte alpha; uint flags;
+                        if (W.GetLayeredWindowAttributes(h, out key, out alpha, out flags) && (flags & 2) != 0 && alpha == 0) continue;
+                    }
+                    // het bureaublad loopt over alle schermen: niet als venster
+                    System.Text.StringBuilder cls = new System.Text.StringBuilder(32);
+                    W.GetClassName(h, cls, cls.Capacity);
+                    string cn = cls.ToString();
+                    if (cn == "Progman" || cn == "WorkerW") continue;
                     W.RECT rc;
                     // de zichtbare rand (zonder de onzichtbare sleeprand van Windows 11)
                     if (W.DwmGetWindowAttribute(h, 9, out rc, 16) != 0 && !W.GetWindowRect(h, out rc)) continue;
@@ -715,11 +728,14 @@ namespace Kapture
             Invalidate(dirty);
         }
 
+        // Wat er al gebeurd is, rechts in de notitiebalk (hangt af van de preset)
+        string SavedText { get { return preset == Presets.NowToClaude ? "Al opgeslagen en gekopieerd" : "Al opgeslagen"; } }
+
         int ChipsWidth()
         {
             using (Bitmap b = new Bitmap(1, 1)) using (Graphics g = Graphics.FromImage(b))
             {
-                float a = g.MeasureString("Al opgeslagen en gekopieerd", Fonts.Ui(12 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
+                float a = g.MeasureString(SavedText, Fonts.Ui(12 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
                 float k = g.MeasureString("Enter", Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width;
                 return (int)Math.Ceiling(P(10) + P(14) + P(6) + a + P(10) + P(8) + k + P(14));
             }
@@ -745,16 +761,16 @@ namespace Kapture
             int top = noteBar.Y + (noteBar.Height > P(48) ? P(14) : (noteBar.Height - lineH) / 2);
             Icons.Draw(g, "file", new RectangleF(noteBar.X + P(16), top + (lineH - P(18)) / 2f, P(18), P(18)), 18 * s, t.Primary, 2);
 
-            // rechts: "Al opgeslagen en gekopieerd" en het toetsje Enter
+            // rechts: wat er al gebeurd is (SavedText) en het toetsje Enter
             Font chipF = Fonts.Ui(12 * s, 1), keyF = Fonts.Mono(11 * s);
-            float aw = g.MeasureString("Al opgeslagen en gekopieerd", chipF, PointF.Empty, StringFormat.GenericTypographic).Width;
+            float aw = g.MeasureString(SavedText, chipF, PointF.Empty, StringFormat.GenericTypographic).Width;
             float kw = g.MeasureString("Enter", keyF, PointF.Empty, StringFormat.GenericTypographic).Width;
             Rectangle key = new Rectangle(noteBar.Right - P(14) - (int)Math.Ceiling(kw + P(16)), top + (lineH - P(24)) / 2, (int)Math.Ceiling(kw + P(16)), P(24));
             Rectangle chip = new Rectangle(key.X - P(8) - (int)Math.Ceiling(P(10) + P(14) + P(6) + aw + P(10)), key.Y, (int)Math.Ceiling(P(10) + P(14) + P(6) + aw + P(10)), P(24));
             using (GraphicsPath cp = Svg.RoundRect(chip, P(12))) using (SolidBrush cb = new SolidBrush(t.PrimaryContainer)) g.FillPath(cb, cp);
             Icons.Draw(g, "check", new RectangleF(chip.X + P(10), chip.Y, P(14), chip.Height), 14 * s, t.Primary, 2.5f);
             StringFormat mid = new StringFormat(StringFormat.GenericTypographic); mid.LineAlignment = StringAlignment.Center; mid.FormatFlags |= StringFormatFlags.NoWrap;
-            using (SolidBrush cf = new SolidBrush(t.OnPrimaryContainer)) g.DrawString("Al opgeslagen en gekopieerd", chipF, cf, new RectangleF(chip.X + P(30), chip.Y, aw + P(4), chip.Height), mid);
+            using (SolidBrush cf = new SolidBrush(t.OnPrimaryContainer)) g.DrawString(SavedText, chipF, cf, new RectangleF(chip.X + P(30), chip.Y, aw + P(4), chip.Height), mid);
             using (GraphicsPath kp = Svg.RoundRect(key, P(6)))
             using (SolidBrush kb = new SolidBrush(t.Surface))
             using (Pen kpn = new Pen(t.OutlineVariant, Math.Max(1, P(1)))) { g.FillPath(kb, kp); g.DrawPath(kpn, kp); }

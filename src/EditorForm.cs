@@ -20,6 +20,7 @@ namespace Kapture
             public Func<Bitmap, bool> SaveImage;          // de bewerkte afbeelding over het bestand heen zetten
             public Func<Bitmap, string, bool, bool> Copy; // naar het klembord, met de notitie; derde: is dit precies het bestand (opgeslagen)
             public Action<string> NoteChanged;            // de notitie is anders: bestandsnaam bijwerken
+            public bool NoNote;                           // Doorsturen: geen notitie (het vak staat uit)
         }
 
         // ---- maten bij 100%
@@ -79,6 +80,7 @@ namespace Kapture
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
             if (AppIcon.Get() != null) Icon = AppIcon.Get();
             noteBox.Multiline = true; noteBox.BorderStyle = BorderStyle.None; noteBox.ScrollBars = ScrollBars.None;
+            if (host.NoNote) { noteAtOpen = ""; noteBox.ReadOnly = true; noteBox.TabStop = false; }
             noteBox.Text = noteAtOpen;
             noteBox.TextChanged += delegate { Invalidate(); };
             Controls.Add(noteBox);
@@ -95,12 +97,14 @@ namespace Kapture
         void ApplyScale(float scale)
         {
             s = scale;
-            MinimumSize = new Size(P(900), P(600));
+            Rectangle mwa = Screen.FromPoint(Cursor.Position).WorkingArea;
+            MinimumSize = new Size(Math.Min(P(900), mwa.Width), Math.Min(P(600), mwa.Height));
             if (!IsHandleCreated)
             {
                 Rectangle wa = Screen.FromPoint(Cursor.Position).WorkingArea;
-                // groot openen: 90% van het scherm, zodat de screenshot ruim in beeld staat
-                ClientSize = new Size(Math.Max(P(900), (int)(wa.Width * 0.9f)), Math.Max(P(600), (int)(wa.Height * 0.9f)));
+                // groot openen: 90% van het scherm, zodat de screenshot ruim in beeld staat; nooit groter dan het scherm
+                // (dit is de buitenmaat, met titelbalk en rand)
+                Size = new Size(Math.Min(wa.Width, Math.Max(P(900), (int)(wa.Width * 0.9f))), Math.Min(wa.Height, Math.Max(P(600), (int)(wa.Height * 0.9f))));
             }
             noteBox.Font = Fonts.Ui(13 * s, 0);
             ApplyTheme();
@@ -164,7 +168,12 @@ namespace Kapture
                 // precies 1 op 1: pixel voor pixel (scherpst); kleiner of groter: zacht schalen, zodat tekst leesbaar blijft
                 g.InterpolationMode = want.Width == doc.Crop.Width ? InterpolationMode.NearestNeighbor : InterpolationMode.HighQualityBicubic;
                 g.PixelOffsetMode = PixelOffsetMode.HighQuality;
-                g.DrawImage(doc.Image, new Rectangle(0, 0, want.Width, want.Height), doc.Crop, GraphicsUnit.Pixel);
+                using (System.Drawing.Imaging.ImageAttributes ia = new System.Drawing.Imaging.ImageAttributes())
+                {
+                    ia.SetWrapMode(WrapMode.TileFlipXY);   // geen halfdoorzichtige rand bij het schalen
+                    Rectangle c = doc.Crop;
+                    g.DrawImage(doc.Image, new Rectangle(0, 0, want.Width, want.Height), c.X, c.Y, c.Width, c.Height, GraphicsUnit.Pixel, ia);
+                }
             }
             viewSize = want; viewCrop = doc.Crop; viewVersion = doc.ImageVersion; layerVersion = -1;
         }
@@ -284,7 +293,7 @@ namespace Kapture
                 float lh = f.FontFamily.GetLineSpacing(FontStyle.Bold) * m.FontSize / f.FontFamily.GetEmHeight(FontStyle.Bold);
                 float w = g.MeasureString(lines[lines.Length - 1], f, PointF.Empty, sf).Width;
                 float x = m.A.X + w + 2, y = m.A.Y + lh * (lines.Length - 1);
-                using (Pen p = new Pen(t.Primary, Math.Max(2f, 2f / K))) g.DrawLine(p, x, y + 2, x, y + lh - 2);
+                using (Pen p = new Pen(t.Primary, 2f / K)) g.DrawLine(p, x, y + 2, x, y + lh - 2);
             }
         }
 
@@ -417,7 +426,7 @@ namespace Kapture
             RectangleF nr = NoteRect;
             using (Pen pen = new Pen(t.OutlineVariant)) g.DrawLine(pen, x, nr.Y - P(48), x + w, nr.Y - P(48));
             Icons.Draw(g, "sticky-note", new RectangleF(x, nr.Y - P(34), P(16), P(20)), 16 * s, t.Primary, 2);
-            Txt(g, "Notitie bij screenshot", lf, new RectangleF(x + P(24), nr.Y - P(34), w - P(24), P(20)), t.OnSurface, Mid);
+            Txt(g, host.NoNote ? "Doorsturen: zonder notitie" : "Notitie bij screenshot", lf, new RectangleF(x + P(24), nr.Y - P(34), w - P(24), P(20)), t.OnSurface, Mid);
             using (GraphicsPath gp = Svg.RoundRect(new RectangleF(nr.X + 0.5f, nr.Y + 0.5f, nr.Width - 1, nr.Height - 1), P(10)))
             using (SolidBrush b = new SolidBrush(t.Surface))
             using (Pen pen = new Pen(noteBox.Focused ? t.Primary : t.OutlineVariant, noteBox.Focused ? Math.Max(1.5f, 2 * s) : 1)) { g.FillPath(b, gp); g.DrawPath(pen, gp); }
