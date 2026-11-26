@@ -4,7 +4,7 @@ Nieuw in 0.5: **de workflow, zoals in ShareX, maar eenvoudig**.
 - **Instellingen, Presets**: per preset zet je de stappen aan of uit: Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen en Notitie. Met Herstellen staat alles weer zoals het was.
 - **Twee nieuwe presets** (de knop in de werkbalk wisselt nu tussen vijf, of druk op 1 tot en met 5):
   - **Kies zelf**: Kapture doet eerst niets. In de melding kies je **Bewaren** (naar je inbox) of **Kopiëren**. Bewaar je niet, dan ruimt Kapture hem na een dag op.
-  - **Opslaan in...**: na het vastleggen kies je de map: je inbox, een van je laatste vijf mappen, of Andere map kiezen.
+  - **Opslaan in...**: na het vastleggen kies je de map: je inbox, een van je laatste vijf mappen, of Andere map kiezen. Klik je ernaast of druk je op Esc, dan komt hij in je inbox: nooit weg.
 - **Bestand kopiëren**: zet het bestand zelf op het klembord, zodat je het als bijlage plakt in een mail of WhatsApp, of in een map. Verandert de naam door een notitie, dan wijst het klembord mee naar de nieuwe naam.
 
 ## Kapture 0.4.0

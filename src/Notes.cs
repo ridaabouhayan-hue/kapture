@@ -73,7 +73,7 @@ namespace Kapture
                 using (FileStream fs = File.OpenRead(path))
                 {
                     Shot[] arr = (Shot[])new DataContractJsonSerializer(typeof(Shot[])).ReadObject(fs);
-                    if (arr != null) foreach (Shot s in arr) if (s != null && !string.IsNullOrEmpty(s.Path)) { if (s.Note == null) s.Note = ""; if (s.App == null) s.App = ""; h.items.Add(s); }
+                    if (arr != null) foreach (Shot s in arr) if (s != null && !string.IsNullOrEmpty(s.Path)) { if (s.Note == null) s.Note = ""; if (s.App == null) s.App = ""; if (s.Preset == "Doorsturen") s.NoNote = true; h.items.Add(s); }   // van voor 0.5
                 }
                 while (h.items.Count > Max) h.items.RemoveAt(0);
             }
