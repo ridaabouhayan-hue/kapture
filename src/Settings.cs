@@ -19,6 +19,8 @@ namespace Kapture
         public bool HotkeyLastNote = true;     // Ctrl+PrtSc
         public bool HotkeysPaused = false;
         public int Preset = 0;                 // wat er na een screenshot gebeurt (Presets), gekozen in de werkbalk
+        public int[] PresetSteps = NewSteps(); // per preset welke stappen aan staan (-1 = standaard), Instellingen, Presets
+        public string RecentFolders = "";      // Opslaan in...: de laatste mappen, gescheiden door |
         public int CustomKey = 0;              // eigen sneltoets voor een screenshot (Keys met Ctrl/Alt/Shift), 0 = geen
 
         // Opslaan en mappen
@@ -38,7 +40,20 @@ namespace Kapture
         public bool SnipHintShown = false;     // melding over de Windows-instelling voor Print Screen al gezien
 
         // Een werkkopie voor Instellingen: wijzigen zonder dat Kapture het meteen gebruikt, tot je op Opslaan klikt
-        public Settings Clone() { return (Settings)MemberwiseClone(); }
+        public Settings Clone()
+        {
+            Settings c = (Settings)MemberwiseClone();
+            c.PresetSteps = (int[])PresetSteps.Clone();   // eigen lijst: wijzigen in de werkkopie mag het origineel niet raken
+            return c;
+        }
+
+        static int[] NewSteps() { int[] a = new int[Presets.Names.Length]; for (int i = 0; i < a.Length; i++) a[i] = -1; return a; }
+
+        static bool SameSteps(int[] a, int[] b)
+        {
+            for (int i = 0; i < Presets.Names.Length; i++) if (a[i] != b[i]) return false;
+            return true;
+        }
 
         // Neemt over wat je in Instellingen met Opslaan bewaart. Pauze, preset en de Knipprogramma-melding horen daar niet bij:
         // die veranderen meteen (ook via het tray-menu) en mogen niet door een oudere werkkopie teruggezet worden.
@@ -48,6 +63,7 @@ namespace Kapture
             HotkeyCapture = o.HotkeyCapture; HotkeyNote = o.HotkeyNote; HotkeyLastNote = o.HotkeyLastNote; CustomKey = o.CustomKey;
             Inbox = o.Inbox; MonthFolders = o.MonthFolders; NoteStrip = o.NoteStrip; NoteTextFile = o.NoteTextFile;
             UpdateCheck = o.UpdateCheck; ThumbOpensEditor = o.ThumbOpensEditor;
+            PresetSteps = (int[])o.PresetSteps.Clone();
         }
 
         // Verschilt deze kopie van 'o' in iets wat je in Instellingen kunt wijzigen?
@@ -56,7 +72,7 @@ namespace Kapture
             return ThemeMode != o.ThemeMode || ToastSeconds != o.ToastSeconds || HotkeyCapture != o.HotkeyCapture || HotkeyNote != o.HotkeyNote
                 || HotkeyLastNote != o.HotkeyLastNote || CustomKey != o.CustomKey || (Inbox ?? "") != (o.Inbox ?? "")
                 || MonthFolders != o.MonthFolders || NoteStrip != o.NoteStrip || NoteTextFile != o.NoteTextFile || UpdateCheck != o.UpdateCheck
-                || ThumbOpensEditor != o.ThumbOpensEditor;
+                || ThumbOpensEditor != o.ThumbOpensEditor || !SameSteps(PresetSteps, o.PresetSteps);
         }
 
         public static string FilePath { get { return Path.Combine(Log.Dir, "instellingen.txt"); } }
@@ -83,6 +99,14 @@ namespace Kapture
                         case "toetsMetNotitie": s.HotkeyNote = v != "0"; break;
                         case "toetsNotitieLaatste": s.HotkeyLastNote = v != "0"; break;
                         case "preset": if (int.TryParse(v, out n)) s.Preset = Presets.Clamp(n); break;
+                        case "presetStappen":
+                            {
+                                string[] parts = v.Split(',');
+                                for (int i = 0; i < parts.Length && i < s.PresetSteps.Length; i++)
+                                    if (int.TryParse(parts[i], out n) && n >= -1 && n < 32) s.PresetSteps[i] = n;
+                                break;
+                            }
+                        case "recenteMappen": s.RecentFolders = v; break;
                         case "eigenToets": if (int.TryParse(v, out n) && n >= 0) s.CustomKey = n; break;
                         case "sneltoetsenPauze": s.HotkeysPaused = v == "1"; break;
                         case "inbox": s.Inbox = v; break;
@@ -116,6 +140,8 @@ namespace Kapture
                 sb.AppendLine("toetsMetNotitie=" + B(HotkeyNote));
                 sb.AppendLine("toetsNotitieLaatste=" + B(HotkeyLastNote));
                 sb.AppendLine("preset=" + Preset);
+                sb.AppendLine("presetStappen=" + string.Join(",", Array.ConvertAll(PresetSteps, x => x.ToString())));
+                sb.AppendLine("recenteMappen=" + (RecentFolders ?? "").Replace("\r", "").Replace("\n", ""));
                 sb.AppendLine("eigenToets=" + CustomKey);
                 sb.AppendLine("sneltoetsenPauze=" + B(HotkeysPaused));
                 sb.AppendLine("inbox=" + (Inbox ?? "").Replace("\r", "").Replace("\n", ""));

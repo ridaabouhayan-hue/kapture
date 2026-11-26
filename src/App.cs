@@ -127,6 +127,8 @@ namespace Kapture
             overlay.Cancelled += OnCancelled;
             overlay.NoteDone += OnNoteDone;
             overlay.PresetChanged += delegate(int p) { cfg.Preset = p; cfg.Save(); };   // het menu leest hem bij het openen
+            overlay.StepsFor = delegate(int p) { return Presets.StepsOf(cfg, p); };
+            Presets.CleanTemp();
             BuildTray();
             if (!retryHooked) { retry.Tick += delegate { RetryTaken(); }; retryHooked = true; }
             RegisterHotkeys(true);
@@ -425,7 +427,10 @@ namespace Kapture
                 Point[] lasso = overlay.TakeLasso();
                 if (lasso != null && piece != null) piece = OnlyInside(piece, lasso, r);
                 int preset = overlay.Preset;
-                bool note = overlay.WithNote && piece != null && preset != Presets.Forward;   // Doorsturen: nooit de notitie
+                int steps = Presets.StepsOf(cfg, preset);
+                bool allowNote = (steps & Presets.StepNote) != 0;
+                // notitiebalk alleen als de preset een notitie toestaat; bij Opslaan in... komt eerst de mapkeuze
+                bool note = overlay.WithNote && piece != null && allowNote && preset != Presets.SaveIn;
                 if (!note)
                 {
                     Watchdog.Disarm();
@@ -438,26 +443,104 @@ namespace Kapture
                 string under = Naming.AppAt(shotOrigin.X + r.X + r.Width / 2, shotOrigin.Y + r.Y + r.Height / 2);
                 if (under != "" && under != "Verkenner") shotApp = under;
                 else if (shotApp == "Verkenner") shotApp = under;
-                Shot entry = new Shot { Time = DateTime.Now, App = shotApp ?? "", Preset = Presets.Names[preset] };
-                string folder = InboxFolder.ForShot(cfg, entry.Time);
+                Shot entry = new Shot { Time = DateTime.Now, App = shotApp ?? "", Preset = Presets.Names[preset], NoNote = !allowNote };
+                if (preset == Presets.SaveIn)
+                {
+                    ChooseFolder(delegate(string chosen) { SaveShot(piece, entry, chosen, steps); }, delegate { piece.Dispose(); });
+                    return;
+                }
+                string folder = preset == Presets.ChooseLater ? Presets.TempFolder : InboxFolder.ForShot(cfg, entry.Time);
                 if (note)
                 {
                     noteShot = entry; noteResult = null;
                     string paste = clipText; clipText = null;
                     overlay.BeginNote(r, delegate(string n) { return Naming.Base(entry.Time, entry.App, n) + ".png"; }, paste);
                 }
-                System.Threading.Interlocked.Increment(ref running);
-                Saver.SaveAndCopy(piece, entry, folder, preset == Presets.NowToClaude, cfg.NoteStrip, cfg.NoteTextFile, overlay, delegate(SaveResult sr)
-                {
-                    System.Threading.Interlocked.Decrement(ref running);
-                    OnSaved(sr);
-                });
+                SaveShot(piece, entry, folder, steps);
             }
             catch (Exception ex)
             {
                 Log.Error("Kader verwerken mislukt", ex);
                 SafeReset();
             }
+        }
+
+        // Opslaan en (volgens de stappen van de preset) kopiëren; daarna OnSaved
+        void SaveShot(Bitmap piece, Shot entry, string folder, int steps)
+        {
+            System.Threading.Interlocked.Increment(ref running);
+            Saver.SaveAndCopy(piece, entry, folder, (steps & Presets.StepCopyImage) != 0, (steps & Presets.StepCopyFile) != 0,
+                cfg.NoteStrip, cfg.NoteTextFile, overlay, delegate(SaveResult sr)
+            {
+                System.Threading.Interlocked.Decrement(ref running);
+                OnSaved(sr);
+            });
+        }
+
+        // ---- Opslaan in...: een keuzemenu bij de muis met de inbox, de laatste mappen en "Andere map kiezen"
+        readonly TrayMenu folderMenu = new TrayMenu();
+
+        void ChooseFolder(Action<string> chosen, Action cancelled)
+        {
+            bool done = false;
+            Action<string> pick = delegate(string f)
+            {
+                if (done) return;
+                done = true;
+                RememberFolder(f);
+                chosen(f);
+            };
+            folderMenu.Clear();
+            folderMenu.AddHeader("Opslaan in", null);
+            string inbox = InboxFolder.ForShot(cfg, DateTime.Now);
+            folderMenu.Add("Inbox", "folder", delegate { pick(inbox); });
+            foreach (string f in RecentFolders())
+            {
+                string path = f;
+                if (string.Equals(path.TrimEnd('\\'), inbox.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)) continue;
+                folderMenu.Add(FolderLabel(path), "folder", delegate { pick(path); });
+            }
+            folderMenu.AddSeparator();
+            folderMenu.Add("Andere map kiezen...", "folder-open", delegate
+            {
+                done = true;   // het menu is dicht, maar de keuze komt nog
+                string f = null;
+                using (FolderBrowserDialog d = new FolderBrowserDialog())
+                {
+                    d.Description = "Waar wil je deze screenshot bewaren?";
+                    d.ShowNewFolderButton = true;
+                    if (d.ShowDialog() == DialogResult.OK) f = d.SelectedPath;
+                }
+                if (f != null) { RememberFolder(f); chosen(f); } else cancelled();
+            });
+            folderMenu.Dismissed = delegate { if (!done) { done = true; cancelled(); } };
+            folderMenu.ShowAt(Cursor.Position);
+        }
+
+        System.Collections.Generic.List<string> RecentFolders()
+        {
+            System.Collections.Generic.List<string> list = new System.Collections.Generic.List<string>();
+            foreach (string f in (cfg.RecentFolders ?? "").Split('|'))
+                if (f.Length > 0 && Directory.Exists(f) && list.Count < 5) list.Add(f);
+            return list;
+        }
+
+        void RememberFolder(string folder)
+        {
+            System.Collections.Generic.List<string> list = new System.Collections.Generic.List<string>();
+            list.Add(folder);
+            foreach (string f in RecentFolders()) if (!string.Equals(f, folder, StringComparison.OrdinalIgnoreCase) && list.Count < 5) list.Add(f);
+            cfg.RecentFolders = string.Join("|", list.ToArray());
+            cfg.Save();
+        }
+
+        // "Documenten  /  Cursus" in plaats van het hele pad
+        static string FolderLabel(string path)
+        {
+            string name = Path.GetFileName(path.TrimEnd('\\'));
+            string parent = Path.GetFileName(Path.GetDirectoryName(path.TrimEnd('\\')) ?? "");
+            if (string.IsNullOrEmpty(name)) return path;
+            return string.IsNullOrEmpty(parent) ? name : parent + "  /  " + name;
         }
 
         // Vrij: alleen wat binnen de getekende vorm valt; daarbuiten wit (wit plakt overal netjes, ook waar
@@ -488,11 +571,11 @@ namespace Kapture
             Trim();
             if (!r.Failed) history.Add(r.Shot);
             if (noteShot == r.Shot && overlay.InNoteMode) { noteResult = r; return; }   // de melding komt na de notitie
-            if (!r.Failed && r.Shot.Preset == Presets.Names[Presets.Forward])
+            int p = Presets.IndexOf(r.Shot.Preset);
+            if (!r.Failed && Presets.Has(cfg, p, Presets.StepEditor)) OpenEditor(r.Shot);   // bijvoorbeeld Doorsturen
+            if (!r.Failed && !Presets.Has(cfg, p, Presets.StepToast))
             {
-                // Doorsturen: meteen de editor, zonder melding
                 if (r.Thumb != null) r.Thumb.Dispose();
-                OpenEditor(r.Shot);
                 return;
             }
             string pending = r.Shot.PendingNote; r.Shot.PendingNote = null;
@@ -559,7 +642,8 @@ namespace Kapture
             ToastContent c = new ToastContent();
             c.Thumb = thumb;
             c.Title = note.Length > 0 ? "Notitie bewaard" : (copied ? "Opgeslagen en gekopieerd" : "Opgeslagen");
-            bool wantCopy = entry.Preset == Presets.Names[Presets.NowToClaude];
+            int p = Presets.IndexOf(entry.Preset);
+            bool wantCopy = Presets.Has(cfg, p, Presets.StepCopyImage) || Presets.Has(cfg, p, Presets.StepCopyFile);
             c.Sub = note.Length > 0 ? Naming.Base(entry.Time, entry.App, note) + ".png"
                 : (copied || edit || !wantCopy ? "Preset: " + entry.Preset : "Kopieren lukte niet; het bestand staat wel in je inbox.");
             c.ActionLabel = "Bewerken"; c.ActionIcon = "pencil";
@@ -568,11 +652,70 @@ namespace Kapture
             c.OnAction2 = delegate { ShowInFolder(entry.Path); };
             c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry, c.Note); else Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
-            c.NoteField = entry.Preset != Presets.Names[Presets.Forward]; c.Note = note; c.Tag = entry;
+            c.NoteField = !entry.NoNote; c.Note = note; c.Tag = entry;
+            if (Presets.IsTemp(entry.Path))
+            {
+                // Kies zelf: nog niet bewaard; jij kiest
+                c.Title = "Nog niet bewaard";
+                c.Sub = "Kies Bewaren of Kopiëren. Doe je niets, dan ruimt Kapture hem later op.";
+                c.ActionLabel = "Bewaren"; c.ActionIcon = "save";
+                c.OnAction = delegate { KeepShot(entry, c.Note); };
+                c.Action2Label = "Kopiëren"; c.Action2Icon = "copy";
+                c.OnAction2 = delegate { CopyShot(entry, c.Note); };
+                c.Seconds = Math.Max(cfg.ToastSeconds, 12);   // even langer: je moet kunnen kiezen
+            }
             c.OnNote = delegate(string n) { ApplyNote(entry, n); };
             c.OnDelete = delegate { DeleteShot(entry); };
             toast.ShowToast(c, Theme.Current);
             if (edit) toast.BeginEdit();
+        }
+
+        // Kies zelf: Bewaren zet de screenshot (en zijn notitiebestand) van de tijdelijke map in de inbox
+        void KeepShot(Shot entry, string typed)
+        {
+            bool ok = true;
+            lock (noteGate)
+            {
+                try
+                {
+                    string png = entry.Path;
+                    if (png == null || !File.Exists(png)) ok = false;
+                    else
+                    {
+                        string folder = InboxFolder.ForShot(cfg, entry.Time);
+                        Directory.CreateDirectory(folder);
+                        string target = Naming.Unique(folder, Path.GetFileNameWithoutExtension(png), ".png");
+                        File.Move(png, target);
+                        string txt = Notes.TextPath(png);
+                        if (File.Exists(txt)) File.Move(txt, Notes.TextPath(target));
+                        entry.Path = target;
+                    }
+                }
+                catch (Exception ex) { ok = false; Log.Error("Bewaren mislukt", ex); }
+            }
+            if (!ok) { Notify("Bewaren lukte niet", "De inbox-map was niet bereikbaar. Staat OneDrive aan?", null, null, null, false); return; }
+            history.Save();   // een net getypte notitie zet de melding zelf al in de naam (onder hetzelfde slot)
+            Info("Bewaard in je inbox", Path.GetFileName(entry.Path), "check");
+        }
+
+        // Kies zelf: Kopiëren zet de afbeelding op het klembord (met de notitiestrook als er een notitie is)
+        void CopyShot(Shot entry, string typed)
+        {
+            try
+            {
+                string path;
+                lock (noteGate) path = entry.Path;
+                using (Bitmap img = Saver.Load(path))
+                {
+                    string n = entry.NoNote ? "" : (!string.IsNullOrEmpty(typed) ? typed.Trim() : entry.Note ?? "");
+                    bool ok;
+                    if (cfg.NoteStrip && n.Length > 0) using (Bitmap withNote = Notes.WithStrip(img, n)) ok = Saver.Copy(withNote, null);
+                    else ok = Saver.Copy(img, null);
+                    if (ok) { entry.Copied = true; entry.CopiedFile = false; entry.ClipboardSeq = W.GetClipboardSequenceNumber(); }
+                    if (!ok) Notify("Kopiëren lukte niet", "Een ander programma hield het klembord vast. Probeer het nog eens.", null, null, null, false);
+                }
+            }
+            catch (Exception ex) { Log.Error("Kopiëren mislukt", ex); }
         }
 
         // Prullenbak-knop in de melding: de screenshot (en zijn notitiebestand) naar de prullenbak. Terug te halen
@@ -644,7 +787,7 @@ namespace Kapture
                 h.Copy = delegate(Bitmap b, string n, bool sameAsFile)
                 {
                     bool ok;
-                    if (entry.Preset == Presets.Names[Presets.Forward]) n = null;   // Doorsturen: geen notitiestrook
+                    if (entry.NoNote) n = null;   // preset zonder notitie (Doorsturen): geen notitiestrook
                     if (cfg.NoteStrip && !string.IsNullOrEmpty(n)) using (Bitmap withNote = Notes.WithStrip(b, n)) ok = Saver.Copy(withNote, null);
                     else ok = Saver.Copy(b, null);
                     // alleen als het klembord precies het bestand is, mag een latere notitie het klembord bijwerken
@@ -652,7 +795,7 @@ namespace Kapture
                     return ok;
                 };
                 h.NoteChanged = delegate(string changed) { ApplyNote(entry, changed); };
-                h.NoNote = entry.Preset == Presets.Names[Presets.Forward];
+                h.NoNote = entry.NoNote;
                 EditorForm f = new EditorForm(img, path, note ?? entry.Note, h);
                 editors[entry] = f;
                 f.FormClosed += delegate { editors.Remove(entry); };
@@ -684,7 +827,7 @@ namespace Kapture
         // De notitie in de naam zetten (op de achtergrond, met nieuwe pogingen), daarna het klembord en de melding bijwerken
         void ApplyNote(Shot entry, string note)
         {
-            if (entry.Preset == Presets.Names[Presets.Forward]) return;   // Doorsturen: nooit een notitie
+            if (entry.NoNote) return;   // preset zonder notitie (Doorsturen): nooit een notitie
             note = (note ?? "").Trim();
             if (entry.Path == null) { entry.PendingNote = note; return; }
             bool textFile = cfg.NoteTextFile;
@@ -714,15 +857,17 @@ namespace Kapture
             }
             history.Save();
             // klembord: alleen vervangen als daar nog onze screenshot op staat
-            if (entry.Copied && cfg.NoteStrip && W.GetClipboardSequenceNumber() == entry.ClipboardSeq)
+            // (de afbeelding krijgt de notitiestrook; het bestand op het klembord moet naar de nieuwe naam wijzen)
+            if (((entry.Copied && cfg.NoteStrip) || entry.CopiedFile) && W.GetClipboardSequenceNumber() == entry.ClipboardSeq)
             {
                 try
                 {
-                    using (Bitmap img = Saver.Load(entry.Path))
+                    using (Bitmap img = entry.Copied ? Saver.Load(entry.Path) : null)
                     {
                         bool ok;
-                        if (note.Length > 0) using (Bitmap withNote = Notes.WithStrip(img, note)) ok = Saver.Copy(withNote, null);
-                        else ok = Saver.Copy(img, null);
+                        string file = entry.CopiedFile ? entry.Path : null;
+                        if (img != null && cfg.NoteStrip && note.Length > 0) using (Bitmap withNote = Notes.WithStrip(img, note)) ok = Saver.Copy(withNote, null, file);
+                        else ok = Saver.Copy(img, null, file);
                         if (ok) entry.ClipboardSeq = W.GetClipboardSequenceNumber();
                     }
                 }

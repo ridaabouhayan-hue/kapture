@@ -72,6 +72,10 @@ namespace Kapture
         protected override void Dispose(bool disposing) { ClearFrames(); base.Dispose(disposing); }
 
         public void Clear() { entries.Clear(); }
+
+        // Dicht zonder keuze (Esc, ernaast geklikt): voor een keuzemenu zoals Opslaan in...
+        public Action Dismissed;
+        bool choosing;
         public void Add(string text, string icon, Action click) { Entry e = new Entry(); e.Text = text; e.Icon = icon; e.Click = click; entries.Add(e); }
         public void Add(string text, string icon, string hint, Action click) { Add(text, icon, click); entries[entries.Count - 1].Hint = hint; }
         public void AddCheck(string text, string icon, bool on, Action click) { Add(text, icon, click); entries[entries.Count - 1].Check = on; }
@@ -268,6 +272,8 @@ namespace Kapture
             if (!showing) return;
             showing = false;
             Hide();
+            Action d = Dismissed;
+            if (!choosing && d != null) BeginInvoke(d);   // na het verbergen; een keuze gaat via Choose
         }
 
         protected override void OnDeactivate(EventArgs e) { base.OnDeactivate(e); HideMenu(); }
@@ -297,7 +303,8 @@ namespace Kapture
         {
             Action a = entries[i].Click;
             if (a == null) return;   // grijze regel: niets doen, menu blijft open
-            HideMenu();
+            choosing = true;
+            try { HideMenu(); } finally { choosing = false; }
             // na het verbergen, zodat een screenshot het menu niet meer ziet
             BeginInvoke((MethodInvoker)delegate
             {

@@ -73,7 +73,30 @@ namespace Kapture
                 Settings keepP = new Settings { Preset = Presets.SaveForClaude };
                 keepP.CopyFrom(new Settings());
                 Is(keepP.Preset == Presets.SaveForClaude && !new Settings().DiffersFrom(keepP), "preset blijft staan bij Opslaan in Instellingen");
-                Is(Presets.Names.Length == Presets.Chips.Length && Presets.Chips.Length == Presets.Icons.Length, "elke preset heeft naam, knop en icoon");
+                Is(Presets.Names.Length == Presets.Chips.Length && Presets.Chips.Length == Presets.Icons.Length
+                    && Presets.Icons.Length == Presets.About.Length && Presets.About.Length == Presets.Defaults.Length, "elke preset heeft naam, knop, icoon, uitleg en stappen");
+                Is(Presets.Steps.Length == Presets.StepNames.Length && Presets.StepNames.Length == Presets.StepAbout.Length, "elke stap heeft naam en uitleg");
+                // stappen: standaard, aanpassen, vaste stappen blijven vast
+                Settings ps = new Settings();
+                Is(Presets.Has(ps, Presets.NowToClaude, Presets.StepCopyImage) && !Presets.Has(ps, Presets.SaveForClaude, Presets.StepCopyImage), "standaard: Nu naar Claude kopieert, Bewaren niet");
+                Is(Presets.Has(ps, Presets.Forward, Presets.StepEditor) && !Presets.Has(ps, Presets.Forward, Presets.StepNote), "standaard: Doorsturen opent de editor, zonder notitie");
+                ps.PresetSteps[Presets.Forward] = Presets.StepEditor | Presets.StepNote | Presets.StepToast;
+                Is(!Presets.Has(ps, Presets.Forward, Presets.StepNote) && Presets.Has(ps, Presets.Forward, Presets.StepToast), "Doorsturen: notitie blijft uit, melding mag aan");
+                ps.PresetSteps[Presets.ChooseLater] = Presets.StepCopyImage;
+                Is(Presets.Has(ps, Presets.ChooseLater, Presets.StepToast) && !Presets.Has(ps, Presets.ChooseLater, Presets.StepCopyImage), "Kies zelf: melding altijd, nooit vanzelf kopiëren");
+                ps.PresetSteps[Presets.SaveForClaude] = Presets.StepCopyFile | Presets.StepToast;
+                ps.Save(sp);
+                Settings psb = Settings.Load(sp);
+                Is(Presets.Has(psb, Presets.SaveForClaude, Presets.StepCopyFile) && !Presets.Has(psb, Presets.SaveForClaude, Presets.StepNote) && psb.PresetSteps[Presets.NowToClaude] == -1, "stappen heen en terug");
+                Settings pclone = psb.Clone();
+                pclone.PresetSteps[Presets.NowToClaude] = Presets.StepToast;
+                Is(psb.PresetSteps[Presets.NowToClaude] == -1 && pclone.DiffersFrom(psb), "werkkopie van de stappen staat los van het origineel");
+                psb.CopyFrom(pclone);
+                Is(psb.PresetSteps[Presets.NowToClaude] == Presets.StepToast && !psb.DiffersFrom(pclone), "Opslaan neemt de stappen over");
+                File.WriteAllText(sp, "presetStappen=abc,99,-5,3");
+                Settings bad = Settings.Load(sp);
+                Is(bad.PresetSteps[0] == -1 && bad.PresetSteps[1] == -1 && bad.PresetSteps[2] == -1 && bad.PresetSteps[3] == 3, "onzin in de stappen wordt standaard");
+                Is(Presets.IsTemp(Path.Combine(Presets.TempFolder, "a.png")) && !Presets.IsTemp(Path.Combine(dir, "a.png")), "tijdelijke map herkennen");
                 Settings def = new Settings();
                 Is(def.HotkeyCapture && def.HotkeyNote && def.HotkeyLastNote && def.NoteStrip && def.NoteTextFile && !def.MonthFolders, "standaard: alles aan, geen maandmappen");
 

@@ -729,7 +729,17 @@ namespace Kapture
         }
 
         // Wat er al gebeurd is, rechts in de notitiebalk (hangt af van de preset)
-        string SavedText { get { return preset == Presets.NowToClaude ? "Al opgeslagen en gekopieerd" : "Al opgeslagen"; } }
+        string SavedText
+        {
+            get
+            {
+                int st = StepsFor != null ? StepsFor(preset) : Presets.Defaults[preset];
+                if (preset == Presets.ChooseLater) return "Nog niet bewaard";
+                return (st & (Presets.StepCopyImage | Presets.StepCopyFile)) != 0 ? "Al opgeslagen en gekopieerd" : "Al opgeslagen";
+            }
+        }
+
+        public Func<int, int> StepsFor;   // App: de ingestelde stappen per preset
 
         int ChipsWidth()
         {

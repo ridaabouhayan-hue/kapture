@@ -469,8 +469,9 @@ namespace Kapture
             try
             {
                 if (h == "close" || h == "dismiss") Dismiss();
-                else if (h == "action" && c.OnAction != null) { if (editing) EndEdit(true); c.OnAction(); Dismiss(); }
-                else if (h == "action2" && c.OnAction2 != null) { if (editing) EndEdit(true); c.OnAction2(); Dismiss(); }
+                // na de knop alleen sluiten als de knop zelf geen nieuwe melding liet zien (zoals "Bewaard in je inbox")
+                else if (h == "action" && c.OnAction != null) { if (editing) EndEdit(true); ToastContent was = c; c.OnAction(); if (c == was) Dismiss(); }
+                else if (h == "action2" && c.OnAction2 != null) { if (editing) EndEdit(true); ToastContent was = c; c.OnAction2(); if (c == was) Dismiss(); }
                 else if (h == "delete" && c.OnDelete != null) { if (editing) EndEdit(false); Action del = c.OnDelete; Dismiss(); del(); }
                 else if (h == "thumb" && c.OnThumb != null) c.OnThumb();
                 else if (h == "note") BeginEdit();

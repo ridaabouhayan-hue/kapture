@@ -122,6 +122,7 @@ Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; bi
 | Kies zelf | niets vanzelf; alleen de melding met knoppen |
 | Opslaan in... | kiezen uit recente en favoriete mappen |
 Eigen presets maken kan vanaf 1.0 (stappen aan en uit, zoals in Instellingen > Presets).
+Stappen per preset (0.5): Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen, Notitie; aan of uit in Instellingen, Presets. Vast: Doorsturen nooit een notitie; Kies zelf altijd de melding en nooit vanzelf kopiëren. Kies zelf bewaart eerst in %LOCALAPPDATA%\Kapture\tijdelijk (na een dag opgeruimd). Opslaan in... onthoudt de laatste vijf mappen.
 
 ## Editor (eerste versie)
 - Uit NexusPen: selecteren, pen, markeerstift, pijl, rechthoek en cirkel, tekst met rand, nummerstempel (1, 2, 3), gum, kleuren, dikte.

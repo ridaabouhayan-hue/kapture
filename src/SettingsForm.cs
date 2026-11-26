@@ -238,6 +238,45 @@ namespace Kapture
             toetsen.Cards.Add(keys);
             Sections.Add(toetsen);
 
+            // Presets: per preset welke stappen er na de screenshot gebeuren (zoals de taken na het vastleggen in ShareX)
+            Section presets = new Section { Name = "Presets", Icon = "list-checks", Desc = "Wat er gebeurt na een screenshot. Kies de preset in de werkbalk (de knop naast Hele scherm, of 1 tot en met 5)." };
+            for (int pi = 0; pi < Presets.Names.Length; pi++)
+            {
+                int p = pi;
+                Card pc = new Card { Title = Presets.Names[p], Icon = Presets.Icons[p], Desc = Presets.About[p] };
+                for (int si = 0; si < Presets.Steps.Length; si++)
+                {
+                    int step = Presets.Steps[si];
+                    if (Presets.Locked(p, step)) continue;   // vaste stap (bijvoorbeeld Doorsturen nooit met notitie): geen schakelaar
+                    string stepAbout = Presets.StepAbout[si];
+                    pc.Rows.Add(new Row
+                    {
+                        Id = "preset-" + p + "-" + step, Title = Presets.StepNames[si], Keywords = "preset stap " + Presets.Names[p].ToLowerInvariant() + " " + Presets.StepNames[si].ToLowerInvariant(),
+                        Sub = delegate { return stepAbout; },
+                        Kind = RowKind.Toggle,
+                        Get = delegate { return Presets.Has(work, p, step); },
+                        Set = delegate(bool v)
+                        {
+                            int cur = Presets.StepsOf(work, p);
+                            int next = v ? cur | step : cur & ~step;
+                            work.PresetSteps[p] = next == Presets.Defaults[p] ? -1 : next;
+                            Edited();
+                        }
+                    });
+                }
+                if (p == Presets.Forward)
+                    pc.Rows.Add(new Row { Id = "preset-doorsturen-notitie", Title = "Nooit een notitie", Keywords = "doorsturen notitie", Sub = delegate { return "Doorsturen is voor iemand anders: daar hoort jouw notitie niet bij."; }, Kind = RowKind.Info });
+                if (p == Presets.ChooseLater)
+                    pc.Rows.Add(new Row { Id = "preset-kieszelf-hoe", Title = "Zo kies je", Keywords = "kies zelf bewaren kopieren", Sub = delegate { return "De melding blijft 12 seconden staan met Bewaren en Kopiëren. Bewaren zet hem in je inbox."; }, Kind = RowKind.Info });
+                presets.Cards.Add(pc);
+            }
+            Card reset = new Card { Title = "Terug naar standaard", Icon = "rotate-ccw", Desc = "Alle presets weer zoals Kapture ze bedacht." };
+            Row resetRow = new Row { Id = "preset-standaard", Title = "Stappen herstellen", Keywords = "standaard herstellen reset presets", Sub = delegate { return "Zet de schakelaars van alle presets terug."; }, Kind = RowKind.Buttons };
+            resetRow.Buttons.Add(new Btn { Label = "Herstellen", Icon = "rotate-ccw", Click = delegate { for (int i = 0; i < work.PresetSteps.Length; i++) work.PresetSteps[i] = -1; Edited(); } });
+            reset.Rows.Add(resetRow);
+            presets.Cards.Add(reset);
+            Sections.Add(presets);
+
             Section opslaan = new Section { Name = "Opslaan en mappen", Icon = "folder", Desc = "Waar je screenshots komen en hoe ze heten." };
             Card inbox = new Card { Title = "Inbox-map", Icon = "folder-open", Desc = "Hier zet Kapture elke screenshot neer. In OneDrive ziet Claude ze ook." };
             Row inboxRow = new Row

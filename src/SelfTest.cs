@@ -42,13 +42,14 @@ namespace Kapture
                         NoteBarShot(dir, t, scale, "notitiebalk-" + tag + ".png");
                         EditorShot(dir, t, scale, "editor-" + tag + ".png");
                         SettingsShot(dir, t, scale, 0, null, "instellingen-algemeen-" + tag + ".png");
+                        SettingsShot(dir, t, scale, 2, null, "instellingen-presets-" + tag + ".png");
                         if (scale > 1)
                         {
                             SettingsShot(dir, t, scale, 1, null, "instellingen-sneltoetsen-" + tag + ".png");
-                            SettingsShot(dir, t, scale, 2, null, "instellingen-opslaan-" + tag + ".png");
-                            SettingsShot(dir, t, scale, 3, null, "instellingen-notities-" + tag + ".png");
-                            SettingsShot(dir, t, scale, 4, null, "instellingen-bewerken-" + tag + ".png");
-                            SettingsShot(dir, t, scale, 5, null, "instellingen-over-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 3, null, "instellingen-opslaan-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 4, null, "instellingen-notities-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 5, null, "instellingen-bewerken-" + tag + ".png");
+                            SettingsShot(dir, t, scale, 6, null, "instellingen-over-" + tag + ".png");
                             SettingsShot(dir, t, scale, 0, "map", "instellingen-zoeken-" + tag + ".png");
                             SettingsEditedShot(dir, t, scale, tag);
                         }

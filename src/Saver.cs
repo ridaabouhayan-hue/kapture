@@ -188,7 +188,7 @@ namespace Kapture
     {
         // Opslaan als PNG op de achtergrond, daarna (op de UI-draad) kopieren. 'done' komt altijd op de UI-draad.
         // Een notitie die al bekend is komt meteen in de naam en (als 'strip') als strook op het klembord.
-        public static void SaveAndCopy(Bitmap shot, Shot entry, string folder, bool copy, bool strip, bool textFile, System.Windows.Forms.Control ui, Action<SaveResult> done)
+        public static void SaveAndCopy(Bitmap shot, Shot entry, string folder, bool copyImage, bool copyFile, bool strip, bool textFile, System.Windows.Forms.Control ui, Action<SaveResult> done)
         {
             ThreadPool.QueueUserWorkItem(delegate
             {
@@ -208,12 +208,15 @@ namespace Kapture
                 {
                     try
                     {
-                        if (copy)
+                        string file = copyFile && entry.Path != null ? entry.Path : null;
+                        if (copyImage || file != null)
                         {
-                            if (strip && !string.IsNullOrEmpty(entry.Note))
-                                using (Bitmap withNote = Notes.WithStrip(shot, entry.Note)) r.Copied = Copy(withNote, null);
-                            else r.Copied = Copy(shot, png);
-                            entry.Copied = r.Copied;
+                            Bitmap img = copyImage ? shot : null;
+                            if (img != null && strip && !string.IsNullOrEmpty(entry.Note))
+                                using (Bitmap withNote = Notes.WithStrip(shot, entry.Note)) r.Copied = Copy(withNote, null, file);
+                            else r.Copied = Copy(img, img != null ? png : null, file);
+                            entry.Copied = r.Copied && copyImage;
+                            entry.CopiedFile = r.Copied && file != null;
                             if (r.Copied) entry.ClipboardSeq = W.GetClipboardSequenceNumber();
                         }
                     }
@@ -297,15 +300,27 @@ namespace Kapture
         }
 
         // Op het klembord als gewone afbeelding en als PNG, zodat plakken werkt in Claude, de browser, Word en WhatsApp
-        public static bool Copy(Bitmap shot, byte[] png)
+        public static bool Copy(Bitmap shot, byte[] png) { return Copy(shot, png, null); }
+
+        // 'file': ook het bestand zelf op het klembord (plakken als bijlage of in Verkenner). 'shot' mag null zijn: alleen het bestand.
+        public static bool Copy(Bitmap shot, byte[] png, string file)
         {
             try
             {
-                if (png == null)
-                    using (MemoryStream ms = new MemoryStream()) { shot.Save(ms, ImageFormat.Png); png = ms.ToArray(); }
                 DataObject data = new DataObject();
-                data.SetData(DataFormats.Bitmap, true, shot);
-                data.SetData("PNG", false, new MemoryStream(png));
+                if (shot != null)
+                {
+                    if (png == null)
+                        using (MemoryStream ms = new MemoryStream()) { shot.Save(ms, ImageFormat.Png); png = ms.ToArray(); }
+                    data.SetData(DataFormats.Bitmap, true, shot);
+                    data.SetData("PNG", false, new MemoryStream(png));
+                }
+                if (file != null)
+                {
+                    System.Collections.Specialized.StringCollection files = new System.Collections.Specialized.StringCollection();
+                    files.Add(file);
+                    data.SetFileDropList(files);
+                }
                 Clipboard.SetDataObject(data, true, 5, 100);
                 return true;
             }

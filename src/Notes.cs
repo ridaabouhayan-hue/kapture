@@ -21,10 +21,12 @@ namespace Kapture
         [DataMember(Name = "programma")] public string App = "";
         [DataMember(Name = "preset")] public string Preset = "Nu naar Claude";
         [DataMember(Name = "notitie")] public string Note = "";
+        [DataMember(Name = "geenNotitie")] public bool NoNote;   // preset zonder notitie (zoals Doorsturen)
 
         // Alleen in het geheugen: wat er op het klembord gezet is, om te weten of we het nog mogen vervangen
         public uint ClipboardSeq;
-        public bool Copied;
+        public bool Copied;          // de afbeelding staat op het klembord
+        public bool CopiedFile;      // het bestand staat op het klembord (na hernoemen opnieuw zetten)
         public string PendingNote;   // notitie die al getypt is terwijl het bestand nog wordt opgeslagen
     }
 
