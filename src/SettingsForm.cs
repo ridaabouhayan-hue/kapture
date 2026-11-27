@@ -1144,9 +1144,19 @@ namespace Kapture
                 search.Text = query ?? "";
                 navIndex = section; scrollY = 0;
                 if (edited) { work.MonthFolders = !work.MonthFolders; work.ToastSeconds = 8; }
-                Bitmap b = new Bitmap(size.Width, size.Height);
-                using (Graphics g = Graphics.FromImage(b)) Draw(g, size, false);
-                return b;
+                // tekenen in een Windows-beeldbuffer (zoals het echte venster), niet in een gewone Bitmap: daarin tekent
+                // Windows ClearType-tekst te zwaar, en dan klopt de schermafdruk niet met wat je echt ziet
+                Dib d = null;
+                try { d = Dib.Create(size.Width, size.Height); } catch { }   // lukt niet onder Mono (tests op Linux)
+                if (d != null)
+                    using (d)
+                    {
+                        using (Graphics g = Graphics.FromHdc(d.Dc)) Draw(g, size, false);
+                        using (Bitmap v = d.View()) return new Bitmap(v);
+                    }
+                Bitmap b0 = new Bitmap(size.Width, size.Height);
+                using (Graphics g = Graphics.FromImage(b0)) Draw(g, size, false);
+                return b0;
             }
             finally { Program.ForceTheme = null; }
         }
