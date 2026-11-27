@@ -697,10 +697,16 @@ namespace Kapture
         // ---- reeks: screenshots die kort na elkaar gemaakt zijn (steeds hoogstens 10 minuten ertussen), nieuwste eerst
         public const int RunGapMinutes = 10;
 
+        // Zonder slot: alleen voor het getal op de knop (een pad lezen is veilig; hoogstens telt er één te weinig).
+        // Met slot zou de melding kunnen wachten op een hernoeming die OneDrive ophoudt.
         System.Collections.Generic.List<Shot> RecentRun(Shot newest)
         {
-            lock (noteGate) return RunOf(history.Items, newest, File.Exists);
+            return RunOf(history.Items, newest, File.Exists);
         }
+
+        // De reeks die nu op het klembord staat: na een hernoeming (notitie) zetten we hem opnieuw met de nieuwe namen
+        System.Collections.Generic.List<Shot> copiedRun;
+        uint copiedRunSeq;
 
         // De reeks die eindigt bij 'newest' (los, zodat de tests het kunnen nagaan)
         public static System.Collections.Generic.List<Shot> RunOf(System.Collections.Generic.IList<Shot> items, Shot newest, Func<string, bool> exists)
@@ -723,12 +729,27 @@ namespace Kapture
         // De hele reeks als bestanden op het klembord, oudste eerst (zo staan ze in Claude op volgorde)
         void CopyRun(System.Collections.Generic.List<Shot> run)
         {
-            System.Collections.Generic.List<string> files = new System.Collections.Generic.List<string>();
-            lock (noteGate) for (int i = run.Count - 1; i >= 0; i--) if (run[i].Path != null && File.Exists(run[i].Path)) files.Add(run[i].Path);
-            if (files.Count == 0) { Notify("Kopiëren lukte niet", "De screenshots zijn er niet meer.", null, null, null, false); return; }
-            if (!Saver.Copy(null, null, files)) { Notify("Kopiëren lukte niet", "Een ander programma hield het klembord vast. Probeer het nog eens.", null, null, null, false); return; }
+            int n = SetRunOnClipboard(run);
+            if (n < 0) { Notify("Kopiëren lukte niet", "Een ander programma hield het klembord vast. Probeer het nog eens.", null, null, null, false); return; }
+            if (n == 0) { Notify("Kopiëren lukte niet", "De screenshots zijn er niet meer.", null, null, null, false); return; }
             foreach (Shot sh in run) { sh.Copied = false; sh.CopiedFile = false; }   // het klembord is nu van de reeks
-            Info(files.Count + " screenshots gekopieerd", "Plak ze in één keer in Claude met Ctrl+V.", "copy");
+            copiedRun = run;
+            Info(n + " screenshots gekopieerd", "Plak ze in één keer in Claude met Ctrl+V.", "copy");
+        }
+
+        // De bestanden van de reeks op het klembord (onder het slot: nooit midden in een hernoeming). Geeft het aantal,
+        // 0 als er geen bestand meer is, -1 als het klembord niet lukte.
+        int SetRunOnClipboard(System.Collections.Generic.List<Shot> run)
+        {
+            System.Collections.Generic.List<string> files = new System.Collections.Generic.List<string>();
+            lock (noteGate)
+            {
+                for (int i = run.Count - 1; i >= 0; i--) if (run[i].Path != null && File.Exists(run[i].Path)) files.Add(run[i].Path);
+                if (files.Count == 0) return 0;
+                if (!Saver.Copy(null, null, files)) return -1;
+            }
+            copiedRunSeq = W.GetClipboardSequenceNumber();
+            return files.Count;
         }
 
         // Kies zelf: Bewaren zet de screenshot (en zijn notitiebestand) van de tijdelijke map in de inbox
@@ -935,6 +956,11 @@ namespace Kapture
                     }
                 }
                 catch (Exception ex) { Log.Error("Klembord bijwerken mislukt", ex); }
+            }
+            // een gekopieerde reeks met deze screenshot erin: opnieuw zetten, zodat het klembord naar de nieuwe naam wijst
+            if (copiedRun != null && copiedRun.Contains(entry) && W.GetClipboardSequenceNumber() == copiedRunSeq)
+            {
+                try { SetRunOnClipboard(copiedRun); } catch (Exception ex) { Log.Error("Klembord bijwerken mislukt", ex); }
             }
             ToastContent cur = toast.Content;
             if (cur != null && cur.Tag == entry)
