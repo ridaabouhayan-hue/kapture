@@ -102,13 +102,45 @@ namespace Kapture
                     pfc.AddMemoryFont(mem, data.Length);
                     own.Add(pfc);
                     uint count = 0;
-                    try { W.AddFontMemResourceEx(mem, (uint)data.Length, IntPtr.Zero, ref count); } catch { }
+                    IntPtr h = IntPtr.Zero;
+                    try { h = W.AddFontMemResourceEx(mem, (uint)data.Length, IntPtr.Zero, ref count); } catch { }
                     if (pfc.Families.Length == 0) continue;
                     string key = name.Contains("JetBrainsMono") ? "Mono" : name.Contains("SemiBold") ? "SemiBold" : name.Contains("Medium") ? "Medium" : "Regular";
+                    // GDI (scherpe ClearType-tekst) moet hetzelfde lettertype vinden als GDI+, anders kloppen breedtes niet:
+                    // dan voor dit gewicht liever Segoe UI
+                    if (!OnMono && (h == IntPtr.Zero || count == 0 || !GdiFinds(pfc.Families[0])))
+                    {
+                        Log.Info("Lettertype niet bruikbaar voor Windows-tekst: " + key);
+                        continue;
+                    }
                     ownFamilies[key] = pfc.Families[0];
                 }
             }
             catch (Exception ex) { Log.Error("Lettertypes laden mislukt", ex); }
+        }
+
+        // Vraagt GDI welk lettertype het echt kiest voor deze familie
+        static bool GdiFinds(FontFamily fam)
+        {
+            IntPtr dc = IntPtr.Zero, hf = IntPtr.Zero, old = IntPtr.Zero;
+            try
+            {
+                using (Font f = new Font(fam, 12, FontStyle.Regular, GraphicsUnit.Pixel))
+                {
+                    hf = f.ToHfont();
+                    dc = W.CreateCompatibleDC(IntPtr.Zero);
+                    old = W.SelectObject(dc, hf);
+                    System.Text.StringBuilder sb = new System.Text.StringBuilder(64);
+                    W.GetTextFace(dc, sb.Capacity, sb);
+                    return string.Equals(sb.ToString(), fam.Name, StringComparison.OrdinalIgnoreCase);
+                }
+            }
+            catch { return false; }
+            finally
+            {
+                if (dc != IntPtr.Zero) { if (old != IntPtr.Zero) W.SelectObject(dc, old); W.DeleteDC(dc); }
+                if (hf != IntPtr.Zero) W.DeleteObject(hf);
+            }
         }
 
         // gewicht: 0 = gewoon (400), 1 = halfvet (600, koppen), 2 = medium (500, knoppen en labels)

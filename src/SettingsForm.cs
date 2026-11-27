@@ -718,7 +718,10 @@ namespace Kapture
 
             RectangleF cr = new RectangleF(x, y, w, total);
             string cardId = "preset-kaart-" + c.Preset;
-            zones.Add(new Zone { R = cr, Id = cardId, Click = delegate { if (cfg.Preset != c.Preset) { cfg.Preset = c.Preset; cfg.Save(); } } });
+            // klikvlak: alleen de kop en de stappen, niet de schakelaars eronder (een klik naast een schakelaar mag
+            // de actieve preset niet veranderen)
+            RectangleF cardClick = new RectangleF(cr.X, cr.Y, cr.Width, Math.Min(cr.Height, chipsTop + cy + chipH + P(8) - cr.Y));
+            zones.Add(new Zone { R = cardClick, Id = cardId, Click = delegate { if (cfg.Preset != c.Preset) { cfg.Preset = c.Preset; cfg.Save(); } } });
             float bw = active ? Math.Max(2, P(2)) : 1;
             using (GraphicsPath gp = Svg.RoundRect(new RectangleF(cr.X + bw / 2, cr.Y + bw / 2, cr.Width - bw, cr.Height - bw), P(12)))
             using (SolidBrush b = new SolidBrush(t.Surface))
@@ -744,10 +747,10 @@ namespace Kapture
                 using (Pen p = new Pen(t.OutlineVariant)) { g.FillPath(b, cp); g.DrawPath(p, cp); }
                 Txt(g, chips[i], chipF, r, t.OnSurface, false, StringAlignment.Center);
                 bool lastOnLine = i == chipR.Count - 1 || chipR[i + 1].Y != chipR[i].Y;
-                if (i < chipR.Count - 1)
+                if (!lastOnLine)
                 {
-                    // pijltje naar het volgende blokje (ook aan het eind van een regel)
-                    float ax = lastOnLine ? r.Right + P(4) : r.Right + P(5), ay = r.Y + r.Height / 2;
+                    // pijltje naar het volgende blokje op dezelfde regel
+                    float ax = r.Right + P(5), ay = r.Y + r.Height / 2;
                     using (Pen ap = new Pen(t.Outline, Math.Max(1, 1.25f * s)))
                     {
                         ap.StartCap = LineCap.Round; ap.EndCap = LineCap.Round;
@@ -772,7 +775,7 @@ namespace Kapture
                 using (GraphicsPath mp = Svg.RoundRect(more, P(6))) using (SolidBrush b = new SolidBrush(t.Container)) g.FillPath(b, mp);
             using (SolidBrush db = new SolidBrush(t.Variant))
                 for (int i = -1; i <= 1; i++) g.FillEllipse(db, more.X + more.Width / 2 + i * P(5) - P(1.5f), more.Y + more.Height / 2 - P(1.5f), P(3), P(3));
-            zones.Add(new Zone { R = more, Id = moreId, Click = delegate { c.Open = !c.Open; } });
+            if (q.Length == 0) zones.Add(new Zone { R = more, Id = moreId, Click = delegate { c.Open = !c.Open; } });   // bij zoeken staan ze al open
             return total;
         }
 

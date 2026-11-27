@@ -78,6 +78,7 @@ namespace Kapture
         [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out int v, int size);
         [DllImport("dwmapi.dll")] public static extern int DwmGetWindowAttribute(IntPtr h, int a, out RECT v, int size);
         [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
+        [DllImport("gdi32.dll", CharSet = CharSet.Unicode)] public static extern int GetTextFace(IntPtr dc, int count, System.Text.StringBuilder name);
         [DllImport("gdi32.dll")] public static extern IntPtr AddFontMemResourceEx(IntPtr data, uint len, IntPtr pdv, ref uint count);
         [DllImport("user32.dll")] public static extern bool GetLayeredWindowAttributes(IntPtr h, out uint key, out byte alpha, out uint flags);
         [DllImport("user32.dll", CharSet = CharSet.Unicode)] public static extern int GetClassName(IntPtr h, System.Text.StringBuilder s, int max);

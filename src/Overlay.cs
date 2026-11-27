@@ -39,7 +39,7 @@ namespace Kapture
         public void Layout(Rectangle monitor, float scale, Graphics measure)
         {
             s = scale;
-            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 2);   // Stitch: label-md, 12 px medium
+            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 1);   // Stitch: label-md, 12 px medium; het gekozen item halfvet
             int pad = P(8), gap = P(6), h = P(36);
             int x = pad;
             foreach (Item it in Items)
@@ -87,7 +87,7 @@ namespace Kapture
             using (Pen p = new Pen(t.OutlineVariant, Math.Max(1, P(1))))
             { g.FillPath(b, gp); g.DrawPath(p, gp); }
 
-            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 2);   // Stitch: label-md, 12 px medium
+            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 1);   // Stitch: label-md, 12 px medium; het gekozen item halfvet
             foreach (Item it in Items)
             {
                 Rectangle r = it.Rect;

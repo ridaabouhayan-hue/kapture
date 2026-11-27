@@ -187,9 +187,17 @@ namespace Kapture
         {
             note = (note ?? "").Trim();
             int w = Math.Max(img.Width, 360);
-            float fontPx = Math.Max(14f, Math.Min(22f, w / 60f));
+            float fontPx = (float)Math.Round(Math.Max(14f, Math.Min(22f, w / 60f)));
             int pad = (int)Math.Round(fontPx * 0.9f);
-            Font f = Fonts.Ui(fontPx, 0), fb = Fonts.Ui(fontPx, 1);
+            // de strook komt in de afbeelding: altijd Segoe UI (zoals de tekst in de editor), en eigen Font-objecten,
+            // want dit draait op de achtergrond terwijl de rest van Kapture tekent
+            using (Font f = new Font("Segoe UI", fontPx, FontStyle.Regular, GraphicsUnit.Pixel))
+            using (Font fb = new Font("Segoe UI Semibold", fontPx, FontStyle.Regular, GraphicsUnit.Pixel))
+                return WithStrip(img, note, w, fontPx, pad, f, fb);
+        }
+
+        static Bitmap WithStrip(Image img, string note, int w, float fontPx, int pad, Font f, Font fb)
+        {
             string label = "Notitie:";
             int textH;
             using (Bitmap mb = new Bitmap(1, 1)) using (Graphics mg = Graphics.FromImage(mb))
