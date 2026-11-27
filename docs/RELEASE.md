@@ -2,7 +2,7 @@
 
 **Kapture heet nu Kapsure.**
 - Bijwerken gaat zoals altijd. Je instellingen, presets, geschiedenis en "Starten met Windows" gaan vanzelf mee naar de nieuwe naam. Je screenshots blijven waar ze zijn.
-- De oude snelkoppelingen verdwijnen; in het Startmenu staat nu Kapsure.
+- De oude snelkoppelingen verdwijnen; in het Startmenu staat nu Kapsure. Had je Kapture vastgemaakt aan de taakbalk of aan Start? Haal die weg en maak Kapsure vast (die oude wijst naar het oude programma).
 
 ## Kapture 0.7.0
 

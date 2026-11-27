@@ -179,23 +179,36 @@ namespace Kapture
             {
                 string baseDir = Environment.GetFolderPath(root);
                 string old = Path.Combine(baseDir, Before), nw = Path.Combine(baseDir, "Kapsure");
-                if (!Directory.Exists(old) || Directory.Exists(nw)) return;
-                try { Directory.Move(old, nw); }
-                catch (IOException)
+                if (!Directory.Exists(old)) return;
+                if (!Directory.Exists(nw))
                 {
-                    // iets in de oude map is bezet: dan kopiëren (de oude map blijft staan)
-                    CopyTree(old, nw);
+                    try { Directory.Move(old, nw); Log.Info("Gegevens van de oude naam overgenomen"); return; }
+                    catch (Exception) { }   // iets in de oude map is bezet (virusscanner, OneDrive): dan kopiëren
+                    // eerst naar een tijdelijke map en pas aan het eind hernoemen: nooit een halve nieuwe map
+                    string tmp = nw + ".tmp";
+                    if (Directory.Exists(tmp)) Directory.Delete(tmp, true);
+                    CopyTree(old, tmp, false);
+                    Directory.Move(tmp, nw);
+                    Log.Info("Gegevens van de oude naam gekopieerd");
+                    return;
                 }
-                Log.Info("Gegevens van de oude naam overgenomen");
+                // allebei aanwezig (bijvoorbeeld na een eerdere mislukte poging): wat in de nieuwe map ontbreekt, aanvullen
+                CopyTree(old, nw, true);
             }
             catch (Exception ex) { Log.Error("Gegevens van de oude naam overnemen mislukt", ex); }
         }
 
-        static void CopyTree(string from, string to)
+        // 'onlyMissing': bestaande bestanden in 'to' nooit overschrijven
+        static void CopyTree(string from, string to, bool onlyMissing)
         {
             Directory.CreateDirectory(to);
-            foreach (string f in Directory.GetFiles(from)) File.Copy(f, Path.Combine(to, Path.GetFileName(f)), false);
-            foreach (string d in Directory.GetDirectories(from)) CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+            foreach (string f in Directory.GetFiles(from))
+            {
+                string target = Path.Combine(to, Path.GetFileName(f));
+                if (onlyMissing && File.Exists(target)) continue;
+                try { File.Copy(f, target, false); } catch (IOException) { if (!onlyMissing) throw; }
+            }
+            foreach (string d in Directory.GetDirectories(from)) CopyTree(d, Path.Combine(to, Path.GetFileName(d)), onlyMissing);
         }
     }
 

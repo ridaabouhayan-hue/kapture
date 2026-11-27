@@ -136,8 +136,9 @@ namespace Kapture
         {
             try
             {
-                foreach (string d in Directory.GetDirectories(Path.GetTempPath(), "Kapsure-bijwerken*"))
-                    try { Directory.Delete(d, true); } catch { }
+                foreach (string pattern in new string[] { "Kapsure-bijwerken*", "Kapture-bijwerken*" })   // ook van de oude naam
+                    foreach (string d in Directory.GetDirectories(Path.GetTempPath(), pattern))
+                        try { Directory.Delete(d, true); } catch { }
             }
             catch { }
         }

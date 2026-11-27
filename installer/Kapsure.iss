@@ -43,18 +43,11 @@ Source: "..\assets\LICENSE-Phosphor.txt"; DestDir: "{app}\licenties"; Flags: ign
 Source: "..\assets\fonts\LICENSE-Inter.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
 Source: "..\assets\fonts\LICENSE-JetBrainsMono.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
 
-; Van de oude naam (Kapture): het oude programma en de oude snelkoppelingen weg
-[InstallDelete]
-Type: files; Name: "{app}\Kapture.exe"
-Type: files; Name: "{userprograms}\Kapture.lnk"
-Type: files; Name: "{userdesktop}\Kapture.lnk"
-
 [Icons]
 Name: "{userprograms}\Kapsure"; Filename: "{app}\Kapsure.exe"
 Name: "{userdesktop}\Kapsure"; Filename: "{app}\Kapsure.exe"; Tasks: desktop
 
 [Registry]
-Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: none; ValueName: "Kapture"; Flags: deletevalue
 Root: HKCU; Subkey: "Software\Microsoft\Windows\CurrentVersion\Run"; ValueType: string; ValueName: "Kapsure"; ValueData: """{app}\Kapsure.exe"""; Tasks: autostart; Flags: uninsdeletevalue
 
 [Run]
@@ -88,7 +81,15 @@ end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssPostInstall then Installed := True;
+  if CurStep = ssPostInstall then
+  begin
+    Installed := True;
+    // Van de oude naam (Kapture): pas nu alles goed geïnstalleerd is, het oude programma en de oude snelkoppelingen weg.
+    // "Starten met Windows" zet Kapsure zelf om bij de eerste start (dan blijft hij ook aan als hij later aangezet was).
+    DeleteFile(ExpandConstant('{app}\Kapture.exe'));
+    DeleteFile(ExpandConstant('{userprograms}\Kapture.lnk'));
+    DeleteFile(ExpandConstant('{userdesktop}\Kapture.lnk'));
+  end;
 end;
 
 // Mislukt het bijwerken (virusscanner, volle schijf): Kapsure toch weer starten, de oude versie staat er nog
