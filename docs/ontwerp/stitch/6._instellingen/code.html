@@ -1,0 +1,434 @@
+<!DOCTYPE html><html lang="nl"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kapture — Instellingen</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">/** @type {import('tailwindcss').Config} */
+globalThis.tailwind = globalThis.tailwind || {};
+globalThis.tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      colors: {
+        'accent-light': '#2563EB',
+        'accent-dark': '#3B82F6',
+        'light-primary': '#2563EB',
+        'light-on-primary': '#FFFFFF',
+        'light-primary-container': '#DBE1FF',
+        'light-on-primary-container': '#00174B',
+        'light-secondary': '#495C95',
+        'light-on-secondary': '#FFFFFF',
+        'light-secondary-container': '#EEF0FF',
+        'light-on-secondary-container': '#182D63',
+        'light-tertiary': '#943700',
+        'light-on-tertiary': '#FFFFFF',
+        'light-tertiary-container': '#FFDBCD',
+        'light-on-tertiary-container': '#581E00',
+        'light-error': '#BA1A1A',
+        'light-on-error': '#FFFFFF',
+        'light-error-container': '#FFDAD6',
+        'light-on-error-container': '#93000A',
+        'light-background': '#F4F5FA',
+        'light-on-background': '#191B23',
+        'light-surface': '#FAF8FF',
+        'light-surface-dim': '#D9D9E5',
+        'light-surface-bright': '#FFFFFF',
+        'light-surface-container-lowest': '#FFFFFF',
+        'light-surface-container-low': '#F3F3FE',
+        'light-surface-container': '#EDEDF9',
+        'light-surface-container-high': '#E7E7F3',
+        'light-surface-container-highest': '#E1E2ED',
+        'light-on-surface': '#191B23',
+        'light-surface-variant': '#DFE1F4',
+        'light-on-surface-variant': '#434655',
+        'light-outline': '#737686',
+        'light-outline-variant': '#C3C6D7',
+        'light-inverse-surface': '#2E3039',
+        'light-inverse-on-surface': '#F0F0FB',
+        'light-inverse-primary': '#B4C5FF',
+        'light-shadow': '#000000',
+        'light-scrim': '#000000',
+        'dark-primary': '#3B82F6',
+        'dark-on-primary': '#0C0E16',
+        'dark-primary-container': '#003EA8',
+        'dark-on-primary-container': '#DBE1FF',
+        'dark-secondary': '#B4C5FF',
+        'dark-on-secondary': '#182D63',
+        'dark-secondary-container': '#282A32',
+        'dark-on-secondary-container': '#DBE1FF',
+        'dark-tertiary': '#FFB596',
+        'dark-on-tertiary': '#581E00',
+        'dark-tertiary-container': '#7D2D00',
+        'dark-on-tertiary-container': '#FFDBCD',
+        'dark-error': '#FFB4AB',
+        'dark-on-error': '#690005',
+        'dark-error-container': '#93000A',
+        'dark-on-error-container': '#FFDAD6',
+        'dark-background': '#11131B',
+        'dark-on-background': '#E1E2ED',
+        'dark-surface': '#11131B',
+        'dark-surface-dim': '#0C0E16',
+        'dark-surface-bright': '#373942',
+        'dark-surface-container-lowest': '#0C0E16',
+        'dark-surface-container-low': '#191B23',
+        'dark-surface-container': '#1D1F27',
+        'dark-surface-container-high': '#282A32',
+        'dark-surface-container-highest': '#32343D',
+        'dark-on-surface': '#E1E2ED',
+        'dark-surface-variant': '#434655',
+        'dark-on-surface-variant': '#C3C6D7',
+        'dark-outline': '#8D90A0',
+        'dark-outline-variant': '#434655',
+        'dark-inverse-surface': '#E1E2ED',
+        'dark-inverse-on-surface': '#2E3039',
+        'dark-inverse-primary': '#2563EB',
+        'dark-shadow': '#000000',
+        'dark-scrim': '#000000',
+      },
+      borderRadius: {
+        'sm': '6px',
+        'DEFAULT': '8px',
+        'md': '10px',
+        'lg': '12px',
+        'xl': '16px',
+        'full': '9999px',
+      },
+      spacing: {
+        'gutter-xs': '4px',
+        'gutter-sm': '8px',
+        'gutter-md': '12px',
+        'gutter-lg': '16px',
+        'gutter-xl': '24px',
+        'section': '32px',
+        'page-margin': '24px',
+      },
+      fontFamily: {
+        'headline': ['"Inter"', 'sans-serif'],
+        'title': ['"Inter"', 'sans-serif'],
+        'body': ['"Inter"', 'sans-serif'],
+        'label': ['"Inter"', 'sans-serif'],
+        'mono': ['"JetBrains Mono"', 'monospace'],
+      },
+      fontSize: {
+        'headline-lg': ['24px', { lineHeight: '32px', letterSpacing: '-0.3px', fontWeight: '600' }],
+        'headline-md': ['18px', { lineHeight: '26px', letterSpacing: '-0.2px', fontWeight: '600' }],
+        'title-md': ['15px', { lineHeight: '22px', letterSpacing: '-0.1px', fontWeight: '600' }],
+        'title-sm': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '600' }],
+        'body-md': ['14px', { lineHeight: '20px', letterSpacing: '0px', fontWeight: '400' }],
+        'body-sm': ['12px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '400' }],
+        'label-lg': ['13px', { lineHeight: '18px', letterSpacing: '0px', fontWeight: '500' }],
+        'label-md': ['12px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '500' }],
+        'label-sm': ['11px', { lineHeight: '14px', letterSpacing: '0.1px', fontWeight: '500' }],
+        'mono-sm': ['11px', { lineHeight: '16px', letterSpacing: '0px', fontWeight: '500' }],
+      },
+      transitionDuration: {
+        'state-change': '100ms',
+        'surface-enter': '200ms',
+        'surface-exit': '150ms',
+      },
+      transitionDelay: {
+        'state-change': '0ms',
+        'surface-enter': '0ms',
+        'surface-exit': '0ms',
+      },
+      transitionTimingFunction: {
+        'state-change': 'ease-out',
+        'surface-enter': 'cubic-bezier(0.2, 0, 0, 1)',
+        'surface-exit': 'cubic-bezier(0.3, 0, 1, 1)',
+      },
+    },
+  },
+};
+if (typeof module !== 'undefined') module.exports = globalThis.tailwind.config;
+</script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;500&amp;display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>document.addEventListener('DOMContentLoaded', () => lucide.createIcons());</script>
+</head>
+<body class="bg-light-background dark:bg-dark-background text-light-on-surface dark:text-dark-on-surface font-body antialiased selection:bg-light-primary/20">
+
+  <div class="min-h-[1024px] w-full p-6 flex items-center justify-center" data-stitch-vh="min-h-[1024px]===min-h-screen">
+    <!-- Windows 11 Two-Column Settings Window -->
+    <div class="w-full max-w-[1080px] min-h-[720px] rounded-lg bg-light-surface dark:bg-dark-surface border border-light-outline-variant/70 dark:border-dark-outline-variant/70 shadow-2xl overflow-hidden flex flex-col">
+
+      <!-- Window Title Bar -->
+      <header class="h-12 px-4 bg-light-surface-container-low dark:bg-dark-surface-container-low border-b border-light-outline-variant/50 dark:border-dark-outline-variant/50 flex items-center justify-between gap-4">
+        <div class="flex items-center gap-gutter-md">
+          <span class="w-6 h-6 rounded-sm bg-light-primary dark:bg-dark-primary text-light-on-primary dark:text-dark-on-primary flex items-center justify-center">
+            <svg viewBox="0 0 24 24" fill="none" class="w-4 h-4" aria-hidden="true">
+              <rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.7"></rect>
+              <rect x="2" y="2" width="3" height="3" fill="currentColor"></rect>
+              <rect x="19" y="2" width="3" height="3" fill="currentColor"></rect>
+              <rect x="2" y="19" width="3" height="3" fill="currentColor"></rect>
+              <rect x="19" y="19" width="3" height="3" fill="currentColor"></rect>
+              <path d="M9 7V17M9 12.5C11 12.5 13 10.5 14.5 7M9.5 12C11.5 12 13 14 14.5 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </span>
+          <span data-design-text-token="title-sm" class="font-title text-title-sm text-light-on-surface dark:text-dark-on-surface">Kapture — Instellingen</span>
+        </div>
+
+        <div class="flex items-center gap-gutter-sm">
+          <button type="button" onclick="document.documentElement.classList.toggle(&#39;dark&#39;)" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/60 dark:border-dark-outline-variant/60 font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-on-surface dark:hover:text-dark-on-surface transition-colors duration-state-change">
+            <i data-lucide="sun-moon" class="w-3.5 h-3.5 text-light-primary dark:text-dark-primary"></i>
+            <span data-design-text-token="label-sm" class="dark:hidden">Donker</span>
+            <span data-design-text-token="label-sm" class="hidden dark:inline">Licht</span>
+          </button>
+          <div class="flex items-center gap-1 ml-2 text-light-on-surface-variant dark:text-dark-on-surface-variant">
+            <button type="button" aria-label="Minimaliseren" class="w-8 h-7 rounded-sm hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="minus" class="w-3.5 h-3.5"></i></button>
+            <button type="button" aria-label="Maximaliseren" class="w-8 h-7 rounded-sm hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="square" class="w-3 h-3"></i></button>
+            <button type="button" aria-label="Sluiten" class="w-8 h-7 rounded-sm hover:bg-light-error-container hover:text-light-error dark:hover:bg-dark-error-container dark:hover:text-dark-error inline-flex items-center justify-center"><i data-lucide="x" class="w-3.5 h-3.5"></i></button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Prominent Top Search Bar -->
+      <div class="px-6 py-4 bg-light-surface-container-low/60 dark:bg-dark-surface-container-low/60 border-b border-light-outline-variant/40 dark:border-dark-outline-variant/40">
+        <div class="max-w-xl mx-auto">
+          <label data-component-id="input-field-icon" data-component-type="input-field" data-component-variant="search" class="relative flex items-center w-full">
+            <span class="sr-only">Zoek een instelling</span>
+            <span aria-hidden="true" class="absolute left-3.5 text-light-outline dark:text-dark-outline pointer-events-none flex items-center">
+              <i data-lucide="search" class="w-4 h-4"></i>
+            </span>
+            <input type="search" placeholder="Zoek een instelling..." class="w-full pl-10 pr-4 py-2.5 rounded bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/70 dark:border-dark-outline-variant/70 font-body text-body-md text-light-on-surface dark:text-dark-on-surface placeholder:text-light-outline dark:placeholder:text-dark-outline focus:outline-none focus:border-light-primary dark:focus:border-dark-primary focus:ring-2 focus:ring-light-primary/20 dark:focus:ring-dark-primary/20">
+          </label>
+        </div>
+      </div>
+
+      <!-- Two-Column Body: Left Navigation + Right Content -->
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-[232px_1fr] min-h-0">
+
+        <!-- Left Navigation Rail -->
+        <nav aria-label="Instellingen navigatie" class="bg-light-surface-container-low/50 dark:bg-dark-surface-container-low/50 border-r border-light-outline-variant/40 dark:border-dark-outline-variant/40 p-3 flex flex-col gap-1">
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="sliders-horizontal" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Algemeen</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="keyboard" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Sneltoetsen</span>
+          </a>
+          <a href="#" aria-current="page" class="flex items-center gap-gutter-md px-3 py-2 rounded bg-light-primary-container/80 dark:bg-dark-primary-container/70 text-light-on-primary-container dark:text-dark-on-primary-container font-label text-label-lg">
+            <i data-lucide="sparkles" class="w-4 h-4 text-light-primary dark:text-dark-primary"></i>
+            <span data-design-text-token="label-lg">Presets</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="folder" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Opslaan</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="sticky-note" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Notities</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="pencil" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Bewerken</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="languages" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Taal</span>
+          </a>
+          <a href="#" class="flex items-center gap-gutter-md px-3 py-2 rounded text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high font-label text-label-lg transition-colors duration-state-change">
+            <i data-lucide="info" class="w-4 h-4"></i>
+            <span data-design-text-token="label-lg">Over</span>
+          </a>
+        </nav>
+
+        <!-- Right Content: Thema & Kleur + Presets Cards -->
+        <main class="p-8 overflow-y-auto flex flex-col gap-6">
+          <!-- Thema & Kleur (app en logo) -->
+          <section aria-labelledby="theme-color-heading" class="p-5 rounded-lg bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/70 dark:border-dark-outline-variant/70 flex flex-col gap-4">
+            <div class="flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3">
+                <span id="logo-accent-preview" class="w-10 h-10 rounded bg-light-primary dark:bg-dark-primary text-light-on-primary dark:text-dark-on-primary flex items-center justify-center shrink-0 transition-colors duration-state-change">
+                  <svg viewBox="0 0 24 24" fill="none" class="w-6 h-6" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="1" stroke="currentColor" stroke-width="1.5" stroke-opacity="0.7"></rect>
+                    <rect x="2" y="2" width="3" height="3" fill="currentColor"></rect>
+                    <rect x="19" y="2" width="3" height="3" fill="currentColor"></rect>
+                    <rect x="2" y="19" width="3" height="3" fill="currentColor"></rect>
+                    <rect x="19" y="19" width="3" height="3" fill="currentColor"></rect>
+                    <path d="M9 7V17M9 12.5C11 12.5 13 10.5 14.5 7M9.5 12C11.5 12 13 14 14.5 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"></path>
+                  </svg>
+                </span>
+                <div>
+                  <h2 id="theme-color-heading" data-design-text-token="title-md" class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">Thema &amp; Kleur</h2>
+                  <p data-design-text-token="body-sm" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant">Pas de weergave en accentkleur aan voor zowel de app als het Kapture-logo.</p>
+                </div>
+              </div>
+              <span id="active-accent-label" data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-primary-container dark:bg-dark-primary-container text-light-on-primary-container dark:text-dark-on-primary-container font-label text-label-sm shrink-0">Cobalt</span>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2 border-t border-light-outline-variant/40 dark:border-dark-outline-variant/40">
+              <!-- Thema Mode -->
+              <div class="flex flex-col gap-2">
+                <span data-design-text-token="label-md" class="font-label text-label-md text-light-on-surface-variant dark:text-dark-on-surface-variant">Thema</span>
+                <div class="inline-flex items-center gap-1.5 p-1 rounded bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/50 dark:border-dark-outline-variant/50 w-fit">
+                  <button type="button" onclick="setThemeMode(this, &#39;system&#39;)" class="theme-mode-btn px-3 py-1.5 rounded-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-on-surface dark:hover:text-dark-on-surface transition-colors duration-state-change">Systeem</button>
+                  <button type="button" onclick="setThemeMode(this, &#39;light&#39;)" class="theme-mode-btn px-3 py-1.5 rounded-sm font-label text-label-sm bg-light-surface-container-lowest dark:bg-dark-surface-container text-light-on-surface dark:text-dark-on-surface shadow-sm transition-colors duration-state-change">Licht</button>
+                  <button type="button" onclick="setThemeMode(this, &#39;dark&#39;)" class="theme-mode-btn px-3 py-1.5 rounded-sm font-label text-label-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:text-light-on-surface dark:hover:text-dark-on-surface transition-colors duration-state-change">Donker</button>
+                </div>
+              </div>
+
+              <!-- Accentkleur (app en logo) -->
+              <div class="flex flex-col gap-2">
+                <span data-design-text-token="label-md" class="font-label text-label-md text-light-on-surface-variant dark:text-dark-on-surface-variant">Accentkleur (app en logo)</span>
+                <div class="flex flex-wrap items-center gap-2.5 pt-1">
+                  <button type="button" aria-label="Cobalt" title="Cobalt" onclick="setAccentColor(this, &#39;Cobalt&#39;, &#39;#2563EB&#39;)" class="accent-swatch w-7 h-7 rounded-full ring-2 ring-offset-2 ring-light-primary dark:ring-dark-primary ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #2563EB;"></button>
+                  <button type="button" aria-label="Indigo" title="Indigo" onclick="setAccentColor(this, &#39;Indigo&#39;, &#39;#4F46E5&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #4F46E5;"></button>
+                  <button type="button" aria-label="Plum" title="Plum" onclick="setAccentColor(this, &#39;Plum&#39;, &#39;#9333EA&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #9333EA;"></button>
+                  <button type="button" aria-label="Amber" title="Amber" onclick="setAccentColor(this, &#39;Amber&#39;, &#39;#EA580C&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #EA580C;"></button>
+                  <button type="button" aria-label="Sky Cyan" title="Sky Cyan" onclick="setAccentColor(this, &#39;Sky Cyan&#39;, &#39;#0284C7&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #0284C7;"></button>
+                  <button type="button" aria-label="Coral" title="Coral" onclick="setAccentColor(this, &#39;Coral&#39;, &#39;#E11D48&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #E11D48;"></button>
+                  <button type="button" aria-label="Monochroom" title="Monochroom" onclick="setAccentColor(this, &#39;Monochroom&#39;, &#39;#52525B&#39;)" class="accent-swatch w-7 h-7 rounded-full opacity-85 hover:opacity-100 ring-offset-2 ring-offset-light-surface-container-lowest dark:ring-offset-dark-surface-container transition-transform hover:scale-105" style="background-color: #52525B;"></button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <script>
+            function setThemeMode(btn, mode) {
+              document.querySelectorAll('.theme-mode-btn').forEach(el => {
+                el.classList.remove('bg-light-surface-container-lowest', 'dark:bg-dark-surface-container', 'text-light-on-surface', 'dark:text-dark-on-surface', 'shadow-sm');
+                el.classList.add('text-light-on-surface-variant', 'dark:text-dark-on-surface-variant');
+              });
+              btn.classList.add('bg-light-surface-container-lowest', 'dark:bg-dark-surface-container', 'text-light-on-surface', 'dark:text-dark-on-surface', 'shadow-sm');
+              btn.classList.remove('text-light-on-surface-variant', 'dark:text-dark-on-surface-variant');
+              if (mode === 'dark') {
+                document.documentElement.classList.add('dark');
+              } else if (mode === 'light') {
+                document.documentElement.classList.remove('dark');
+              } else {
+                const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                document.documentElement.classList.toggle('dark', prefersDark);
+              }
+            }
+            function setAccentColor(btn, name, hex) {
+              document.querySelectorAll('.accent-swatch').forEach(el => {
+                el.classList.remove('ring-2', 'ring-light-primary', 'dark:ring-dark-primary', 'opacity-100');
+                el.classList.add('opacity-85');
+              });
+              btn.classList.add('ring-2', 'ring-light-primary', 'dark:ring-dark-primary', 'opacity-100');
+              btn.classList.remove('opacity-85');
+              const preview = document.getElementById('logo-accent-preview');
+              const label = document.getElementById('active-accent-label');
+              if (preview) preview.style.backgroundColor = hex;
+              if (label) label.textContent = name;
+            }
+          </script>
+
+          <div class="flex items-center justify-between gap-4">
+            <div>
+              <h1 data-design-text-token="headline-lg" class="font-headline text-headline-lg text-light-on-surface dark:text-dark-on-surface">Presets</h1>
+              <p data-design-text-token="body-md" class="font-body text-body-md text-light-on-surface-variant dark:text-dark-on-surface-variant mt-1">Bepaal wat er direct gebeurt nadat je een screenshot maakt.</p>
+            </div>
+            <button data-component-id="button-secondary" data-component-type="button" data-component-variant="secondary" type="button" class="inline-flex items-center gap-1.5 px-3.5 py-2 rounded bg-light-surface-container-lowest dark:bg-dark-surface-container-high border border-light-outline-variant dark:border-dark-outline-variant font-label text-label-md text-light-on-surface dark:text-dark-on-surface hover:bg-light-surface-container-low dark:hover:bg-dark-surface-container-highest transition-colors duration-state-change">
+              <i data-lucide="plus" class="w-4 h-4 text-light-primary dark:text-dark-primary"></i>
+              <span data-design-text-token="label-md">Nieuwe preset</span>
+            </button>
+          </div>
+
+          <!-- 4 Preset Cards -->
+          <div class="grid grid-cols-1 gap-4">
+            <!-- Card 1: Nu naar Claude (Active) -->
+            <article data-component-id="card-action" data-component-type="card" data-component-variant="action" class="p-5 rounded-lg bg-light-surface-container-lowest dark:bg-dark-surface-container border-2 border-light-primary dark:border-dark-primary shadow-sm flex flex-col gap-4">
+              <header class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="w-9 h-9 rounded bg-light-primary-container dark:bg-dark-primary-container text-light-primary dark:text-dark-primary flex items-center justify-center shrink-0">
+                    <i data-lucide="sparkles" class="w-4 h-4"></i>
+                  </span>
+                  <div>
+                    <div class="flex items-center gap-2">
+                      <h2 data-design-text-token="title-md" class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">Nu naar Claude</h2>
+                      <span data-design-text-token="label-sm" class="px-2 py-0.5 rounded-sm bg-light-primary-container dark:bg-dark-primary-container text-light-on-primary-container dark:text-dark-on-primary-container font-label text-label-sm">Actief</span>
+                    </div>
+                    <p data-design-text-token="body-sm" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-0.5">Kopieert het beeld direct naar je klembord en vraagt om een korte notitie.</p>
+                  </div>
+                </div>
+                <button type="button" aria-label="Preset bewerken" class="w-8 h-8 rounded-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+              </header>
+              <footer class="flex flex-wrap items-center gap-2 pl-12">
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Kopieren</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Opslaan</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Notitie</span>
+              </footer>
+            </article>
+
+            <!-- Card 2: Bewaren voor Claude -->
+            <article data-component-id="card-action" data-component-type="card" data-component-variant="action" class="p-5 rounded-lg bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/70 dark:border-dark-outline-variant/70 hover:border-light-primary/50 dark:hover:border-dark-primary/50 transition-colors duration-state-change flex flex-col gap-4">
+              <header class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="w-9 h-9 rounded bg-light-surface-container dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant flex items-center justify-center shrink-0">
+                    <i data-lucide="bookmark" class="w-4 h-4"></i>
+                  </span>
+                  <div>
+                    <h2 data-design-text-token="title-md" class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">Bewaren voor Claude</h2>
+                    <p data-design-text-token="body-sm" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-0.5">Slaat de screenshot met notitie op in je map zonder je klembord te overschrijven.</p>
+                  </div>
+                </div>
+                <button type="button" aria-label="Preset bewerken" class="w-8 h-8 rounded-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+              </header>
+              <footer class="flex flex-wrap items-center gap-2 pl-12">
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Opslaan</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Notitie</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Toevoegen aan wachtrij</span>
+              </footer>
+            </article>
+
+            <!-- Card 3: Doorsturen -->
+            <article data-component-id="card-action" data-component-type="card" data-component-variant="action" class="p-5 rounded-lg bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/70 dark:border-dark-outline-variant/70 hover:border-light-primary/50 dark:hover:border-dark-primary/50 transition-colors duration-state-change flex flex-col gap-4">
+              <header class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="w-9 h-9 rounded bg-light-surface-container dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant flex items-center justify-center shrink-0">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                  </span>
+                  <div>
+                    <h2 data-design-text-token="title-md" class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">Doorsturen</h2>
+                    <p data-design-text-token="body-sm" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-0.5">Opent direct de editor om snel iets aan te wijzen voordat je deelt.</p>
+                  </div>
+                </div>
+                <button type="button" aria-label="Preset bewerken" class="w-8 h-8 rounded-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+              </header>
+              <footer class="flex flex-wrap items-center gap-2 pl-12">
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Bewerken</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Kopieren</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Notitie</span>
+              </footer>
+            </article>
+
+            <!-- Card 4: Kies zelf -->
+            <article data-component-id="card-action" data-component-type="card" data-component-variant="action" class="p-5 rounded-lg bg-light-surface-container-lowest dark:bg-dark-surface-container border border-light-outline-variant/70 dark:border-dark-outline-variant/70 hover:border-light-primary/50 dark:hover:border-dark-primary/50 transition-colors duration-state-change flex flex-col gap-4">
+              <header class="flex items-start justify-between gap-3">
+                <div class="flex items-start gap-3">
+                  <span class="w-9 h-9 rounded bg-light-surface-container dark:bg-dark-surface-container-high text-light-on-surface-variant dark:text-dark-on-surface-variant flex items-center justify-center shrink-0">
+                    <i data-lucide="list-checks" class="w-4 h-4"></i>
+                  </span>
+                  <div>
+                    <h2 data-design-text-token="title-md" class="font-title text-title-md text-light-on-surface dark:text-dark-on-surface">Kies zelf</h2>
+                    <p data-design-text-token="body-sm" class="font-body text-body-sm text-light-on-surface-variant dark:text-dark-on-surface-variant mt-0.5">Toont een compact keuzemenu na elke opname zodat je per keer beslist.</p>
+                  </div>
+                </div>
+                <button type="button" aria-label="Preset bewerken" class="w-8 h-8 rounded-sm text-light-on-surface-variant dark:text-dark-on-surface-variant hover:bg-light-surface-container dark:hover:bg-dark-surface-container-high inline-flex items-center justify-center"><i data-lucide="more-horizontal" class="w-4 h-4"></i></button>
+              </header>
+              <footer class="flex flex-wrap items-center gap-2 pl-12">
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Actie kiezen</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Kopieren</span>
+                <i data-lucide="arrow-right" class="w-3.5 h-3.5 text-light-outline dark:text-dark-outline"></i>
+                <span data-design-text-token="label-sm" class="px-2.5 py-1 rounded-sm bg-light-surface-container-low dark:bg-dark-surface-container-high border border-light-outline-variant/60 dark:border-dark-outline-variant font-label text-label-sm text-light-on-surface dark:text-dark-on-surface">Opslaan</span>
+              </footer>
+            </article>
+          </div>
+        </main>
+
+      </div>
+    </div>
+  </div>
+
+
+
+</body></html>
