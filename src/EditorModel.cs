@@ -57,7 +57,7 @@ namespace Kapture
 
         public static double Luma(Color c) { return (0.2126 * c.R + 0.7152 * c.G + 0.0722 * c.B) / 255.0; }
 
-        public static Font TextFont(float px) { return Fonts.Ui(px, 1); }
+        public static Font TextFont(float px) { return Fonts.Markup(px); }
 
         // Eén keer maken: TextPath draait bij elke keer tekenen en bij elke muisbeweging (raken)
         public static readonly StringFormat TextFormat = MakeTextFormat();
@@ -138,7 +138,7 @@ namespace Kapture
                         RectangleF r = new RectangleF(m.A.X - size / 2, m.A.Y - size / 2, size, size);
                         using (SolidBrush b = new SolidBrush(c)) g.FillEllipse(b, r);
                         using (Pen p = new Pen(Color.FromArgb(220, 255, 255, 255), Math.Max(1.5f, size / 14f))) g.DrawEllipse(p, r);
-                        using (Font f = new Font(Fonts.Ui(10, 1).FontFamily, size * 0.5f, FontStyle.Bold, GraphicsUnit.Pixel))
+                        using (Font f = new Font(Fonts.Markup(10).FontFamily, size * 0.5f, FontStyle.Bold, GraphicsUnit.Pixel))
                         using (SolidBrush b = new SolidBrush(Luma(m.Color) > 0.6 ? Color.Black : Color.White))
                         using (StringFormat sf = new StringFormat())
                         {

@@ -32,12 +32,17 @@ namespace Kapture
             public List<Btn> Buttons = new List<Btn>();
         }
 
-        public class Card { public string Title, Desc, Icon; public List<Row> Rows = new List<Row>(); }
+        public class Card
+        {
+            public string Title, Desc, Icon; public List<Row> Rows = new List<Row>();
+            public int Preset = -1;   // Presets-pagina (Stitch 6): kaart met stappen als blokjes; de schakelaars achter "..."
+            public bool Open;         // de schakelaars van deze preset zichtbaar
+        }
 
         public class Section { public string Name, Icon, Desc; public List<Card> Cards = new List<Card>(); }
 
         // ---- maten bij 100%
-        const float TopH = 76, SearchW = 576, SearchH = 42, NavW = 232, NavItemH = 36, NavPad = 12, FootH = 68;
+        const float TopH = 76, SearchW = 576, SearchH = 42, NavW = 232, NavItemH = 34, NavPad = 12, FootH = 68;
         const float ContentPadX = 32, ContentPadTop = 28, CardPad = 20, CardGap = 16, SectionGap = 40, RowPadY = 14, ControlGap = 20;
 
         readonly Settings cfg;            // wat Kapture nu gebruikt
@@ -120,7 +125,7 @@ namespace Kapture
             s = scale;
             MinimumSize = new Size(P(820), P(560));
             if (!IsHandleCreated) ClientSize = new Size(P(1040), P(720));
-            search.Font = Fonts.Ui(14 * s, 0);
+            search.Font = Fonts.ForControl(14 * s, 0);
             ApplyTheme();
             LayoutSearch();
             Invalidate();
@@ -243,7 +248,7 @@ namespace Kapture
             for (int pi = 0; pi < Presets.Names.Length; pi++)
             {
                 int p = pi;
-                Card pc = new Card { Title = Presets.Names[p], Icon = Presets.Icons[p], Desc = Presets.About[p] };
+                Card pc = new Card { Title = Presets.Names[p], Icon = Presets.Icons[p], Desc = Presets.About[p], Preset = p };
                 for (int si = 0; si < Presets.Steps.Length; si++)
                 {
                     int step = Presets.Steps[si];
@@ -580,8 +585,8 @@ namespace Kapture
                 if (sel || hot == id)
                     using (GraphicsPath gp = Svg.RoundRect(r, P(8)))
                     using (SolidBrush b = new SolidBrush(bg)) g.FillPath(b, gp);
-                Icons.Draw(g, Sections[i].Icon, new RectangleF(r.X + P(12), r.Y, P(16), r.Height), 16 * s, sel ? t.OnFill : t.Variant, 2);
-                Txt(g, Sections[i].Name, Fonts.Ui(14 * s, sel ? 1 : 0), new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), sel ? t.OnFill : t.OnSurface, false);
+                Icons.Draw(g, Sections[i].Icon, new RectangleF(r.X + P(12), r.Y, P(16), r.Height), 16 * s, sel ? t.OnFill : t.Variant, 2);   // Stitch: label-lg, 13 px medium
+                Txt(g, Sections[i].Name, Fonts.Ui(13 * s, 2), new RectangleF(r.X + P(40), r.Y, r.Width - P(44), r.Height), sel ? t.OnFill : t.Variant, false);
                 int idx = i;
                 zones.Add(new Zone { R = r, Id = id, Click = delegate { GoTo(idx); }, Fixed = true });
                 y += P(NavItemH) + P(4);
@@ -595,7 +600,7 @@ namespace Kapture
             using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, foot);
             using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, foot.X, foot.Y + 0.5f, foot.Right, foot.Y + 0.5f);
             bool dirty = Dirty;
-            Font bf = Fonts.Ui(13 * s, 1);
+            Font bf = Fonts.Ui(13 * s, 2);
             float bh = P(36), by = foot.Y + (foot.Height - bh) / 2;
             float sw = TextW("Opslaan", bf) + P(16) + P(22) + P(16);
             RectangleF saveR = new RectangleF(foot.Right - P(ContentPadX) - sw, by, sw, bh);
@@ -628,7 +633,7 @@ namespace Kapture
                 RectangleF dot = new RectangleF(lx, foot.Y + (foot.Height - P(22)) / 2, P(22), P(22));
                 using (SolidBrush db = new SolidBrush(t.PrimaryContainer)) g.FillEllipse(db, dot);
                 Icons.Draw(g, "check", dot, 14 * s, t.Primary, 2.5f);
-                Txt(g, saved + ". Kapture gebruikt ze nu.", Fonts.Ui(13 * s, 1), new RectangleF(lx + P(30), foot.Y, lw - P(30), foot.Height), t.OnSurface, false);
+                Txt(g, saved + ". Kapture gebruikt ze nu.", Fonts.Ui(13 * s, 2), new RectangleF(lx + P(30), foot.Y, lw - P(30), foot.Height), t.OnSurface, false);
             }
             else if (dirty)
                 Txt(g, "Je hebt wijzigingen die nog niet bewaard zijn.", mf, new RectangleF(lx, foot.Y, lw, foot.Height), t.OnSurface, false);
@@ -653,11 +658,11 @@ namespace Kapture
                 foreach (Card c in sec.Cards) foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) { cards.Add(c); break; }
                 if (cards.Count == 0) continue;
                 any = true;
-                Txt(g, sec.Name, Fonts.Ui(26 * s, 1), new RectangleF(x, y, w, P(36)), t.OnSurface, false);
-                y += P(40);
-                Font df = Fonts.Ui(13 * s, 0);
+                Txt(g, sec.Name, Fonts.Ui(24 * s, 1), new RectangleF(x, y, w, P(32)), t.OnSurface, false);   // Stitch: headline-lg
+                y += P(36);
+                Font df = Fonts.Ui(14 * s, 0);                                                                 // body-md
                 Txt(g, sec.Desc, df, new RectangleF(x, y, w, P(60)), t.Variant, true);
-                y += TextH(sec.Desc, df, w) + P(16);
+                y += TextH(sec.Desc, df, w) + P(20);
                 foreach (Card c in cards) { y += DrawCard(g, c, x, y, w, q); y += P(CardGap); }
                 y += P(SectionGap) - P(CardGap);
             }
@@ -667,11 +672,116 @@ namespace Kapture
             DrawScrollbar(g, area);
         }
 
+        // De stappen van een preset als korte woorden, in de volgorde waarin ze gebeuren
+        List<string> StepChips(int p)
+        {
+            List<string> list = new List<string>();
+            list.Add(p == Presets.ChooseLater ? "Wachten op keuze" : p == Presets.SaveIn ? "Map kiezen" : "Opslaan");
+            int st = Presets.StepsOf(work, p);
+            if ((st & Presets.StepCopyImage) != 0) list.Add("Kopiëren");
+            if ((st & Presets.StepCopyFile) != 0) list.Add("Bestand kopiëren");
+            if ((st & Presets.StepEditor) != 0) list.Add("Editor");
+            if ((st & Presets.StepToast) != 0) list.Add(p == Presets.ChooseLater ? "Bewaren of kopiëren" : "Melding");
+            if ((st & Presets.StepNote) != 0) list.Add("Notitie");
+            return list;
+        }
+
+        // Presets-pagina (Stitch 6): icoon, naam met "Actief", uitleg, de stappen als blokjes met pijltjes, en "..." voor
+        // de schakelaars. Klik op de kaart maakt hem de actieve preset (dezelfde als de knop in de werkbalk).
+        float DrawPresetCard(Graphics g, Card c, float x, float y, float w, string q)
+        {
+            bool active = cfg.Preset == c.Preset;
+            Font titleF = Fonts.Ui(15 * s, 1), descF = Fonts.Ui(12 * s, 0), chipF = Fonts.Ui(11 * s, 2);
+            float pad = P(CardPad), inner = w - 2 * pad;
+            float tx = x + pad + P(36) + P(12), textW = x + w - pad - P(40) - tx;
+            float descH = TextH(c.Desc, descF, textW);
+            // blokjes: zo veel per regel als past
+            List<string> chips = StepChips(c.Preset);
+            float chipH = P(24), arrowW = P(22), cx = tx, cy = 0;
+            List<RectangleF> chipR = new List<RectangleF>();
+            foreach (string ch in chips)
+            {
+                float cw = TextW(ch, chipF) + P(20);
+                if (cx + cw > x + w - pad && cx > tx) { cx = tx; cy += chipH + P(8); }
+                chipR.Add(new RectangleF(cx, cy, cw, chipH));
+                cx += cw + arrowW;
+            }
+            float headH = P(22) + P(2) + descH;
+            float chipsTop = y + pad + headH + P(16);
+            bool showRows = c.Open || q.Length > 0;
+            List<Row> rows = new List<Row>();
+            if (showRows) foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) rows.Add(r);
+            List<float> rowH = new List<float>();
+            float total = (chipsTop - y) + cy + chipH + pad;
+            if (rows.Count > 0) total += P(16) - P(RowPadY) + P(4);
+            foreach (Row r in rows) { float h = RowHeight(r, inner); rowH.Add(h); total += h; }
+
+            RectangleF cr = new RectangleF(x, y, w, total);
+            string cardId = "preset-kaart-" + c.Preset;
+            zones.Add(new Zone { R = cr, Id = cardId, Click = delegate { if (cfg.Preset != c.Preset) { cfg.Preset = c.Preset; cfg.Save(); } } });
+            float bw = active ? Math.Max(2, P(2)) : 1;
+            using (GraphicsPath gp = Svg.RoundRect(new RectangleF(cr.X + bw / 2, cr.Y + bw / 2, cr.Width - bw, cr.Height - bw), P(12)))
+            using (SolidBrush b = new SolidBrush(t.Surface))
+            using (Pen p = new Pen(active ? t.Primary : (hot == cardId ? Theme.Mix(t.OutlineVariant, t.Primary, 0.5f) : t.OutlineVariant), bw)) { g.FillPath(b, gp); g.DrawPath(p, gp); }
+            RectangleF tile = new RectangleF(x + pad, y + pad, P(36), P(36));
+            using (GraphicsPath tp = Svg.RoundRect(tile, P(8))) using (SolidBrush b = new SolidBrush(active ? t.PrimaryContainer : t.Container)) g.FillPath(b, tp);
+            Icons.Draw(g, c.Icon, tile, 16 * s, active ? t.Primary : t.Variant, 2);
+            Txt(g, c.Title, titleF, new RectangleF(tx, y + pad, textW, P(22)), t.OnSurface, false);
+            if (active)
+            {
+                float bx = tx + TextW(c.Title, titleF) + P(8);
+                RectangleF badge = new RectangleF(bx, y + pad + P(3), TextW("Actief", chipF) + P(16), P(18));
+                using (GraphicsPath bp = Svg.RoundRect(badge, P(6))) using (SolidBrush b = new SolidBrush(t.PrimaryContainer)) g.FillPath(b, bp);
+                Txt(g, "Actief", chipF, badge, t.OnPrimaryContainer, false, StringAlignment.Center);
+            }
+            Txt(g, c.Desc, descF, new RectangleF(tx, y + pad + P(24), textW, descH + P(4)), t.Variant, true);
+            // de stappen
+            for (int i = 0; i < chipR.Count; i++)
+            {
+                RectangleF r = chipR[i]; r.Offset(0, chipsTop);
+                using (GraphicsPath cp = Svg.RoundRect(new RectangleF(r.X + 0.5f, r.Y + 0.5f, r.Width - 1, r.Height - 1), P(6)))
+                using (SolidBrush b = new SolidBrush(t.SurfaceLow))
+                using (Pen p = new Pen(t.OutlineVariant)) { g.FillPath(b, cp); g.DrawPath(p, cp); }
+                Txt(g, chips[i], chipF, r, t.OnSurface, false, StringAlignment.Center);
+                bool lastOnLine = i == chipR.Count - 1 || chipR[i + 1].Y != chipR[i].Y;
+                if (i < chipR.Count - 1)
+                {
+                    // pijltje naar het volgende blokje (ook aan het eind van een regel)
+                    float ax = lastOnLine ? r.Right + P(4) : r.Right + P(5), ay = r.Y + r.Height / 2;
+                    using (Pen ap = new Pen(t.Outline, Math.Max(1, 1.25f * s)))
+                    {
+                        ap.StartCap = LineCap.Round; ap.EndCap = LineCap.Round;
+                        g.DrawLine(ap, ax, ay, ax + P(11), ay);
+                        g.DrawLine(ap, ax + P(11), ay, ax + P(7), ay - P(4));
+                        g.DrawLine(ap, ax + P(11), ay, ax + P(7), ay + P(4));
+                    }
+                }
+            }
+            // de schakelaars
+            float ry = chipsTop + cy + chipH + P(16) + P(4);
+            for (int i = 0; i < rows.Count; i++)
+            {
+                using (Pen p = new Pen(t.OutlineVariant)) g.DrawLine(p, x + pad, ry - 0.5f, x + w - pad, ry - 0.5f);
+                DrawRow(g, rows[i], new RectangleF(x + pad, ry, inner, rowH[i]));
+                ry += rowH[i];
+            }
+            // "...": de stappen aan- of uitzetten
+            RectangleF more = new RectangleF(x + w - pad - P(32) + P(6), y + pad - P(4), P(32), P(32));
+            string moreId = "preset-meer-" + c.Preset;
+            if (hot == moreId || c.Open)
+                using (GraphicsPath mp = Svg.RoundRect(more, P(6))) using (SolidBrush b = new SolidBrush(t.Container)) g.FillPath(b, mp);
+            using (SolidBrush db = new SolidBrush(t.Variant))
+                for (int i = -1; i <= 1; i++) g.FillEllipse(db, more.X + more.Width / 2 + i * P(5) - P(1.5f), more.Y + more.Height / 2 - P(1.5f), P(3), P(3));
+            zones.Add(new Zone { R = more, Id = moreId, Click = delegate { c.Open = !c.Open; } });
+            return total;
+        }
+
         float DrawCard(Graphics g, Card c, float x, float y, float w, string q)
         {
-            Font titleF = Fonts.Ui(16 * s, 1), descF = Fonts.Ui(13 * s, 0);
+            if (c.Preset >= 0) return DrawPresetCard(g, c, x, y, w, q);
+            Font titleF = Fonts.Ui(15 * s, 1), descF = Fonts.Ui(12 * s, 0);   // Stitch: title-md en body-sm
             float pad = P(CardPad), inner = w - 2 * pad;
-            float headH = Math.Max(P(40), P(24) + TextH(c.Desc, descF, inner - P(56)));
+            float headH = Math.Max(P(40), P(22) + P(2) + TextH(c.Desc, descF, inner - P(56)));
             List<Row> rows = new List<Row>();
             foreach (Row r in c.Rows) if (ShowsRow(r) && Matches(r, q)) rows.Add(r);
             List<float> rowH = new List<float>();
@@ -686,9 +796,9 @@ namespace Kapture
             RectangleF tile = new RectangleF(x + pad, y + pad, P(40), P(40));
             using (GraphicsPath tp = Svg.RoundRect(tile, P(10))) using (SolidBrush b = new SolidBrush(t.Fill)) g.FillPath(b, tp);
             Icons.Draw(g, c.Icon, tile, 20 * s, Color.White, 2);
-            float tx = tile.Right + P(16);
-            Txt(g, c.Title, titleF, new RectangleF(tx, y + pad, inner - P(56), P(22)), t.OnSurface, false);
-            Txt(g, c.Desc, descF, new RectangleF(tx, y + pad + P(24), inner - P(56), P(60)), t.Variant, true);
+            float tx = tile.Right + P(12);
+            Txt(g, c.Title, titleF, new RectangleF(tx, y + pad, inner - P(52), P(22)), t.OnSurface, false);
+            Txt(g, c.Desc, descF, new RectangleF(tx, y + pad + P(24), inner - P(52), P(60)), t.Variant, true);
             float ry = y + pad + headH + P(16);
             for (int i = 0; i < rows.Count; i++)
             {
@@ -724,8 +834,8 @@ namespace Kapture
         }
 
         float KeycapW(string k) { return TextW(k, Fonts.Mono(12 * s)) + P(16); }
-        float SegW(string seg) { return TextW(seg, Fonts.Ui(13 * s, 1)) + P(28); }
-        float BtnW(Btn b) { return TextW(LabelOf(b), Fonts.Ui(13 * s, 1)) + P(24) + (b.Icon != null ? P(24) : 0); }
+        float SegW(string seg) { return TextW(seg, Fonts.Ui(12 * s, 2)) + P(28); }
+        float BtnW(Btn b) { return TextW(LabelOf(b), Fonts.Ui(12 * s, 2)) + P(24) + (b.Icon != null ? P(24) : 0); }
 
         Font SubFont(Row r) { return r.MonoSub ? Fonts.Mono(12 * s) : Fonts.Ui(12 * s, 0); }
 
@@ -741,7 +851,7 @@ namespace Kapture
         {
             float cw = ControlWidth(r);
             float tw = rr.Width - (cw > 0 ? cw + P(ControlGap) : 0);
-            Txt(g, r.Title, Fonts.Ui(14 * s, 1), new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), t.OnSurface, false);
+            Txt(g, r.Title, Fonts.Ui(13 * s, 2), new RectangleF(rr.X, rr.Y + P(RowPadY), tw, P(20)), t.OnSurface, false);   // Stitch: label-lg
             string sub = r.Sub != null ? r.Sub() : "";
             bool warn = r.Warn != null && r.Warn();
             Txt(g, sub, SubFont(r), new RectangleF(rr.X, rr.Y + P(RowPadY) + P(24), tw, rr.Height), warn ? t.Error : t.Variant, true);
@@ -785,7 +895,7 @@ namespace Kapture
                                 using (Pen spn = new Pen(t.OutlineVariant)) { g.FillPath(sb, sp); g.DrawPath(spn, sp); }
                             else if (hot == id)
                                 using (GraphicsPath sp = Svg.RoundRect(seg, P(6))) using (SolidBrush sb = new SolidBrush(t.ContainerHigh)) g.FillPath(sb, sp);
-                            Txt(g, r.Segments[i], Fonts.Ui(13 * s, 1), seg, i == cur ? t.OnSurface : t.Variant, false, StringAlignment.Center);
+                            Txt(g, r.Segments[i], Fonts.Ui(12 * s, 2), seg, i == cur ? t.OnSurface : t.Variant, false, StringAlignment.Center);
                             int idx = i; Row row = r;
                             zones.Add(new Zone { R = seg, Id = id, Click = delegate { row.SetIndex(idx); } });
                             sx += sw;
@@ -812,7 +922,7 @@ namespace Kapture
                             }
                             zones.Add(new Zone { R = b, Id = id, Click = delegate { int n = row.GetNumber() + (isPlus ? 1 : -1); row.SetNumber(Math.Max(row.Min, Math.Min(row.Max, n))); } });
                         }
-                        Txt(g, r.GetNumber() + r.Unit, Fonts.Ui(14 * s, 1), new RectangleF(minus.Right, box.Y, plus.X - minus.Right, box.Height), t.OnSurface, false, StringAlignment.Center);
+                        Txt(g, r.GetNumber() + r.Unit, Fonts.Ui(13 * s, 2), new RectangleF(minus.Right, box.Y, plus.X - minus.Right, box.Height), t.OnSurface, false, StringAlignment.Center);
                         break;
                     }
                 case RowKind.Buttons:
@@ -835,7 +945,7 @@ namespace Kapture
                             Color fc = b.Primary ? t.OnFill : t.OnSurface;
                             float lx = br.X + P(12);
                             if (b.Icon != null) { Icons.Draw(g, b.Icon, new RectangleF(lx, br.Y, P(16), br.Height), 16 * s, b.Primary ? t.OnFill : t.Primary, 2); lx += P(24); }
-                            Txt(g, LabelOf(b), Fonts.Ui(13 * s, 1), new RectangleF(lx, br.Y, br.Right - lx - P(4), br.Height), fc, false);
+                            Txt(g, LabelOf(b), Fonts.Ui(12 * s, 2), new RectangleF(lx, br.Y, br.Right - lx - P(4), br.Height), fc, false);
                             Action click = b.Click;
                             zones.Add(new Zone { R = br, Id = id, Click = delegate { try { click(); } catch (Exception ex) { Log.Error("Knop in Instellingen mislukt", ex); } } });
                             bx += bw + P(8);
@@ -1026,7 +1136,7 @@ namespace Kapture
             try
             {
                 s = scale; t = theme;
-                search.Font = Fonts.Ui(14 * s, 0);
+                search.Font = Fonts.ForControl(14 * s, 0);
                 Size size = new Size(P(1040), P(720));
                 search.Text = query ?? "";
                 navIndex = section; scrollY = 0;

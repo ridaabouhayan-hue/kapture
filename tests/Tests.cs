@@ -96,6 +96,7 @@ namespace Kapture
                 File.WriteAllText(sp, "presetStappen=abc,99,-5,3");
                 Settings bad = Settings.Load(sp);
                 Is(bad.PresetSteps[0] == -1 && bad.PresetSteps[1] == -1 && bad.PresetSteps[2] == -1 && bad.PresetSteps[3] == 3, "onzin in de stappen wordt standaard");
+                Is(Fonts.UsesStitchFonts, "Inter en JetBrains Mono zitten in Kapture");
                 Is(Presets.IsTemp(Path.Combine(Presets.TempFolder, "a.png")) && !Presets.IsTemp(Path.Combine(dir, "a.png")), "tijdelijke map herkennen");
                 Settings def = new Settings();
                 Is(def.HotkeyCapture && def.HotkeyNote && def.HotkeyLastNote && def.NoteStrip && def.NoteTextFile && !def.MonthFolders, "standaard: alles aan, geen maandmappen");

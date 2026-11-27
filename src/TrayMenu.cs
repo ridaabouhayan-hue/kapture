@@ -108,11 +108,11 @@ namespace Kapture
                     if (e.Header)
                     {
                         float hw = mg.MeasureString(e.Text, Fonts.Ui(13 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
-                        if (e.Chip != null) hw += P(HintGap) + mg.MeasureString(e.Chip, Fonts.Ui(11 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width + P(16);
+                        if (e.Chip != null) hw += P(HintGap) + mg.MeasureString(e.Chip, Fonts.Ui(11 * s, 2), PointF.Empty, StringFormat.GenericTypographic).Width + P(16);
                         textW = Math.Max(textW, hw);
                         continue;
                     }
-                    textW = Math.Max(textW, mg.MeasureString(e.Text, Fonts.Ui(FontPx * s, 0), PointF.Empty, StringFormat.GenericTypographic).Width);
+                    textW = Math.Max(textW, mg.MeasureString(e.Text, Fonts.Ui(FontPx * s, 2), PointF.Empty, StringFormat.GenericTypographic).Width);
                     if (e.Hint != null) hintW = Math.Max(hintW, mg.MeasureString(e.Hint, Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width + P(14));
                 }
             }
@@ -158,7 +158,7 @@ namespace Kapture
                     g.DrawPath(pen, gp);
                 }
 
-                Font f = Fonts.Ui(FontPx * s, 0);
+                Font f = Fonts.Ui(FontPx * s, 2);   // Stitch: label-md, 12 px medium
                 StringFormat sf = new StringFormat(StringFormat.GenericTypographic);
                 sf.FormatFlags |= StringFormatFlags.NoWrap; sf.LineAlignment = StringAlignment.Center;
                 for (int i = 0; i < entries.Count; i++)
@@ -215,7 +215,7 @@ namespace Kapture
             using (SolidBrush fg = new SolidBrush(t.OnSurface)) g.DrawString(e.Text, Fonts.Ui(13 * s, 1), fg, new RectangleF(tx, r.Y, r.Width, r.Height), sf);
             if (e.Chip != null)
             {
-                Font cf = Fonts.Ui(11 * s, 1);
+                Font cf = Fonts.Ui(11 * s, 2);   // label-sm
                 float cw = g.MeasureString(e.Chip, cf, PointF.Empty, StringFormat.GenericTypographic).Width + P(16);
                 RectangleF chip = new RectangleF(r.Right - P(Inset) + P(4) - cw, (float)Math.Round(r.Y + (r.Height - P(22)) / 2), cw, P(22));
                 using (GraphicsPath cp = Svg.RoundRect(chip, P(11))) using (SolidBrush cb = new SolidBrush(t.PrimaryContainer)) g.FillPath(cb, cp);

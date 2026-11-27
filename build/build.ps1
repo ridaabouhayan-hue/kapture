@@ -16,6 +16,8 @@ if ($LASTEXITCODE -ne 0) { throw "Logo-icoon maken mislukt" }
 
 $src = @(Get-ChildItem (Join-Path $root "src") -Filter *.cs -Recurse | ForEach-Object { $_.FullName })
 $res = @("/resource:$out\Kapture.ico,Kapture.ico")
+# lettertypes uit het Stitch-ontwerp, in Kapture.exe zelf (er hoeft niets geïnstalleerd te worden)
+foreach ($f in Get-ChildItem (Join-Path $root "assets\fonts") -Filter *.ttf) { $res += "/resource:$($f.FullName),Kapture.Fonts.$($f.Name)" }
 
 Write-Host "Kapture.exe bouwen..."
 & $csc /nologo /target:winexe /optimize+ /unsafe /platform:anycpu /warn:4 `

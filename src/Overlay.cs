@@ -39,7 +39,7 @@ namespace Kapture
         public void Layout(Rectangle monitor, float scale, Graphics measure)
         {
             s = scale;
-            Font f = Fonts.Ui(12 * s, 0), fb = Fonts.Ui(12 * s, 1);
+            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 2);   // Stitch: label-md, 12 px medium
             int pad = P(8), gap = P(6), h = P(36);
             int x = pad;
             foreach (Item it in Items)
@@ -87,7 +87,7 @@ namespace Kapture
             using (Pen p = new Pen(t.OutlineVariant, Math.Max(1, P(1))))
             { g.FillPath(b, gp); g.DrawPath(p, gp); }
 
-            Font f = Fonts.Ui(12 * s, 0), fb = Fonts.Ui(12 * s, 1);
+            Font f = Fonts.Ui(12 * s, 2), fb = Fonts.Ui(12 * s, 2);   // Stitch: label-md, 12 px medium
             foreach (Item it in Items)
             {
                 Rectangle r = it.Rect;
@@ -745,7 +745,7 @@ namespace Kapture
         {
             using (Bitmap b = new Bitmap(1, 1)) using (Graphics g = Graphics.FromImage(b))
             {
-                float a = g.MeasureString(SavedText, Fonts.Ui(12 * s, 1), PointF.Empty, StringFormat.GenericTypographic).Width;
+                float a = g.MeasureString(SavedText, Fonts.Ui(12 * s, 2), PointF.Empty, StringFormat.GenericTypographic).Width;
                 float k = g.MeasureString("Enter", Fonts.Mono(11 * s), PointF.Empty, StringFormat.GenericTypographic).Width;
                 return (int)Math.Ceiling(P(10) + P(14) + P(6) + a + P(10) + P(8) + k + P(14));
             }
@@ -772,7 +772,7 @@ namespace Kapture
             Icons.Draw(g, "file", new RectangleF(noteBar.X + P(16), top + (lineH - P(18)) / 2f, P(18), P(18)), 18 * s, t.Primary, 2);
 
             // rechts: wat er al gebeurd is (SavedText) en het toetsje Enter
-            Font chipF = Fonts.Ui(12 * s, 1), keyF = Fonts.Mono(11 * s);
+            Font chipF = Fonts.Ui(12 * s, 2), keyF = Fonts.Mono(11 * s);
             float aw = g.MeasureString(SavedText, chipF, PointF.Empty, StringFormat.GenericTypographic).Width;
             float kw = g.MeasureString("Enter", keyF, PointF.Empty, StringFormat.GenericTypographic).Width;
             Rectangle key = new Rectangle(noteBar.Right - P(14) - (int)Math.Ceiling(kw + P(16)), top + (lineH - P(24)) / 2, (int)Math.Ceiling(kw + P(16)), P(24));

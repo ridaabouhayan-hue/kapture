@@ -1,6 +1,6 @@
 ; Kapture installer (Inno Setup 6). Installeert voor de huidige gebruiker, zonder beheerdersrechten.
 #ifndef AppVersion
-  #define AppVersion "0.5.0"
+  #define AppVersion "0.6.0"
 #endif
 
 [Setup]
@@ -40,6 +40,8 @@ Name: "autostart"; Description: "Starten met Windows"
 Source: "..\out\Kapture.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\assets\LICENSE-Lucide.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
 Source: "..\assets\LICENSE-Phosphor.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
+Source: "..\assets\fonts\LICENSE-Inter.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
+Source: "..\assets\fonts\LICENSE-JetBrainsMono.txt"; DestDir: "{app}\licenties"; Flags: ignoreversion
 
 [Icons]
 Name: "{userprograms}\Kapture"; Filename: "{app}\Kapture.exe"

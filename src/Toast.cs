@@ -178,7 +178,7 @@ namespace Kapture
         SizeF Measure(string text)
         {
             using (Bitmap b = new Bitmap(1, 1)) using (Graphics g = Graphics.FromImage(b))
-                return g.MeasureString(text, Fonts.Ui(12 * s, 0), PointF.Empty, StringFormat.GenericTypographic);
+                return g.MeasureString(text, Fonts.Ui(12 * s, 2), PointF.Empty, StringFormat.GenericTypographic);
         }
 
         // Tekent de hele melding in een plaatje met doorzichtigheid en zet dat op het scherm
@@ -318,8 +318,8 @@ namespace Kapture
             using (SolidBrush fg = new SolidBrush(primary ? t.OnSurface : t.Variant))
             {
                 StringFormat sf = NoWrap(); sf.LineAlignment = StringAlignment.Center;
-                if (icon == null && !primary) { sf.Alignment = StringAlignment.Center; g.DrawString(label, Fonts.Ui(12 * s, 0), fg, r, sf); }
-                else g.DrawString(label, Fonts.Ui(12 * s, 0), fg, new RectangleF(x, r.Y, r.Right - x, r.Height), sf);
+                if (icon == null && !primary) { sf.Alignment = StringAlignment.Center; g.DrawString(label, Fonts.Ui(12 * s, 2), fg, r, sf); }   // Stitch: label-md
+                else g.DrawString(label, Fonts.Ui(12 * s, 2), fg, new RectangleF(x, r.Y, r.Right - x, r.Height), sf);
             }
         }
 

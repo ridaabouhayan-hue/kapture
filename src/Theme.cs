@@ -68,45 +68,104 @@ namespace Kapture
     }
 
     // ------------------------------------------------------------------ Lettertypes
-    // Voor nu de lettertypes van Windows (Segoe UI, Cascadia Mono). Inter en JetBrains Mono uit het
-    // Stitch-ontwerp komen erbij zodra Rida het downloaden van die bestanden goedkeurt (BOUWPLAN.md, Techniek).
+    // De lettertypes uit het Stitch-ontwerp: Inter voor alle tekst, JetBrains Mono voor sneltoetsen en maten
+    // (goedgekeurd door Rida op 27-11; OFL-licentie, in assets/fonts). Lukt laden niet, dan Segoe UI en Consolas.
     static class Fonts
     {
-        static HashSet<string> installed;
         static readonly Dictionary<string, Font> cache = new Dictionary<string, Font>();
+        static readonly object gate = new object();
+        // Inter en JetBrains Mono uit Kapture.exe zelf: per bestand een eigen verzameling, zodat elk gewicht zijn eigen
+        // bestand houdt (Regular, Medium, SemiBold, Mono), ook als een systeem ze allemaal "Inter" noemt
+        static readonly List<PrivateFontCollection> own = new List<PrivateFontCollection>();
+        static readonly Dictionary<string, FontFamily> ownFamilies = new Dictionary<string, FontFamily>(StringComparer.OrdinalIgnoreCase);
+        static bool loaded;
 
-        static bool Has(string name)
+        // De lettertypes uit het Stitch-ontwerp laden uit de resources van Kapture.exe. Twee keer: voor GDI+ (DrawString)
+        // en voor GDI (TextRenderer, scherpe ClearType-tekst). Alleen voor Kapture zelf; er wordt niets geïnstalleerd.
+        static void Load()
         {
-            if (installed == null)
+            if (loaded) return;
+            loaded = true;
+            try
             {
-                installed = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-                try { using (InstalledFontCollection c = new InstalledFontCollection()) foreach (FontFamily f in c.Families) installed.Add(f.Name); }
-                catch { }
+                System.Reflection.Assembly asm = typeof(Fonts).Assembly;
+                foreach (string name in asm.GetManifestResourceNames())
+                {
+                    if (!name.StartsWith("Kapture.Fonts.", StringComparison.Ordinal) || !name.EndsWith(".ttf", StringComparison.OrdinalIgnoreCase)) continue;
+                    byte[] data;
+                    using (System.IO.Stream st = asm.GetManifestResourceStream(name))
+                    using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) { st.CopyTo(ms); data = ms.ToArray(); }
+                    // het geheugen moet blijven bestaan zolang Kapture draait: niet vrijgeven
+                    IntPtr mem = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(data.Length);
+                    System.Runtime.InteropServices.Marshal.Copy(data, 0, mem, data.Length);
+                    PrivateFontCollection pfc = new PrivateFontCollection();
+                    pfc.AddMemoryFont(mem, data.Length);
+                    own.Add(pfc);
+                    uint count = 0;
+                    try { W.AddFontMemResourceEx(mem, (uint)data.Length, IntPtr.Zero, ref count); } catch { }
+                    if (pfc.Families.Length == 0) continue;
+                    string key = name.Contains("JetBrainsMono") ? "Mono" : name.Contains("SemiBold") ? "SemiBold" : name.Contains("Medium") ? "Medium" : "Regular";
+                    ownFamilies[key] = pfc.Families[0];
+                }
             }
-            return installed.Contains(name);
+            catch (Exception ex) { Log.Error("Lettertypes laden mislukt", ex); }
         }
 
-        static string Pick(params string[] names)
-        {
-            foreach (string n in names) if (Has(n)) return n;
-            return "Segoe UI";
-        }
-
-        // gewicht: 0 = gewoon, 1 = halfvet
+        // gewicht: 0 = gewoon (400), 1 = halfvet (600, koppen), 2 = medium (500, knoppen en labels)
         public static Font Ui(float px, int weight)
         {
-            // Segoe UI, net als NexusPen: Windows tekent die haarscherp. Segoe UI Variable gaf gekartelde letters.
-            string fam = weight >= 1 ? Pick("Segoe UI Semibold", "Segoe UI") : Pick("Segoe UI");
-            return Get(fam, px, FontStyle.Regular);
+            lock (gate)
+            {
+                Load();
+                string fam = weight == 1 ? "SemiBold" : weight == 2 ? "Medium" : "Regular";
+                if (OnMono) return GetInstalled(weight == 1 ? "Inter SemiBold" : weight == 2 ? "Inter Medium" : "Inter", px);   // alleen de tests op Linux
+                if (ownFamilies.ContainsKey(fam)) return Get(fam, px);
+                // reserve: Segoe UI, net als NexusPen (Segoe UI Variable gaf gekartelde letters)
+                return GetInstalled(weight >= 1 ? "Segoe UI Semibold" : "Segoe UI", px);
+            }
         }
 
-        public static Font Mono(float px) { return Get(Pick("Cascadia Mono", "Consolas"), px, FontStyle.Regular); }
-
-        static Font Get(string fam, float px, FontStyle st)
+        // Sneltoetsen, maten en tijden (JetBrains Mono, zoals in Stitch)
+        public static Font Mono(float px)
         {
-            string key = fam + "|" + px.ToString("0.00") + "|" + st;
+            lock (gate)
+            {
+                Load();
+                if (OnMono) return GetInstalled("JetBrains Mono", px);
+                if (ownFamilies.ContainsKey("Mono")) return Get("Mono", px);
+                return GetInstalled("Consolas", px);
+            }
+        }
+
+        // Tekst die in de screenshot zelf komt (editor: tekst en nummers): vet, zoals altijd, met het lettertype van Windows.
+        // De eigen lettertypes hebben geen vette stijl, en een opgeslagen screenshot hoort er altijd hetzelfde uit te zien.
+        public static Font Markup(float px) { lock (gate) return GetInstalled("Segoe UI Semibold", px); }
+
+        // Voor gewone Windows-tekstvakken (zoekbalk, notitievak)
+        public static Font ForControl(float px, int weight)
+        {
+            return Ui(px, weight);
+        }
+
+        // Onder Mono (alleen de tests en schermafdrukken op Linux) tekent libgdiplus geen lettertypes uit het geheugen:
+        // daar gebruiken we dezelfde lettertypes als ze in de map met lettertypes staan
+        static readonly bool OnMono = Type.GetType("Mono.Runtime") != null;
+
+        public static bool UsesStitchFonts { get { lock (gate) { Load(); return ownFamilies.ContainsKey("Regular"); } } }
+
+        static Font Get(string fam, float px)
+        {
+            string key = "eigen|" + fam + "|" + px.ToString("0.00");
             Font f;
-            if (!cache.TryGetValue(key, out f)) { f = new Font(fam, px, st, GraphicsUnit.Pixel); cache[key] = f; }
+            if (!cache.TryGetValue(key, out f)) { f = new Font(ownFamilies[fam], px, FontStyle.Regular, GraphicsUnit.Pixel); cache[key] = f; }
+            return f;
+        }
+
+        static Font GetInstalled(string fam, float px)
+        {
+            string key = fam + "|" + px.ToString("0.00");
+            Font f;
+            if (!cache.TryGetValue(key, out f)) { f = new Font(fam, px, FontStyle.Regular, GraphicsUnit.Pixel); cache[key] = f; }
             return f;
         }
     }

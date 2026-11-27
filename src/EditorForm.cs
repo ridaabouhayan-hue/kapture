@@ -106,7 +106,7 @@ namespace Kapture
                 // (dit is de buitenmaat, met titelbalk en rand)
                 Size = new Size(Math.Min(wa.Width, Math.Max(P(900), (int)(wa.Width * 0.9f))), Math.Min(wa.Height, Math.Max(P(600), (int)(wa.Height * 0.9f))));
             }
-            noteBox.Font = Fonts.Ui(13 * s, 0);
+            noteBox.Font = Fonts.ForControl(13 * s, 0);
             ApplyTheme();
             LayoutNote();
             Invalidate();
@@ -379,13 +379,13 @@ namespace Kapture
             using (SolidBrush b = new SolidBrush(t.Surface)) g.FillRectangle(b, p);
             using (Pen pen = new Pen(t.OutlineVariant)) g.DrawLine(pen, p.X + 0.5f, p.Y, p.X + 0.5f, p.Bottom);
             float x = p.X + P(Pad), w = p.Width - 2 * P(Pad), y = p.Y + P(Pad);
-            Font h = Fonts.Ui(14 * s, 1), lf = Fonts.Ui(12 * s, 1);
+            Font h = Fonts.Ui(13 * s, 1), lf = Fonts.Ui(12 * s, 2);   // Stitch: title-sm en label-md
             Txt(g, "Eigenschappen", h, new RectangleF(x, y, w, P(24)), t.OnSurface, Mid);
             string chip = NameOf(CurrentKind);
-            float cw = TextRenderer.MeasureText(chip, Fonts.Ui(11 * s, 1), Size.Empty, TextFormatFlags.NoPadding).Width + P(16);
+            float cw = TextRenderer.MeasureText(chip, Fonts.Ui(11 * s, 2), Size.Empty, TextFormatFlags.NoPadding).Width + P(16);
             RectangleF chipR = new RectangleF(x + w - cw, y + P(2), cw, P(20));
             using (GraphicsPath gp = Svg.RoundRect(chipR, P(6))) using (SolidBrush b = new SolidBrush(t.PrimaryContainer)) g.FillPath(b, gp);
-            Txt(g, chip, Fonts.Ui(11 * s, 1), chipR, t.OnPrimaryContainer, Mid | TextFormatFlags.HorizontalCenter);
+            Txt(g, chip, Fonts.Ui(11 * s, 2), chipR, t.OnPrimaryContainer, Mid | TextFormatFlags.HorizontalCenter);
             y += P(44);
 
             if (UsesColor)
@@ -448,9 +448,9 @@ namespace Kapture
 
         float Slider(Graphics g, string label, string value, string id, float frac, float x, float y, float w)
         {
-            Font lf = Fonts.Ui(12 * s, 1);
+            Font lf = Fonts.Ui(12 * s, 2);
             Txt(g, label, lf, new RectangleF(x, y, w, P(18)), t.Variant, Mid);
-            Txt(g, value, Fonts.Mono(12 * s), new RectangleF(x, y, w, P(18)), t.OnSurface, Mid | TextFormatFlags.Right);
+            Txt(g, value, Fonts.Mono(11 * s), new RectangleF(x, y, w, P(18)), t.OnSurface, Mid | TextFormatFlags.Right);
             float ty = y + P(30);
             RectangleF track = new RectangleF(x, ty - P(2), w, P(4));
             using (GraphicsPath gp = Svg.RoundRect(track, P(2))) using (SolidBrush b = new SolidBrush(t.ContainerHigh)) g.FillPath(b, gp);
@@ -514,7 +514,7 @@ namespace Kapture
 
         float FooterButton(Graphics g, string label, string icon, string id, bool primary, float right, float y, float h, Action click)
         {
-            Font bf = Fonts.Ui(13 * s, 1);
+            Font bf = Fonts.Ui(13 * s, 2);   // Stitch: label-lg
             float w = TextRenderer.MeasureText(label, bf, Size.Empty, TextFormatFlags.NoPadding).Width + P(16) + P(24) + P(18);
             RectangleF r = new RectangleF(right - w, y, w, h);
             Color bg = primary ? (hot == id ? Theme.Mix(t.Fill, Color.Black, 0.15f) : t.Fill) : (hot == id ? t.Container : t.Surface);

@@ -1,4 +1,12 @@
-# Kapture 0.5.0
+# Kapture 0.6.0
+
+Nieuw in 0.6: **dichter bij het Stitch-ontwerp**.
+- **Inter en JetBrains Mono**, de lettertypes uit het ontwerp, zitten nu in Kapture zelf (je hoeft niets te installeren). Alle tekst is strakker en lichter, met de maten en gewichten uit het ontwerpsysteem.
+- **Instellingen** volgen Stitch nauwer: kleinere koppen, rustigere menu-items, knoppen en keuzes in medium in plaats van vet.
+- **Presets** zoals in Stitch: per preset een kaart met de stappen als blokjes en pijltjes (Opslaan, Kopiëren, Melding, Notitie), het label **Actief**, en achter **...** de schakelaars. Klik op een kaart om hem de actieve preset te maken.
+- Werkbalk, melding, menu bij de klok en editor gebruiken dezelfde maten als het ontwerp.
+
+## Kapture 0.5.0
 
 Nieuw in 0.5: **de workflow, zoals in ShareX, maar eenvoudig**.
 - **Instellingen, Presets**: per preset zet je de stappen aan of uit: Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen en Notitie. Met Herstellen staat alles weer zoals het was.
