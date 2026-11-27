@@ -122,6 +122,7 @@ Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; bi
 | Kies zelf | niets vanzelf; alleen de melding met knoppen |
 | Opslaan in... | kiezen uit recente en favoriete mappen |
 Eigen presets maken kan vanaf 1.0 (stappen aan en uit, zoals in Instellingen > Presets).
+Reeks (0.7): screenshots met steeds hoogstens 10 minuten ertussen. De melding toont dan "Alle N kopiëren" in plaats van Map openen: alle bestanden tegelijk op het klembord, oudste eerst, één keer plakken in Claude. Je hoeft vooraf niets te kiezen (Rida 27-11: "pas erna weet ik dat ik ze wil bundelen").
 Stappen per preset (0.5): Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen, Notitie; aan of uit in Instellingen, Presets. Vast: Doorsturen nooit een notitie; Kies zelf altijd de melding en nooit vanzelf kopiëren. Kies zelf bewaart eerst in %LOCALAPPDATA%\Kapture\tijdelijk (na een dag opgeruimd). Opslaan in... onthoudt de laatste vijf mappen.
 
 ## Editor (eerste versie)

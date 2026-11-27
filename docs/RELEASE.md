@@ -1,4 +1,10 @@
-# Kapture 0.6.0
+# Kapture 0.7.0
+
+Nieuw in 0.7:
+- **Meerdere screenshots in één keer naar Claude**: maak je een paar screenshots kort na elkaar (steeds hoogstens 10 minuten ertussen), dan staat in de melding **Alle 3 kopiëren** (of hoeveel het er zijn). Eén klik en ze staan allemaal op je klembord; met één keer Ctrl+V zet je ze samen in Claude, op volgorde. Je hoeft vooraf niets aan te zetten.
+- **Nieuwe icoontjes**: Lucide, dunne lijnen zonder vulling, zoals in het Stitch-ontwerp.
+
+## Kapture 0.6.0
 
 Nieuw in 0.6: **dichter bij het Stitch-ontwerp**.
 - **Inter en JetBrains Mono**, de lettertypes uit het ontwerp, zitten nu in Kapture zelf (je hoeft niets te installeren). Alle tekst is strakker en lichter, met de maten en gewichten uit het ontwerpsysteem.

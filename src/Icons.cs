@@ -46,7 +46,9 @@ namespace Kapture
             return r;
         }
 
-        public static bool IsPhosphor(string name) { return PhosphorData.All.ContainsKey(name); }
+        // Lucide (keuze van Rida 27-11, ook de keuze van Stitch). Phosphor duotone blijft als reserve in PhosphorData.cs.
+        public static bool UsePhosphor = false;
+        public static bool IsPhosphor(string name) { return UsePhosphor && PhosphorData.All.ContainsKey(name); }
 
         // De zachte vulling: bij een licht icoon (wit op blauw) een beetje van die kleur, anders licht kobalt
         static Color TintFor(Color c)

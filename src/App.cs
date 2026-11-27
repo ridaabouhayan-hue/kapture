@@ -666,6 +666,14 @@ namespace Kapture
             c.OnAction = delegate { OpenEditor(entry, c.Note); };   // c.Note: net getypt in de melding
             c.Action2Label = "Map openen"; c.Action2Icon = "folder-open";
             c.OnAction2 = delegate { ShowInFolder(entry.Path); };
+            // een reeks: meerdere screenshots kort na elkaar. Dan in plaats van Map openen: alles in één keer kopiëren,
+            // zodat je ze met één keer plakken samen in Claude zet (je hoeft vooraf niets te kiezen)
+            System.Collections.Generic.List<Shot> run = RecentRun(entry);
+            if (run.Count >= 2)
+            {
+                c.Action2Label = "Alle " + run.Count + " kopiëren"; c.Action2Icon = "copy";
+                c.OnAction2 = delegate { CopyRun(RecentRun(entry)); };
+            }
             c.OnThumb = delegate { if (cfg.ThumbOpensEditor) OpenEditor(entry, c.Note); else Open(entry.Path); };
             c.Seconds = cfg.ToastSeconds;
             c.NoteField = !entry.NoNote; c.Note = note; c.Tag = entry;
@@ -684,6 +692,43 @@ namespace Kapture
             c.OnDelete = delegate { DeleteShot(entry); };
             toast.ShowToast(c, Theme.Current);
             if (edit) toast.BeginEdit();
+        }
+
+        // ---- reeks: screenshots die kort na elkaar gemaakt zijn (steeds hoogstens 10 minuten ertussen), nieuwste eerst
+        public const int RunGapMinutes = 10;
+
+        System.Collections.Generic.List<Shot> RecentRun(Shot newest)
+        {
+            lock (noteGate) return RunOf(history.Items, newest, File.Exists);
+        }
+
+        // De reeks die eindigt bij 'newest' (los, zodat de tests het kunnen nagaan)
+        public static System.Collections.Generic.List<Shot> RunOf(System.Collections.Generic.IList<Shot> items, Shot newest, Func<string, bool> exists)
+        {
+            System.Collections.Generic.List<Shot> run = new System.Collections.Generic.List<Shot>();
+            int at = -1;
+            for (int i = items.Count - 1; i >= 0; i--) if (items[i] == newest) { at = i; break; }
+            if (at < 0) return run;
+            DateTime last = newest.Time;
+            for (int i = at; i >= 0 && run.Count < History.Max; i--)
+            {
+                Shot sh = items[i];
+                if (last - sh.Time > TimeSpan.FromMinutes(RunGapMinutes)) break;
+                last = sh.Time;   // ook een weggegooide screenshot houdt de reeks bij elkaar
+                if (sh.Path != null && !Presets.IsTemp(sh.Path) && exists(sh.Path)) run.Add(sh);
+            }
+            return run;
+        }
+
+        // De hele reeks als bestanden op het klembord, oudste eerst (zo staan ze in Claude op volgorde)
+        void CopyRun(System.Collections.Generic.List<Shot> run)
+        {
+            System.Collections.Generic.List<string> files = new System.Collections.Generic.List<string>();
+            lock (noteGate) for (int i = run.Count - 1; i >= 0; i--) if (run[i].Path != null && File.Exists(run[i].Path)) files.Add(run[i].Path);
+            if (files.Count == 0) { Notify("Kopiëren lukte niet", "De screenshots zijn er niet meer.", null, null, null, false); return; }
+            if (!Saver.Copy(null, null, files)) { Notify("Kopiëren lukte niet", "Een ander programma hield het klembord vast. Probeer het nog eens.", null, null, null, false); return; }
+            foreach (Shot sh in run) { sh.Copied = false; sh.CopiedFile = false; }   // het klembord is nu van de reeks
+            Info(files.Count + " screenshots gekopieerd", "Plak ze in één keer in Claude met Ctrl+V.", "copy");
         }
 
         // Kies zelf: Bewaren zet de screenshot (en zijn notitiebestand) van de tijdelijke map in de inbox

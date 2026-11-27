@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -300,10 +301,16 @@ namespace Kapture
         }
 
         // Op het klembord als gewone afbeelding en als PNG, zodat plakken werkt in Claude, de browser, Word en WhatsApp
-        public static bool Copy(Bitmap shot, byte[] png) { return Copy(shot, png, null); }
+        public static bool Copy(Bitmap shot, byte[] png) { return Copy(shot, png, (string)null); }
 
         // 'file': ook het bestand zelf op het klembord (plakken als bijlage of in Verkenner). 'shot' mag null zijn: alleen het bestand.
         public static bool Copy(Bitmap shot, byte[] png, string file)
+        {
+            return Copy(shot, png, file != null ? new string[] { file } : null);
+        }
+
+        // Meerdere bestanden tegelijk op het klembord (een reeks screenshots): één keer plakken in Claude
+        public static bool Copy(Bitmap shot, byte[] png, IList<string> files)
         {
             try
             {
@@ -315,11 +322,11 @@ namespace Kapture
                     data.SetData(DataFormats.Bitmap, true, shot);
                     data.SetData("PNG", false, new MemoryStream(png));
                 }
-                if (file != null)
+                if (files != null && files.Count > 0)
                 {
-                    System.Collections.Specialized.StringCollection files = new System.Collections.Specialized.StringCollection();
-                    files.Add(file);
-                    data.SetFileDropList(files);
+                    System.Collections.Specialized.StringCollection list = new System.Collections.Specialized.StringCollection();
+                    foreach (string f in files) list.Add(f);
+                    data.SetFileDropList(list);
                 }
                 Clipboard.SetDataObject(data, true, 5, 100);
                 return true;

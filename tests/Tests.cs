@@ -97,6 +97,14 @@ namespace Kapture
                 Settings bad = Settings.Load(sp);
                 Is(bad.PresetSteps[0] == -1 && bad.PresetSteps[1] == -1 && bad.PresetSteps[2] == -1 && bad.PresetSteps[3] == 3, "onzin in de stappen wordt standaard");
                 Is(Fonts.UsesStitchFonts, "Inter en JetBrains Mono zitten in Kapture");
+                // reeks: kort na elkaar (hoogstens 10 minuten ertussen); een gat breekt de reeks
+                DateTime t0 = new DateTime(2026, 11, 27, 10, 0, 0);
+                System.Collections.Generic.List<Shot> hs = new System.Collections.Generic.List<Shot>();
+                foreach (int mi in new int[] { 0, 30, 35, 44, 50 }) hs.Add(new Shot { Time = t0.AddMinutes(mi), Path = "c:\\x\\" + mi + ".png" });
+                System.Collections.Generic.List<Shot> run = App.RunOf(hs, hs[4], delegate(string pth) { return true; });
+                Is(run.Count == 4 && run[0] == hs[4] && run[3] == hs[1], "reeks: vier screenshots na het gat van 30 minuten");
+                Is(App.RunOf(hs, hs[0], delegate(string pth) { return true; }).Count == 1, "reeks: alleen de screenshot zelf");
+                Is(App.RunOf(hs, hs[4], delegate(string pth) { return !pth.EndsWith("44.png"); }).Count == 3, "reeks: weggegooide screenshot telt niet");
                 Is(Presets.IsTemp(Path.Combine(Presets.TempFolder, "a.png")) && !Presets.IsTemp(Path.Combine(dir, "a.png")), "tijdelijke map herkennen");
                 Settings def = new Settings();
                 Is(def.HotkeyCapture && def.HotkeyNote && def.HotkeyLastNote && def.NoteStrip && def.NoteTextFile && !def.MonthFolders, "standaard: alles aan, geen maandmappen");

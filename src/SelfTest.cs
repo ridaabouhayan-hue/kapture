@@ -210,6 +210,11 @@ namespace Kapture
                 c.OnDelete = delegate { };   // prullenbak-knop in beeld
                 using (Bitmap tb = toast.RenderForTest(c, t, scale))
                     Save(dir, name, tb, t);
+                // een reeks: Bewerken en "Alle 3 kopiëren"
+                c.ActionLabel = "Bewerken"; c.ActionIcon = "pencil";
+                c.Action2Label = "Alle 3 kopiëren"; c.Action2Icon = "copy"; c.OnAction2 = delegate { };
+                using (Bitmap tb = toast.RenderForTest(c, t, scale))
+                    Save(dir, name.Replace("melding-", "melding-reeks-"), tb, t);
                 c.Thumb.Dispose();
             }
         }
