@@ -6,7 +6,7 @@ namespace Kapture
     // ------------------------------------------------------------------ Wat er na een screenshot gebeurt (BOUWPLAN, Presets)
     // Een preset is een lijst stappen (gegevens), geen code: waar hij heen gaat, en welke stappen aan staan.
     // De stappen kun je per preset aan- of uitzetten in Instellingen, Presets (zoals de "na het vastleggen"-taken van ShareX).
-    // Kiezen doe je met de knop in de werkbalk (klik wisselt) of met 1 tot en met 5 in de overlay. Kapture onthoudt de keuze.
+    // Kiezen doe je met de knop in de werkbalk (klik wisselt) of met 1 tot en met 5 in de overlay. Kapsure onthoudt de keuze.
     static class Presets
     {
         public const int NowToClaude = 0;   // opslaan en kopiëren (met notitiestrook als er een notitie is)
@@ -23,7 +23,7 @@ namespace Kapture
             "Opslaan in je inbox en op het klembord, klaar om te plakken.",
             "Alleen opslaan in je inbox; wat er op je klembord stond blijft staan.",
             "Opslaan en meteen de editor open, om pijlen te zetten of te vervagen. Zonder notitie.",
-            "Eerst niets: in de melding kies je Bewaren of Kopiëren. Bewaar je niet, dan ruimt Kapture hem later op.",
+            "Eerst niets: in de melding kies je Bewaren of Kopiëren. Bewaar je niet, dan ruimt Kapsure hem later op.",
             "Na het vastleggen kies je de map: een van de laatste mappen of een andere.",
         };
 
@@ -87,7 +87,7 @@ namespace Kapture
         // ---- "Kies zelf": tijdelijk bewaren tot je kiest
         public static string TempFolder
         {
-            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Kapture", "tijdelijk"); }
+            get { return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Kapsure", "tijdelijk"); }
         }
 
         public static bool IsTemp(string path)

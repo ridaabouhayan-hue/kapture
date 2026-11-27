@@ -1,4 +1,4 @@
-// Maakt out\Kapture.ico (en logo-PNG's) uit src/Logo.cs, voordat Kapture zelf gebouwd wordt.
+// Maakt out\Kapsure.ico (en logo-PNG's) uit src/Logo.cs, voordat Kapsure zelf gebouwd wordt.
 using System;
 using System.Drawing.Imaging;
 using System.IO;

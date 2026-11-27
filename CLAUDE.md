@@ -1,6 +1,6 @@
-# Kapture: werkafspraken voor Claude Code
+# Kapsure: werkafspraken voor Claude Code
 
-Kapture is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-docent), alleen voor eigen gebruik. Hij vervangt ShareX en het Windows Knipprogramma. Het bijzondere: bij elke screenshot snel noteren waarom je hem maakte, zonder op de foto te schrijven.
+Kapsure (tot 27-11 heette het Kapture) is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-docent), alleen voor eigen gebruik. Hij vervangt ShareX en het Windows Knipprogramma. Het bijzondere: bij elke screenshot snel noteren waarom je hem maakte, zonder op de foto te schrijven.
 
 ## Altijd eerst lezen
 1. `BOUWPLAN.md`: alle afgesproken keuzes. Dit gaat voor bij twijfel over gedrag.
@@ -23,7 +23,7 @@ Kapture is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-doc
 - Code in `src/`, opgesplitst per onderdeel. Veel komt uit NexusPen (zie BOUWPLAN.md, Hergebruik): kopieer en pas aan, houd het los van NexusPen.
 - Zwevende vensters (werkbalk, melding, notitiebalk, tray-menu) tekenen zichzelf met UpdateLayeredWindow. Icoontjes op hele pixels.
 - PerMonitorV2. Sneltoetsen alleen via RegisterHotKey, nooit een toetsenbordhook.
-- Icoontjes: Lucide (ISC, keuze van Rida 27-11, ook de keuze van Stitch), in src/IconData.cs via tools/maak_icoontjes.py. Phosphor duotone (MIT) blijft als reserve in src/PhosphorData.cs (Icons.UsePhosphor). Lettertypes: Inter en JetBrains Mono uit Stitch (goedgekeurd door Rida 27-11, OFL, in assets/fonts, als resource in Kapture.exe, geladen in src/Theme.cs voor GDI+ en GDI). Maten en gewichten uit kapture_design_system.md (label-md 12/500, title-sm 13/600, enzovoort). Tekst op een dichte achtergrond met ClearType (TextRenderer). Reserve: Segoe UI. Tekst die in een screenshot komt (editor) blijft Segoe UI Semibold.
+- Icoontjes: Lucide (ISC, keuze van Rida 27-11, ook de keuze van Stitch), in src/IconData.cs via tools/maak_icoontjes.py. Phosphor duotone (MIT) blijft als reserve in src/PhosphorData.cs (Icons.UsePhosphor). Lettertypes: Inter en JetBrains Mono uit Stitch (goedgekeurd door Rida 27-11, OFL, in assets/fonts, als resource in Kapsure.exe, geladen in src/Theme.cs voor GDI+ en GDI). Maten en gewichten uit kapture_design_system.md (label-md 12/500, title-sm 13/600, enzovoort). Tekst op een dichte achtergrond met ClearType (TextRenderer). Reserve: Segoe UI. Tekst die in een screenshot komt (editor) blijft Segoe UI Semibold.
 - Logo: `assets/logo/` en `src/Logo.cs`. Groot = Stitch-vorm, 32 px en kleiner = witte K op kobalt.
 - Tests: `tests/Tests.cs`. De zelftest (`--zelftest`) maakt schermafdrukken van elk venster in licht en donker.
 - ShareX is GPL-3.0. Kopieer er nooit code uit, ook geen stukje. Idee mag, code niet.
@@ -34,11 +34,11 @@ Kapture is een eigen screenshot-tool voor Windows 11 van Rida Abouhayan (NT2-doc
 - Testafbeeldingen in de repo zijn altijd nep (geen echte mails, WhatsApp, cursisten of bankgegevens).
 
 ## GitHub
-- Repository `kapture` (openbaar of privé: zie BOUWPLAN.md, Open punten).
-- GitHub Actions op `windows-latest`: bouwen, tests, zelftest met schermafdrukken, installer (Kapture-Setup.exe met Inno Setup, zonder beheerdersrechten, in %LOCALAPPDATA%\Programs\Kapture).
-- Release gaat vanzelf: staat er een nieuw versienummer op main (`Version` in `src/Program.cs`) en is alles groen, dan maakt GitHub Actions tag vX.Y.Z en een Release met Kapture-Setup.exe en Kapture.exe, met `docs/RELEASE.md` als tekst. Verhoog het versienummer pas als een versie klaar en nagekeken is.
+- Repository `kapture` (de oude naam; de app heet Kapsure, de interne codenaam en namespace blijven Kapture) (openbaar of privé: zie BOUWPLAN.md, Open punten).
+- GitHub Actions op `windows-latest`: bouwen, tests, zelftest met schermafdrukken, installer (Kapsure-Setup.exe met Inno Setup, zonder beheerdersrechten, in %LOCALAPPDATA%\Programs\Kapsure).
+- Release gaat vanzelf: staat er een nieuw versienummer op main (`Version` in `src/Program.cs`) en is alles groen, dan maakt GitHub Actions tag vX.Y.Z en een Release met Kapsure-Setup.exe en Kapsure.exe, met `docs/RELEASE.md` als tekst. Verhoog het versienummer pas als een versie klaar en nagekeken is.
 - Na elke versie: een aparte code-review (veiligheid, stabiliteit, snelheid) voordat Rida hem krijgt.
 - Acties in de workflow op een vaste commit, zoals in NexusPen.
 
 ## Gebruik
-- Gebruiksgegevens alleen lokaal (`%APPDATA%\Kapture\gebruik`). Knop "Exporteren voor Claude".
+- Gebruiksgegevens alleen lokaal (`%APPDATA%\Kapsure\gebruik`). Knop "Exporteren voor Claude".

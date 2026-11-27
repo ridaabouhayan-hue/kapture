@@ -23,14 +23,14 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Kapture bouwen en tests draaien
+      - name: Kapsure bouwen en tests draaien
         shell: pwsh
         run: powershell -ExecutionPolicy Bypass -File build\build.ps1
 
       - name: Opstarttest en snelheid meten (programma start, tekent en stopt netjes)
         shell: pwsh
         run: |
-          $p = Start-Process -FilePath "out\Kapture.exe" -ArgumentList "--zelftest","out\schermen" -PassThru -RedirectStandardOutput "out\zelftest.txt" -RedirectStandardError "out\zelftest-fouten.txt"
+          $p = Start-Process -FilePath "out\Kapsure.exe" -ArgumentList "--zelftest","out\schermen" -PassThru -RedirectStandardOutput "out\zelftest.txt" -RedirectStandardError "out\zelftest-fouten.txt"
           $null = $p.Handle
           if (-not $p.WaitForExit(240000)) { $p.Kill(); throw "Zelftest hangt (langer dan 4 minuten)" }
           Get-Content "out\zelftest.txt" -ErrorAction SilentlyContinue
@@ -56,22 +56,25 @@ jobs:
         run: |
           $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
           if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
-          & $iscc "/DAppVersion=${{ steps.versie.outputs.nummer }}" installer\Kapture.iss
+          & $iscc "/DAppVersion=${{ steps.versie.outputs.nummer }}" installer\Kapsure.iss
           if ($LASTEXITCODE -ne 0) { throw "Installer maken mislukt" }
+          # voor wie nog de oude naam heeft: de bijwerk-knop in Kapture zoekt naar Kapture-Setup.exe (zelfde bestand)
+          Copy-Item out\Kapsure-Setup.exe out\Kapture-Setup.exe
 
       - name: Bestanden bewaren
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: Kapture-${{ steps.versie.outputs.nummer }}
+          name: Kapsure-${{ steps.versie.outputs.nummer }}
           path: |
-            out/Kapture.exe
+            out/Kapsure.exe
+            out/Kapsure-Setup.exe
             out/Kapture-Setup.exe
 
       - name: Schermafbeeldingen van de zelftest bewaren
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: Kapture-schermen
+          name: Kapsure-schermen
           path: out/schermen/*.png
           if-no-files-found: warn
 
@@ -87,7 +90,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         continue-on-error: true
         with:
-          name: Kapture-schermen
+          name: Kapsure-schermen
           path: schermen
       - name: Op de tak zelftest-schermen zetten
         env:
@@ -132,7 +135,7 @@ jobs:
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: steps.check.outputs.nieuw == 'ja'
         with:
-          name: Kapture-${{ needs.windows.outputs.nummer }}
+          name: Kapsure-${{ needs.windows.outputs.nummer }}
           path: out
       - name: Release maken
         if: steps.check.outputs.nieuw == 'ja'
@@ -140,8 +143,9 @@ jobs:
         with:
           tag_name: v${{ needs.windows.outputs.nummer }}
           target_commitish: ${{ github.sha }}
-          name: Kapture ${{ needs.windows.outputs.nummer }}
+          name: Kapsure ${{ needs.windows.outputs.nummer }}
           body_path: docs/RELEASE.md
           files: |
+            out/Kapsure-Setup.exe
+            out/Kapsure.exe
             out/Kapture-Setup.exe
-            out/Kapture.exe

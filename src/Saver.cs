@@ -50,7 +50,7 @@ namespace Kapture
             return s.MonthFolders ? Path.Combine(root, t.ToString("yyyy-MM")) : root;
         }
 
-        // Kan Kapture in deze map schrijven? Maakt de map aan als die er nog niet is. Geeft null of een korte uitleg.
+        // Kan Kapsure in deze map schrijven? Maakt de map aan als die er nog niet is. Geeft null of een korte uitleg.
         public static string Check(string folder)
         {
             if (string.IsNullOrEmpty(folder)) return "Er is geen map gekozen.";
@@ -63,7 +63,7 @@ namespace Kapture
                 File.Delete(probe);
                 return null;
             }
-            catch (UnauthorizedAccessException) { return "Kapture mag niet schrijven in deze map."; }
+            catch (UnauthorizedAccessException) { return "Kapsure mag niet schrijven in deze map."; }
             catch (Exception) { return "Deze map is niet bereikbaar. Staat OneDrive aan, of is de schijf aangesloten?"; }
         }
     }
@@ -129,7 +129,7 @@ namespace Kapture
         }
 
         // Programma onder een punt op het scherm (het midden van het kader); werkt ook als je vanuit het tray-menu begon.
-        // Loopt de vensters van boven naar onder af en slaat die van Kapture zelf over (de overlay kan nog openstaan).
+        // Loopt de vensters van boven naar onder af en slaat die van Kapsure zelf over (de overlay kan nog openstaan).
         public static string AppAt(int x, int y)
         {
             try

@@ -74,14 +74,14 @@ namespace Kapture
     {
         static readonly Dictionary<string, Font> cache = new Dictionary<string, Font>();
         static readonly object gate = new object();
-        // Inter en JetBrains Mono uit Kapture.exe zelf: per bestand een eigen verzameling, zodat elk gewicht zijn eigen
+        // Inter en JetBrains Mono uit Kapsure.exe zelf: per bestand een eigen verzameling, zodat elk gewicht zijn eigen
         // bestand houdt (Regular, Medium, SemiBold, Mono), ook als een systeem ze allemaal "Inter" noemt
         static readonly List<PrivateFontCollection> own = new List<PrivateFontCollection>();
         static readonly Dictionary<string, FontFamily> ownFamilies = new Dictionary<string, FontFamily>(StringComparer.OrdinalIgnoreCase);
         static bool loaded;
 
-        // De lettertypes uit het Stitch-ontwerp laden uit de resources van Kapture.exe. Twee keer: voor GDI+ (DrawString)
-        // en voor GDI (TextRenderer, scherpe ClearType-tekst). Alleen voor Kapture zelf; er wordt niets geïnstalleerd.
+        // De lettertypes uit het Stitch-ontwerp laden uit de resources van Kapsure.exe. Twee keer: voor GDI+ (DrawString)
+        // en voor GDI (TextRenderer, scherpe ClearType-tekst). Alleen voor Kapsure zelf; er wordt niets geïnstalleerd.
         static void Load()
         {
             if (loaded) return;
@@ -95,7 +95,7 @@ namespace Kapture
                     byte[] data;
                     using (System.IO.Stream st = asm.GetManifestResourceStream(name))
                     using (System.IO.MemoryStream ms = new System.IO.MemoryStream()) { st.CopyTo(ms); data = ms.ToArray(); }
-                    // het geheugen moet blijven bestaan zolang Kapture draait: niet vrijgeven
+                    // het geheugen moet blijven bestaan zolang Kapsure draait: niet vrijgeven
                     IntPtr mem = System.Runtime.InteropServices.Marshal.AllocCoTaskMem(data.Length);
                     System.Runtime.InteropServices.Marshal.Copy(data, 0, mem, data.Length);
                     PrivateFontCollection pfc = new PrivateFontCollection();

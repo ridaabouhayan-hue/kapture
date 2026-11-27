@@ -2,15 +2,15 @@ using System;
 using System.Threading;
 using System.Windows.Forms;
 
-[assembly: System.Reflection.AssemblyTitle("Kapture")]
-[assembly: System.Reflection.AssemblyProduct("Kapture")]
-[assembly: System.Reflection.AssemblyVersion("0.7.0.0")]
+[assembly: System.Reflection.AssemblyTitle("Kapsure")]
+[assembly: System.Reflection.AssemblyProduct("Kapsure")]
+[assembly: System.Reflection.AssemblyVersion("0.8.0.0")]
 
 namespace Kapture
 {
     static class Program
     {
-        public const string Version = "0.7.0";
+        public const string Version = "0.8.0";
         public static bool SelfTest;
         public static Theme ForceTheme = null;
 
@@ -32,14 +32,15 @@ namespace Kapture
             if (args.Length > 0 && args[0] == "--proef-echt") { SelfTest = true; return Kapture.SelfTest.Live(); }
 
             bool created;
-            using (Mutex one = new Mutex(true, "Local\\Kapture.EenKeer", out created))
+            using (Mutex one = new Mutex(true, "Local\\Kapsure.EenKeer", out created))
             {
                 if (!created)
                 {
-                    // Kapture draait al: dat exemplaar laat een melding zien
+                    // Kapsure draait al: dat exemplaar laat een melding zien
                     W.PostMessage(new IntPtr(0xFFFF), HotkeyWindow.ShowMessage, IntPtr.Zero, IntPtr.Zero);
                     return 0;
                 }
+                OldName.Move();   // eerst: instellingen en geschiedenis van "Kapture" overnemen
                 Application.ThreadException += delegate(object s, ThreadExceptionEventArgs e) { Log.Error("Onverwachte fout", e.Exception); };
                 AppDomain.CurrentDomain.UnhandledException += delegate(object s, UnhandledExceptionEventArgs e) { Log.Error("Onverwachte fout (afgesloten)", e.ExceptionObject as Exception); };
                 Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);

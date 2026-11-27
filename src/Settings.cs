@@ -6,7 +6,7 @@ using Microsoft.Win32;
 
 namespace Kapture
 {
-    // ------------------------------------------------------------------ Instellingen (%APPDATA%\Kapture\instellingen.txt, sleutel=waarde)
+    // ------------------------------------------------------------------ Instellingen (%APPDATA%\Kapsure\instellingen.txt, sleutel=waarde)
     class Settings
     {
         // Algemeen
@@ -32,14 +32,14 @@ namespace Kapture
         public bool NoteTextFile = true;       // lange notitie of meerdere regels ook als .txt ernaast
 
         // Bewerken
-        public bool ThumbOpensEditor = true;   // klik op de miniatuur: de editor van Kapture (anders het programma van Windows)
+        public bool ThumbOpensEditor = true;   // klik op de miniatuur: de editor van Kapsure (anders het programma van Windows)
 
         // Over
         public bool UpdateCheck = true;        // bij het starten kijken of er een nieuwe versie op GitHub staat
 
         public bool SnipHintShown = false;     // melding over de Windows-instelling voor Print Screen al gezien
 
-        // Een werkkopie voor Instellingen: wijzigen zonder dat Kapture het meteen gebruikt, tot je op Opslaan klikt
+        // Een werkkopie voor Instellingen: wijzigen zonder dat Kapsure het meteen gebruikt, tot je op Opslaan klikt
         public Settings Clone()
         {
             Settings c = (Settings)MemberwiseClone();
@@ -159,10 +159,50 @@ namespace Kapture
         }
     }
 
+    // ------------------------------------------------------------------ Van Kapture naar Kapsure (nieuwe naam, 27-11)
+    // Eén keer bij het opstarten: de mappen met instellingen, geschiedenis, foutlog en tijdelijke screenshots krijgen
+    // de nieuwe naam, en "Starten met Windows" gaat over naar de nieuwe naam. Screenshots zelf blijven waar ze zijn.
+    static class OldName
+    {
+        public const string Before = "Kapture";
+
+        public static void Move()
+        {
+            MoveFolder(Environment.SpecialFolder.ApplicationData);
+            MoveFolder(Environment.SpecialFolder.LocalApplicationData);
+            Autostart.TakeOverOld(Before);
+        }
+
+        static void MoveFolder(Environment.SpecialFolder root)
+        {
+            try
+            {
+                string baseDir = Environment.GetFolderPath(root);
+                string old = Path.Combine(baseDir, Before), nw = Path.Combine(baseDir, "Kapsure");
+                if (!Directory.Exists(old) || Directory.Exists(nw)) return;
+                try { Directory.Move(old, nw); }
+                catch (IOException)
+                {
+                    // iets in de oude map is bezet: dan kopiëren (de oude map blijft staan)
+                    CopyTree(old, nw);
+                }
+                Log.Info("Gegevens van de oude naam overgenomen");
+            }
+            catch (Exception ex) { Log.Error("Gegevens van de oude naam overnemen mislukt", ex); }
+        }
+
+        static void CopyTree(string from, string to)
+        {
+            Directory.CreateDirectory(to);
+            foreach (string f in Directory.GetFiles(from)) File.Copy(f, Path.Combine(to, Path.GetFileName(f)), false);
+            foreach (string d in Directory.GetDirectories(from)) CopyTree(d, Path.Combine(to, Path.GetFileName(d)));
+        }
+    }
+
     // ------------------------------------------------------------------ Starten met Windows (dezelfde plek als de installer gebruikt)
     static class Autostart
     {
-        const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run", Name = "Kapture";
+        const string Key = @"Software\Microsoft\Windows\CurrentVersion\Run", Name = "Kapsure";
 
         public static bool IsOn
         {
@@ -171,6 +211,21 @@ namespace Kapture
                 try { using (RegistryKey k = Registry.CurrentUser.OpenSubKey(Key)) return k != null && k.GetValue(Name) != null; }
                 catch { return false; }
             }
+        }
+
+        // Stond "Starten met Windows" aan onder de oude naam, dan nu onder de nieuwe (met dit programma), en de oude weg
+        public static void TakeOverOld(string oldName)
+        {
+            try
+            {
+                using (RegistryKey k = Registry.CurrentUser.OpenSubKey(Key, true))
+                {
+                    if (k == null || k.GetValue(oldName) == null) return;
+                    if (k.GetValue(Name) == null) k.SetValue(Name, "\"" + System.Windows.Forms.Application.ExecutablePath + "\"");
+                    k.DeleteValue(oldName, false);
+                }
+            }
+            catch (Exception ex) { Log.Error("Starten met Windows overnemen mislukt", ex); }
         }
 
         public static void Set(bool on)

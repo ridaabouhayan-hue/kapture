@@ -10,7 +10,7 @@ namespace Kapture
     // ------------------------------------------------------------------ Logo: Kader-K van Stitch (cobalt 5a.1)
     // 48 px en groter: witte tegel, kobalt kader met vier handvatten en de K.
     // 32 px en kleiner: alleen de K, wit op een kobalt tegel (kader en handvatten zijn dan niet meer te zien).
-    // Dit bestand mag alleen Svg.cs gebruiken: tools/MaakIcoon.cs bouwt er het .ico mee voordat Kapture zelf gebouwd wordt.
+    // Dit bestand mag alleen Svg.cs gebruiken: tools/MaakIcoon.cs bouwt er het .ico mee voordat Kapsure zelf gebouwd wordt.
     static class Logo
     {
         public static readonly Color Cobalt = Color.FromArgb(0x25, 0x63, 0xEB);

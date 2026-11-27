@@ -14,7 +14,7 @@ namespace Kapture
     // onderaan Kopiëren, Opslaan en Klaar. Zelf getekend; alleen het notitievak is een echt tekstvak.
     class EditorForm : Form
     {
-        // Wat de editor van Kapture nodig heeft (zo blijft hij los te testen)
+        // Wat de editor van Kapsure nodig heeft (zo blijft hij los te testen)
         public class Host
         {
             public Func<Bitmap, bool> SaveImage;          // de bewerkte afbeelding over het bestand heen zetten
@@ -73,7 +73,7 @@ namespace Kapture
             host = h ?? new Host();
             noteAtOpen = note ?? "";
             doc.Changed += delegate { docVersion++; Invalidate(); };
-            Text = "Kapture Editor";
+            Text = "Kapsure Editor";
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
             KeyPreview = true;
@@ -123,7 +123,7 @@ namespace Kapture
 
         protected override void OnHandleCreated(EventArgs e) { base.OnHandleCreated(e); ApplyTheme(); }
 
-        void UpdateTitle() { Text = "Kapture Editor  /  " + doc.Crop.Width + " x " + doc.Crop.Height + (doc.Dirty ? "  (niet bewaard)" : ""); }
+        void UpdateTitle() { Text = "Kapsure Editor  /  " + doc.Crop.Width + " x " + doc.Crop.Height + (doc.Dirty ? "  (niet bewaard)" : ""); }
 
         // ---- indeling
         RectangleF Panel { get { return new RectangleF(ClientSize.Width - P(PanelW), 0, P(PanelW), ClientSize.Height - P(FootH)); } }
@@ -871,7 +871,7 @@ namespace Kapture
 
         bool closedForQuit;
 
-        // Kapture stopt (Afsluiten of bijwerken): vragen of bewaren. Geeft false bij Annuleren.
+        // Kapsure stopt (Afsluiten of bijwerken): vragen of bewaren. Geeft false bij Annuleren.
         public bool PrepareQuit()
         {
             CommitTyping();
@@ -879,7 +879,7 @@ namespace Kapture
             {
                 if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
                 Activate();
-                DialogResult a = MessageBox.Show(this, "Kapture stopt. Wil je de bewerkte screenshot eerst opslaan?", "Kapture", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                DialogResult a = MessageBox.Show(this, "Kapsure stopt. Wil je de bewerkte screenshot eerst opslaan?", "Kapsure", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (a == DialogResult.Cancel) return false;
                 if (a == DialogResult.Yes && !SaveNow()) return false;
             }
@@ -896,7 +896,7 @@ namespace Kapture
             if (e.CloseReason != CloseReason.UserClosing && doc.Dirty) SaveNow();
             if (e.CloseReason == CloseReason.UserClosing && doc.Dirty)
             {
-                DialogResult a = MessageBox.Show(this, "Je hebt de screenshot bewerkt. Wil je de wijzigingen opslaan?", "Kapture", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
+                DialogResult a = MessageBox.Show(this, "Je hebt de screenshot bewerkt. Wil je de wijzigingen opslaan?", "Kapsure", MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                 if (a == DialogResult.Cancel) { e.Cancel = true; return; }
                 if (a == DialogResult.Yes && !SaveNow()) { e.Cancel = true; return; }
             }

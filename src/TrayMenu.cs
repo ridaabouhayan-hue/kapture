@@ -29,7 +29,7 @@ namespace Kapture
         public const float Gap = 12;         // tussen icoon en tekst
         public const float HintGap = 32;     // minimaal tussen tekst en sneltoets
         public const float SepH = 9;         // hoogte van een scheidingslijn
-        public const float HeaderH = 40;     // kop met logo, "Kapture" en de actieve preset
+        public const float HeaderH = 40;     // kop met logo, "Kapsure" en de actieve preset
         public const float MinW = 220;       // minimale breedte van het menu
         public const float Radius = 8;       // hoeken van het menu
         public const float FontPx = 12;
@@ -59,7 +59,7 @@ namespace Kapture
         {
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual;
             AutoScaleMode = AutoScaleMode.None; KeyPreview = true;
-            Text = "Kapture menu";
+            Text = "Kapsure menu";
             W.NoAnimation(Handle);
         }
 

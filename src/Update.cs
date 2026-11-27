@@ -1,4 +1,4 @@
-// Overgenomen uit NexusPen (zelfde maker) en aangepast voor Kapture.
+// Overgenomen uit NexusPen (zelfde maker) en aangepast voor Kapsure.
 using System;
 using System.IO;
 using System.Net;
@@ -34,7 +34,7 @@ namespace Kapture
                     Thread.Sleep(delayMs);
                     ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072; // TLS 1.2
                     HttpWebRequest req = (HttpWebRequest)WebRequest.Create(Api);
-                    req.UserAgent = "Kapture/" + Program.Version;
+                    req.UserAgent = "Kapsure/" + Program.Version;
                     req.Accept = "application/vnd.github+json";
                     req.Timeout = 8000; req.ReadWriteTimeout = 8000;
                     string body;
@@ -66,9 +66,9 @@ namespace Kapture
             Info info = new Info();
             info.Version = tag.Groups[1].Value;
             info.PageUrl = url.Success ? url.Groups[1].Value : Page;
-            // het stuk van de lijst dat over Kapture-Setup.exe gaat (tot de naam van het volgende bestand)
+            // het stuk van de lijst dat over Kapsure-Setup.exe gaat (tot de naam van het volgende bestand)
             // GitHub stuurt het antwoord soms met spaties ("name": "..."), soms zonder: beide goed lezen
-            Match start = Regex.Match(body, "\"name\"\\s*:\\s*\"Kapture-Setup\\.exe\"");
+            Match start = Regex.Match(body, "\"name\"\\s*:\\s*\"Kapsure-Setup\\.exe\"");
             int at = start.Success ? start.Index : -1;
             if (at >= 0)
             {
@@ -77,7 +77,7 @@ namespace Kapture
                 string seg = body.Substring(at, (end < 0 ? body.Length : end) - at);
                 Match dg = Regex.Match(seg, "\"digest\"\\s*:\\s*\"sha256:([0-9a-f]{64})\"");
                 Match dl = Regex.Match(seg, "\"browser_download_url\"\\s*:\\s*\"([^\"]+)\"");
-                if (dg.Success && dl.Success && dl.Groups[1].Value.StartsWith(DownloadPrefix) && dl.Groups[1].Value.EndsWith("/Kapture-Setup.exe"))
+                if (dg.Success && dl.Success && dl.Groups[1].Value.StartsWith(DownloadPrefix) && dl.Groups[1].Value.EndsWith("/Kapsure-Setup.exe"))
                 { info.Sha256 = dg.Groups[1].Value; info.SetupUrl = dl.Groups[1].Value; }
             }
             return info;
@@ -93,12 +93,12 @@ namespace Kapture
                 {
                     if (info == null || info.SetupUrl == null || info.Sha256 == null) { done(null); return; }
                     // een nieuwe map met een willekeurige naam (niemand kan die van tevoren klaarzetten)
-                    string dir = Path.Combine(Path.GetTempPath(), "Kapture-bijwerken-" + Path.GetRandomFileName().Replace(".", ""));
+                    string dir = Path.Combine(Path.GetTempPath(), "Kapsure-bijwerken-" + Path.GetRandomFileName().Replace(".", ""));
                     Directory.CreateDirectory(dir);
-                    file = Path.Combine(dir, "Kapture-Setup-" + Regex.Replace(info.Version, "[^0-9.]", "") + ".exe");
+                    file = Path.Combine(dir, "Kapsure-Setup-" + Regex.Replace(info.Version, "[^0-9.]", "") + ".exe");
                     ServicePointManager.SecurityProtocol |= (SecurityProtocolType)3072;
                     HttpWebRequest req = (HttpWebRequest)WebRequest.Create(info.SetupUrl);
-                    req.UserAgent = "Kapture/" + Program.Version;
+                    req.UserAgent = "Kapsure/" + Program.Version;
                     req.Timeout = 30000; req.ReadWriteTimeout = 30000;
                     string got;
                     using (WebResponse resp = req.GetResponse())
@@ -136,7 +136,7 @@ namespace Kapture
         {
             try
             {
-                foreach (string d in Directory.GetDirectories(Path.GetTempPath(), "Kapture-bijwerken*"))
+                foreach (string d in Directory.GetDirectories(Path.GetTempPath(), "Kapsure-bijwerken*"))
                     try { Directory.Delete(d, true); } catch { }
             }
             catch { }

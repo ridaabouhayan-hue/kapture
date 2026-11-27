@@ -1,4 +1,4 @@
-# Kapture 1.0: bouwplan
+# Kapsure 1.0: bouwplan
 
 Eigen screenshot-tool voor Windows 11, alleen voor Rida. Vervangt ShareX en het Windows Knipprogramma.
 Dit document legt alle afspraken vast. Bij twijfel gaat dit bouwplan voor.
@@ -28,10 +28,10 @@ Dit document legt alle afspraken vast. Bij twijfel gaat dit bouwplan voor.
 Overnemen en aanpassen (niet als gedeelde bibliotheek, maar als kopie in deze repo):
 - `Win32.cs`, `Log.cs`, `Perf.cs`: vensters, foutlog, meten.
 - `Svg.cs`, `Icons.cs`, `IconData.cs`, `tools/maak_icoontjes.py`: Lucide-iconen.
-- `Theme.cs`: licht en donker, nu met de Kapture-kleuren.
+- `Theme.cs`: licht en donker, nu met de Kapsure-kleuren.
 - `Lang.cs`, `LangData.cs`, `tools/check_vertalingen.py`: talen.
 - `Settings.cs`, `Shortcuts.cs`: instellingen bewaren, sneltoetsen lezen en controleren op dubbel.
-- `Update.cs`: check op een nieuwe versie (adres wordt de Kapture-repo).
+- `Update.cs`: check op een nieuwe versie (adres wordt de Kapsure-repo).
 - `Usage.cs`: gebruik bijhouden, alleen lokaal.
 - `MenuPopup.cs`: zelf getekend rechtsklikmenu (basis voor het tray-menu).
 - `Render.cs`, `TextLayout.cs`, `TextEditor.cs`, `Model.cs`: de tekenmotor voor de editor (pen, markeerstift, pijl, vormen, tekst met rand, nummerstempel, gum, selecteren).
@@ -56,7 +56,7 @@ Overnemen en aanpassen (niet als gedeelde bibliotheek, maar als kopie in deze re
 - Sneltoetsen op pauze: tray-icoon met een grijs streepje.
 
 ## Kernflow
-1. Sneltoets. Kapture maakt eerst een stilstaand beeld van het scherm, toont dat iets donkerder, en bovenaan de werkbalk: Kader, Vrij, Venster, Hele scherm, de knop Met notitie, de preset, sluiten.
+1. Sneltoets. Kapsure maakt eerst een stilstaand beeld van het scherm, toont dat iets donkerder, en bovenaan de werkbalk: Kader, Vrij, Venster, Hele scherm, de knop Met notitie, de preset, sluiten.
 2. Kader trekken en loslaten: de overlay is meteen weg. Op dat moment is de afbeelding al opgeslagen en gekopieerd (volgens de preset).
 3. Rechtsonder de melding: miniatuur, "Opgeslagen en gekopieerd", de preset, een notitieveld, Bewerken, Kopieer opnieuw, Map openen, Verwijderen, sluiten. Pakt het toetsenbord niet af (WS_EX_NOACTIVATE). Blijft 6 seconden (instelbaar), blijft staan zolang de muis erboven hangt. Klik of Ctrl+PrtSc geeft het notitieveld het toetsenbord.
 4. Paneel Laatste screenshots (tray of Ctrl+Shift+PrtSc): de laatste 10. Per rij: notitie typen of wijzigen (klik op de tekst), Bewerken, Kopieer opnieuw, Map openen, Verwijderen. Bovenaan Inbox openen.
@@ -74,15 +74,15 @@ PrtSc -> Sneltoetsen -> Vastleggen (variant C) -> Overlay (kader trekken)
                                                   +--> Geschiedenis (laatste 10)
 ```
 - **Een preset is een lijst stappen (gegevens), geen code.** Eigen presets zijn dan alleen een nieuwe lijst. Stappen: opslaan, opslaan in map, klembord afbeelding, klembord bestand, editor eerst, melding, notitie vragen.
-- **Eén Kapture tegelijk:** een Mutex. Start je hem nog eens, dan opent het bestaande Kapture zijn paneel in plaats van dubbele sneltoetsen.
-- **Sneltoets bezet** (bijvoorbeeld door ShareX die nog draait, of het Knipprogramma): Kapture zegt welke toets niet lukt en door wie dat waarschijnlijk komt, en werkt verder met de andere toetsen. ShareX moet uit voordat Kapture PrtSc krijgt.
+- **Eén Kapsure tegelijk:** een Mutex. Start je hem nog eens, dan opent het bestaande Kapsure zijn paneel in plaats van dubbele sneltoetsen.
+- **Sneltoets bezet** (bijvoorbeeld door ShareX die nog draait, of het Knipprogramma): Kapsure zegt welke toets niet lukt en door wie dat waarschijnlijk komt, en werkt verder met de andere toetsen. ShareX moet uit voordat Kapsure PrtSc krijgt.
 - **Schermgrootte per keer opnieuw bepalen,** niet bij het opstarten: een laptop kan van scherm of schaal wisselen.
 - **Veilig opslaan:** eerst naar `naam.png.tmp` in dezelfde map, dan hernoemen. Zo ziet OneDrive nooit een half bestand. Hetzelfde voor `geschiedenis.json` en de instellingen.
 - **Klembord:** zowel PNG als gewone afbeelding (DIB) erop, zodat plakken werkt in Claude, de browser, Word en WhatsApp. Lukt het klembord niet (een ander programma houdt het vast), dan tot 5 keer opnieuw binnen een halve seconde, daarna een melding.
-- **De overlay mag het scherm nooit blokkeren:** Esc werkt altijd, en een waakhond sluit de overlay als Kapture 3 seconden niet reageert (zoals in NexusPen).
+- **De overlay mag het scherm nooit blokkeren:** Esc werkt altijd, en een waakhond sluit de overlay als Kapsure 3 seconden niet reageert (zoals in NexusPen).
 - **Vastleggen achter een vaste ingang** (`ICapture`), zodat later vastleggen via de videokaart of schermopname erbij kan zonder de rest te veranderen.
 - **Editor:** ongedaan maken bewaart stappen, geen hele afbeeldingen, zodat een 4K-screenshot niet honderden MB's kost. Vervagen schrijft echte pixels weg.
-- **Vergrendeld scherm of beveiligd bureaublad** (UAC-venster): vastleggen kan daar niet; Kapture doet dan niets en logt alleen "niet mogelijk".
+- **Vergrendeld scherm of beveiligd bureaublad** (UAC-venster): vastleggen kan daar niet; Kapsure doet dan niets en logt alleen "niet mogelijk".
 
 ## Sneltoetsen (standaard, allemaal instelbaar en los uit te zetten)
 | Toets | Doet |
@@ -103,13 +103,13 @@ Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; bi
 - Een notitie achteraf hernoemt het bestand (en het tekstbestand). Lukt hernoemen niet omdat OneDrive het bestand vasthoudt, dan opnieuw proberen (3 keer, oplopend tot 2 s) en anders een melding met "Opnieuw".
 - Klembord (Nu naar Claude, Bewaren voor Claude, Kies zelf): de gekopieerde afbeelding krijgt onderaan een strook met de notitie. Het bestand blijft schoon. Zonder notitie geen strook.
 - Doorsturen: de notitie gaat nooit mee, niet op het klembord en niet in het bestand dat je deelt.
-- Geschiedenis van de laatste screenshots: `%APPDATA%\Kapture\geschiedenis.json` (pad, tijd, venster, preset, notitie). Alleen op deze pc.
+- Geschiedenis van de laatste screenshots: `%APPDATA%\Kapsure\geschiedenis.json` (pad, tijd, venster, preset, notitie). Alleen op deze pc.
 
 ## Opslaan
 - Inbox: `%OneDrive%\Pictures\Screenshots` (voorstel). Bestaat OneDrive niet, dan `Pictures\Screenshots` van Windows.
-- Let op: het Windows Knipprogramma bewaart standaard ook in Pictures\Screenshots. Zolang Kapture het Knipprogramma vervangt, is dat juist handig: alles op een plek.
+- Let op: het Windows Knipprogramma bewaart standaard ook in Pictures\Screenshots. Zolang Kapsure het Knipprogramma vervangt, is dat juist handig: alles op een plek.
 - Elke maand een eigen map (aan of uit in Instellingen, standaard uit): `Screenshots\2026-11`. Inbox-map openen opent altijd de inbox zelf.
-- Kan Kapture niet in de inbox schrijven (OneDrive uit, schijf weg), dan zegt hij dat bij het opstarten en bij het opslaan, met een knop naar Instellingen.
+- Kan Kapsure niet in de inbox schrijven (OneDrive uit, schijf weg), dan zegt hij dat bij het opstarten en bij het opslaan, met een knop naar Instellingen.
 - Opslaan in...: recente mappen (laatste 8) en favorieten (zelf vastzetten).
 - Formaat: PNG. JPG later als optie.
 
@@ -123,7 +123,7 @@ Daarnaast een eigen sneltoets voor een screenshot (Instellingen, Sneltoetsen; bi
 | Opslaan in... | kiezen uit recente en favoriete mappen |
 Eigen presets maken kan vanaf 1.0 (stappen aan en uit, zoals in Instellingen > Presets).
 Reeks (0.7): screenshots met steeds hoogstens 10 minuten ertussen. De melding toont dan "Alle N kopiëren" in plaats van Map openen: alle bestanden tegelijk op het klembord, oudste eerst, één keer plakken in Claude. Je hoeft vooraf niets te kiezen (Rida 27-11: "pas erna weet ik dat ik ze wil bundelen").
-Stappen per preset (0.5): Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen, Notitie; aan of uit in Instellingen, Presets. Vast: Doorsturen nooit een notitie; Kies zelf altijd de melding en nooit vanzelf kopiëren. Kies zelf bewaart eerst in %LOCALAPPDATA%\Kapture\tijdelijk (na een dag opgeruimd). Opslaan in... onthoudt de laatste vijf mappen.
+Stappen per preset (0.5): Afbeelding kopiëren, Bestand kopiëren, Editor openen, Melding tonen, Notitie; aan of uit in Instellingen, Presets. Vast: Doorsturen nooit een notitie; Kies zelf altijd de melding en nooit vanzelf kopiëren. Kies zelf bewaart eerst in %LOCALAPPDATA%\Kapsure\tijdelijk (na een dag opgeruimd). Opslaan in... onthoudt de laatste vijf mappen.
 
 ## Editor (eerste versie)
 - Uit NexusPen: selecteren, pen, markeerstift, pijl, rechthoek en cirkel, tekst met rand, nummerstempel (1, 2, 3), gum, kleuren, dikte.
@@ -138,7 +138,7 @@ Menu: Algemeen, Sneltoetsen, Presets, Opslaan, Notities, Bewerken, Taal, Gebruik
 - Thema: Systeem, Licht, Donker. Accentkleur: eerst alleen kobalt; andere kleuren (ook voor het logo) later.
 
 ## Tray-menu
-Kapture (met de actieve preset), Nieuwe screenshot (PrtSc), Screenshot met notitie (Shift+PrtSc), Notitie bij laatste (Ctrl+PrtSc), Laatste screenshots, Presets, Inbox-map openen, Instellingen, Sneltoetsen pauzeren, Afsluiten.
+Kapsure (met de actieve preset), Nieuwe screenshot (PrtSc), Screenshot met notitie (Shift+PrtSc), Notitie bij laatste (Ctrl+PrtSc), Laatste screenshots, Presets, Inbox-map openen, Instellingen, Sneltoetsen pauzeren, Afsluiten.
 
 ## Van ShareX
 Uit de brief, zo afgesproken:
@@ -154,7 +154,7 @@ Uit de brief, zo afgesproken:
 - Het foutlog bevat geen bestandsnamen of notities.
 
 ## Gebruik bijhouden
-- Alleen op deze pc (`%APPDATA%\Kapture\gebruik`), per onderdeel aan of uit.
+- Alleen op deze pc (`%APPDATA%\Kapsure\gebruik`), per onderdeel aan of uit.
 - Meten: welke sneltoets en preset, vorm (kader, vrij, venster, scherm), hoe vaak een notitie (direct, achteraf, nooit), editor-gereedschap, snelheid (sneltoets tot overlay, loslaten tot opgeslagen), fouten.
 - Knop "Exporteren voor Claude".
 
@@ -181,11 +181,11 @@ Resultaat: `docs/SPIKE.md` (ronde 2, 24-11-2026). Gekozen: eerst een donker vens
 | 1.x | OCR, dan de lijst "Later". |
 
 ## Installeren
-- Kapture-Setup.exe, zonder beheerdersrechten, in `%LOCALAPPDATA%\Programs\Kapture`.
+- Kapsure-Setup.exe, zonder beheerdersrechten, in `%LOCALAPPDATA%\Programs\Kapsure`.
 - Snelkoppeling in Start (en desgewenst op het bureaublad), starten met Windows, icoon bij de klok.
 - Bijwerken met dezelfde setup; instellingen, geschiedenis en presets blijven staan.
 - Zonder betaalde handtekening geeft Windows de eerste keer een waarschuwing: Meer info > Toch uitvoeren.
 
 ## Open punten (voor Rida)
 - Repo openbaar of privé. Update-check via GitHub Releases werkt alleen zonder inloggen als de repo openbaar is. Advies: openbaar (de code bevat niets persoonlijks), of privé en zelf bijwerken met de setup.
-- Naam: Kapture is de werknaam (bestaat al als Mac-app Kapture+). Geen probleem voor eigen gebruik.
+- Naam: Kapsure is de werknaam (bestaat al als Mac-app Kapsure+). Geen probleem voor eigen gebruik.

@@ -1,4 +1,4 @@
-// Tekent de Stitch-schermen (docs/ontwerp/stitch/*/code.html) in licht en donker als PNG, om naast Kapture te leggen.
+// Tekent de Stitch-schermen (docs/ontwerp/stitch/*/code.html) in licht en donker als PNG, om naast Kapsure te leggen.
 // Gebruik: node tools/stitch_render.js docs/ontwerp/stitch docs/ontwerp/stitch/schermafdrukken
 const { chromium } = require('playwright');
 const path = require('path'), fs = require('fs');

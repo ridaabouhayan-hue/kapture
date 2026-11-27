@@ -1,4 +1,4 @@
-# Bouwt Kapture.exe en de tests met de C#-compiler die in Windows zit (.NET Framework 4.8).
+# Bouwt Kapsure.exe en de tests met de C#-compiler die in Windows zit (.NET Framework 4.8).
 # Gebruik: powershell -ExecutionPolicy Bypass -File build\build.ps1
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
@@ -11,26 +11,26 @@ $refs = "/r:System.dll", "/r:System.Core.dll", "/r:System.Drawing.dll", "/r:Syst
 Write-Host "Logo-icoon maken..."
 & $csc /nologo /target:exe "/out:$out\MaakIcoon.exe" @refs "$root\tools\MaakIcoon.cs" "$root\src\Logo.cs" "$root\src\Svg.cs"
 if ($LASTEXITCODE -ne 0) { throw "Bouwen van MaakIcoon mislukt" }
-& "$out\MaakIcoon.exe" "$out\Kapture.ico" "$out\logo"
+& "$out\MaakIcoon.exe" "$out\Kapsure.ico" "$out\logo"
 if ($LASTEXITCODE -ne 0) { throw "Logo-icoon maken mislukt" }
 
 $src = @(Get-ChildItem (Join-Path $root "src") -Filter *.cs -Recurse | ForEach-Object { $_.FullName })
-$res = @("/resource:$out\Kapture.ico,Kapture.ico")
-# lettertypes uit het Stitch-ontwerp, in Kapture.exe zelf (er hoeft niets geïnstalleerd te worden)
+$res = @("/resource:$out\Kapsure.ico,Kapture.ico")
+# lettertypes uit het Stitch-ontwerp, in Kapsure.exe zelf (er hoeft niets geïnstalleerd te worden)
 foreach ($f in Get-ChildItem (Join-Path $root "assets\fonts") -Filter *.ttf) { $res += "/resource:$($f.FullName),Kapture.Fonts.$($f.Name)" }
 
-Write-Host "Kapture.exe bouwen..."
+Write-Host "Kapsure.exe bouwen..."
 & $csc /nologo /target:winexe /optimize+ /unsafe /platform:anycpu /warn:4 `
-    "/out:$out\Kapture.exe" "/win32icon:$out\Kapture.ico" "/win32manifest:$root\assets\Kapture.manifest" `
+    "/out:$out\Kapsure.exe" "/win32icon:$out\Kapsure.ico" "/win32manifest:$root\assets\Kapsure.manifest" `
     @refs @res @src
-if ($LASTEXITCODE -ne 0) { throw "Bouwen van Kapture.exe mislukt" }
+if ($LASTEXITCODE -ne 0) { throw "Bouwen van Kapsure.exe mislukt" }
 
 Write-Host "Tests bouwen..."
 $tests = @(Get-ChildItem (Join-Path $root "tests") -Filter *.cs | ForEach-Object { $_.FullName })
-& $csc /nologo /target:exe /unsafe /platform:anycpu /main:Kapture.Tests "/out:$out\Kapture.Tests.exe" @refs @res @src @tests
+& $csc /nologo /target:exe /unsafe /platform:anycpu /main:Kapture.Tests "/out:$out\Kapsure.Tests.exe" @refs @res @src @tests
 if ($LASTEXITCODE -ne 0) { throw "Bouwen van de tests mislukt" }
 
 Write-Host "Tests draaien..."
-& "$out\Kapture.Tests.exe"
+& "$out\Kapsure.Tests.exe"
 if ($LASTEXITCODE -ne 0) { throw "Er zijn tests mislukt" }
-Write-Host "Klaar: $out\Kapture.exe"
+Write-Host "Klaar: $out\Kapsure.exe"

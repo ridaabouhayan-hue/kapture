@@ -14,7 +14,7 @@ namespace Kapture
         public Action<int> OnHotkey;
         public Action OnShowRequest;
         public Action OnClipboard;
-        public static readonly int ShowMessage = W.RegisterWindowMessage("Kapture.AlGestart");
+        public static readonly int ShowMessage = W.RegisterWindowMessage("Kapsure.AlGestart");
 
         public HotkeyWindow() { CreateHandle(new CreateParams()); }
 
@@ -27,7 +27,7 @@ namespace Kapture
         }
     }
 
-    // ------------------------------------------------------------------ Kapture zelf: tray-icoon, sneltoetsen, de stappen van een screenshot
+    // ------------------------------------------------------------------ Kapsure zelf: tray-icoon, sneltoetsen, de stappen van een screenshot
     class App : ApplicationContext
     {
         public const int HotkeyCapture = 1, HotkeyNote = 2, HotkeyLastNote = 3, HotkeyCustom = 4;
@@ -61,7 +61,7 @@ namespace Kapture
         }
 
         // Mag deze toets een eigen sneltoets zijn? Geeft null als het mag, anders de reden.
-        // Een sneltoets van Kapture werkt overal en pakt de toets af van elk ander programma. Daarom niet:
+        // Een sneltoets van Kapsure werkt overal en pakt de toets af van elk ander programma. Daarom niet:
         // gewone letters, Ctrl+letter (kopiëren, plakken, opslaan...), Ctrl+Alt+letter (dat is AltGr: é, ë, ß),
         // Alt+F4 en andere vaste toetsen van Windows.
         public static string WhyNotKey(int keys)
@@ -83,7 +83,7 @@ namespace Kapture
 
         public static bool UsableKey(int keys) { return WhyNotKey(keys) == null; }
 
-        // Tijdens het opnemen van een eigen sneltoets: alle sneltoetsen van Kapture even los, zodat de toetsen in Instellingen aankomen
+        // Tijdens het opnemen van een eigen sneltoets: alle sneltoetsen van Kapsure even los, zodat de toetsen in Instellingen aankomen
         public void SuspendHotkeys()
         {
             foreach (int id in new int[] { HotkeyCapture, HotkeyNote, HotkeyLastNote, HotkeyCustom }) W.UnregisterHotKey(hot.Handle, id);
@@ -120,7 +120,7 @@ namespace Kapture
             Theme.Mode = cfg.ThemeMode;
             history = History.Load(History.DefaultPath);
             hot.OnHotkey = OnHotkey;
-            hot.OnShowRequest = delegate { OpenSettings(); };   // Kapture nog eens gestart: open Instellingen
+            hot.OnShowRequest = delegate { OpenSettings(); };   // Kapsure nog eens gestart: open Instellingen
             hot.OnClipboard = OnClipboardChanged;
             if (!W.AddClipboardFormatListener(hot.Handle)) Log.Info("Klembord volgen lukte niet");
             overlay.Selected += OnSelected;
@@ -139,11 +139,11 @@ namespace Kapture
             if (inboxProblem != null)
                 Notify("Inbox-map niet bereikbaar", inboxProblem + " Kies een andere map in Instellingen.", "Instellingen", "settings", delegate { OpenSettings(); }, true);
 
-            // bijwerken: is Kapture net bijgewerkt, en staat er een nieuwe versie klaar?
+            // bijwerken: is Kapsure net bijgewerkt, en staat er een nieuwe versie klaar?
             int flag = Updates.ReadFlag();
             Updates.CleanUp();
-            if (flag == 1) Info("Kapture is bijgewerkt naar " + Program.Version, "Je instellingen zijn gebleven.", "download");
-            else if (flag == -1) Notify("Bijwerken lukte niet", "Kapture draait nog de vorige versie. Probeer het later nog eens via Instellingen, Over.", null, null, null, false);
+            if (flag == 1) Info("Kapsure is bijgewerkt naar " + Program.Version, "Je instellingen zijn gebleven.", "download");
+            else if (flag == -1) Notify("Bijwerken lukte niet", "Kapsure draait nog de vorige versie. Probeer het later nog eens via Instellingen, Over.", null, null, null, false);
             if (cfg.UpdateCheck && !Program.SelfTest)
                 Updates.CheckLater(20000, delegate(Updates.Info info) { try { overlay.BeginInvoke((Action)delegate { UpdateFound(info, false); }); } catch { } });
             Log.Info("Gestart " + Program.Version + " op Windows " + Environment.OSVersion.Version);
@@ -152,7 +152,7 @@ namespace Kapture
         // ---- tray
         void BuildTray()
         {
-            tray.Text = "Kapture";
+            tray.Text = "Kapsure";
             tray.Icon = TrayIcon();
             // links- en rechtsklikken openen hetzelfde menu (zoals in het Stitch-ontwerp)
             tray.MouseUp += delegate(object o, MouseEventArgs e)
@@ -172,7 +172,7 @@ namespace Kapture
         {
             bool keys = !c.HotkeysPaused;
             m.Clear();
-            m.AddHeader("Kapture", Presets.Chips[Presets.Clamp(c.Preset)]);
+            m.AddHeader("Kapsure", Presets.Chips[Presets.Clamp(c.Preset)]);
             m.Add("Nieuwe screenshot", "camera", keys && c.HotkeyCapture ? "PrtSc" : null, shot);
             m.Add("Screenshot met notitie", "sticky-note", keys && c.HotkeyNote ? "Shift+PrtSc" : null, shotNote);
             m.Add("Notitie bij laatste", "pencil", keys && c.HotkeyLastNote ? "Ctrl+PrtSc" : null, hasLast ? lastNote : null);
@@ -211,7 +211,7 @@ namespace Kapture
                 {
                     Log.Info(bad.Count + " sneltoets(en) konden niet vastgelegd worden");
                     if (tell) Notify(string.Join(", ", bad.ToArray()) + (bad.Count == 1 ? " is bezet" : " zijn bezet"),
-                        BusyHelp + " Kapture probeert het zelf elke 15 seconden opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
+                        BusyHelp + " Kapsure probeert het zelf elke 15 seconden opnieuw.", "Opnieuw", "rotate-ccw", delegate { RegisterHotkeys(true); }, true);
                 }
             }
             Log.Trace("Sneltoetsen: " + (cfg.HotkeysPaused ? "op pauze" : "PrtSc " + State(cfg.HotkeyCapture, HotkeyCapture) + ", Shift+PrtSc " + State(cfg.HotkeyNote, HotkeyNote)
@@ -228,7 +228,7 @@ namespace Kapture
         // Bezette sneltoetsen stil opnieuw proberen: komt Print Screen vrij (OneDrive of ShareX dicht), dan werkt hij meteen
         readonly Timer retry = new Timer { Interval = 15000 };
 
-        // Kies zelf: elk uur tijdelijke screenshots van meer dan een dag oud weggooien (Kapture draait vaak wekenlang)
+        // Kies zelf: elk uur tijdelijke screenshots van meer dan een dag oud weggooien (Kapsure draait vaak wekenlang)
         readonly Timer cleanTemp = new Timer { Interval = 60 * 60 * 1000 };
         bool retryHooked;
 
@@ -260,7 +260,7 @@ namespace Kapture
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
         }
 
-        void UpdateTrayText() { tray.Text = cfg.HotkeysPaused ? "Kapture (sneltoetsen op pauze)" : "Kapture"; }
+        void UpdateTrayText() { tray.Text = cfg.HotkeysPaused ? "Kapsure (sneltoetsen op pauze)" : "Kapsure"; }
 
         // Windows 11 opent standaard het Knipprogramma met Print Screen. Eén keer melden hoe je dat uitzet.
         public static bool SnippingUsesPrintScreen()
@@ -280,7 +280,7 @@ namespace Kapture
             {
                 using (RegistryKey k = Registry.CurrentUser.CreateSubKey(@"Control Panel\Keyboard"))
                     k.SetValue("PrintScreenKeyForSnippingEnabled", 0, RegistryValueKind.DWord);
-                // WM_SETTINGCHANGE aan alle vensters, op de achtergrond: een traag venster mag Kapture niet laten hangen
+                // WM_SETTINGCHANGE aan alle vensters, op de achtergrond: een traag venster mag Kapsure niet laten hangen
                 System.Threading.ThreadPool.QueueUserWorkItem(delegate
                 {
                     try { IntPtr res; W.SendMessageTimeout(new IntPtr(0xFFFF), 0x001A, IntPtr.Zero, "Control Panel\\Keyboard", 2, 1000, out res); } catch { }
@@ -293,9 +293,9 @@ namespace Kapture
 
         void CheckSnippingSetting()
         {
-            // elke start opnieuw zolang Windows Print Screen nog naar het Knipprogramma stuurt: anders doet PrtSc niets in Kapture
+            // elke start opnieuw zolang Windows Print Screen nog naar het Knipprogramma stuurt: anders doet PrtSc niets in Kapsure
             if (!cfg.HotkeyCapture || !SnippingUsesPrintScreen()) return;
-            Notify("Print Screen gaat nu naar het Knipprogramma", "Windows vangt Print Screen af, dus Kapture krijgt hem niet (Ctrl+PrtSc en Shift+PrtSc werken wel). Klik op Zet uit, dan regelt Kapture het.",
+            Notify("Print Screen gaat nu naar het Knipprogramma", "Windows vangt Print Screen af, dus Kapsure krijgt hem niet (Ctrl+PrtSc en Shift+PrtSc werken wel). Klik op Zet uit, dan regelt Kapsure het.",
                 "Zet uit", "keyboard", delegate { FixSnipping(); }, true);
         }
 
@@ -303,12 +303,12 @@ namespace Kapture
         {
             bool off = TurnOffSnippingPrintScreen();
             RegisterHotkeys(false);
-            if (off) Info("Print Screen is nu van Kapture", "Druk op Print Screen om het te proberen. Opent het Knipprogramma toch nog? Meld je dan een keer af en weer aan bij Windows.", "check");
+            if (off) Info("Print Screen is nu van Kapsure", "Druk op Print Screen om het te proberen. Opent het Knipprogramma toch nog? Meld je dan een keer af en weer aan bij Windows.", "check");
             else Notify("Uitzetten lukte niet", "Zet het zelf uit in de Windows-instelling: \"Print Screen gebruiken om het Knipprogramma te openen\".", "Open instelling", "settings-2", delegate { OpenSnippingSetting(); }, true);
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
         }
 
-        // Sommige Windows-versies geven Print Screen niet door aan Kapture (ook al is hij vastgelegd), maar kopiëren dan
+        // Sommige Windows-versies geven Print Screen niet door aan Kapsure (ook al is hij vastgelegd), maar kopiëren dan
         // zelf het hele scherm naar het klembord. Dat merken we hier: een afbeelding precies zo groot als het scherm,
         // van Windows zelf (geen eigenaar) of terwijl Print Screen net ingedrukt was. We kijken alleen naar de maat,
         // nooit naar wat erop staat. Geen toetsenbordhook: Windows meldt alleen dat het klembord veranderde.
@@ -330,7 +330,7 @@ namespace Kapture
                 IntPtr owner = W.GetClipboardOwner();
                 uint pid = 0;
                 if (owner != IntPtr.Zero) W.GetWindowThreadProcessId(owner, out pid);
-                if (pid != 0 && pid == ownPid) return;   // Kapture zette het er zelf op
+                if (pid != 0 && pid == ownPid) return;   // Kapsure zette het er zelf op
                 bool fromWindows = owner == IntPtr.Zero;
                 // Eerst de goedkope controles: de afbeelding opvragen laat het andere programma hem soms pas maken (traag)
                 if (!(fromWindows || prt)) return;
@@ -342,7 +342,7 @@ namespace Kapture
                     + (fromWindows ? "Windows zelf" : "een programma") + ", PrtSc " + (prt ? "net ingedrukt" : "niet ingedrukt")
                     + (win ? ", met Windows-toets" : "") + (alt ? ", met Alt" : ""));
                 if (!screenSize) return;
-                if (win || alt) return;   // Windows-toets + PrtSc of Alt + PrtSc: dat is van Windows zelf, niet voor Kapture
+                if (win || alt) return;   // Windows-toets + PrtSc of Alt + PrtSc: dat is van Windows zelf, niet voor Kapsure
                 lastPrtSc = DateTime.UtcNow;
                 if (shift && cfg.HotkeyNote) StartCapture(true); else StartCapture(false);
             }
@@ -382,7 +382,7 @@ namespace Kapture
         {
             if (busy || overlay.IsActive || overlay.InNoteMode)
             {
-                Log.Trace("Screenshot niet gestart: " + (overlay.InNoteMode ? "notitiebalk staat nog open" : overlay.IsActive ? "donker scherm staat al open" : "Kapture is nog bezig met de vorige"));
+                Log.Trace("Screenshot niet gestart: " + (overlay.InNoteMode ? "notitiebalk staat nog open" : overlay.IsActive ? "donker scherm staat al open" : "Kapsure is nog bezig met de vorige"));
                 return;
             }
             busy = true;
@@ -414,7 +414,7 @@ namespace Kapture
                 }
                 overlay.ShowNow();
                 dim.HideNow();
-                Log.Trace("Donker scherm open; vooraan staat " + (W.GetForegroundWindow() == overlay.Handle ? "Kapture" : Overlay.ForegroundName()));
+                Log.Trace("Donker scherm open; vooraan staat " + (W.GetForegroundWindow() == overlay.Handle ? "Kapsure" : Overlay.ForegroundName()));
                 Watchdog.Arm(overlay.Handle, dim.Handle);
             }
             catch (Exception ex)
@@ -444,7 +444,7 @@ namespace Kapture
                     busy = false;
                 }
                 if (piece == null) { if (note) SafeReset(); return; }
-                // welk programma staat onder het midden van het kader (de vensters van Kapture tellen niet mee)
+                // welk programma staat onder het midden van het kader (de vensters van Kapsure tellen niet mee)
                 string under = Naming.AppAt(shotOrigin.X + r.X + r.Width / 2, shotOrigin.Y + r.Y + r.Height / 2);
                 if (under != "" && under != "Verkenner") shotApp = under;
                 else if (shotApp == "Verkenner") shotApp = under;
@@ -681,7 +681,7 @@ namespace Kapture
             {
                 // Kies zelf: nog niet bewaard; jij kiest
                 c.Title = "Nog niet bewaard";
-                c.Sub = "Kies Bewaren of Kopiëren. Doe je niets, dan ruimt Kapture hem later op.";
+                c.Sub = "Kies Bewaren of Kopiëren. Doe je niets, dan ruimt Kapsure hem later op.";
                 c.ActionLabel = "Bewaren"; c.ActionIcon = "save";
                 c.OnAction = delegate { KeepShot(entry, c.Note); };
                 c.Action2Label = "Kopiëren"; c.Action2Icon = "copy";
@@ -989,8 +989,8 @@ namespace Kapture
             if (settingsForm != null && !settingsForm.IsDisposed) settingsForm.RefreshValues();
             if (fromSettings || overlay.IsActive || overlay.InNoteMode || toast.IsEditing) return;
             ToastContent c = new ToastContent();
-            c.Ok = true; c.Icon = "download"; c.Title = "Nieuwe versie: Kapture " + info.Version;
-            c.Sub = "Bijwerken duurt een paar seconden. Kapture start daarna vanzelf weer; je instellingen blijven.";
+            c.Ok = true; c.Icon = "download"; c.Title = "Nieuwe versie: Kapsure " + info.Version;
+            c.Sub = "Bijwerken duurt een paar seconden. Kapsure start daarna vanzelf weer; je instellingen blijven.";
             c.ActionLabel = "Bijwerken"; c.ActionIcon = "download"; c.OnAction = delegate { InstallUpdate(); };
             c.Seconds = 15;
             toast.ShowToast(c, Theme.Current);
@@ -1011,7 +1011,7 @@ namespace Kapture
             });
         }
 
-        // Downloaden, controleren (sha256 van GitHub), de installer stil laten lopen; die start Kapture daarna weer
+        // Downloaden, controleren (sha256 van GitHub), de installer stil laten lopen; die start Kapsure daarna weer
         public void InstallUpdate()
         {
             Updates.Info info = PendingUpdate;
@@ -1025,8 +1025,8 @@ namespace Kapture
             updating = true;
             if (settingsForm != null && !settingsForm.IsDisposed && !settingsForm.AskSaveBeforeQuit()) { updating = false; return; }
             IWin32Window owner = settingsForm != null && !settingsForm.IsDisposed && settingsForm.Visible ? (IWin32Window)settingsForm : null;
-            if (MessageBox.Show(owner, "Kapture bijwerken naar " + info.Version + "? Kapture sluit even en start daarna vanzelf weer. Je instellingen en screenshots blijven staan.",
-                "Kapture", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { updating = false; return; }
+            if (MessageBox.Show(owner, "Kapsure bijwerken naar " + info.Version + "? Kapsure sluit even en start daarna vanzelf weer. Je instellingen en screenshots blijven staan.",
+                "Kapsure", MessageBoxButtons.YesNo, MessageBoxIcon.Question) != DialogResult.Yes) { updating = false; return; }
             Info("De nieuwe versie wordt opgehaald...", "Even geduld, dit duurt een paar seconden.", "download");
             Updates.Download(info, delegate(string file)
             {
@@ -1041,14 +1041,14 @@ namespace Kapture
                             return;
                         }
                         PendingUpdate = null;   // updating blijft aan: geen tweede download of installer
-                        // eerst afronden (notitiebalk, opslaan, hernoemen), pas dan de installer: die sluit Kapture hard af
+                        // eerst afronden (notitiebalk, opslaan, hernoemen), pas dan de installer: die sluit Kapsure hard af
                         Quit(delegate
                         {
                             Updates.WriteFlag(info.Version);   // bij de volgende start melden dat het gelukt is (of niet)
                             // keuzes van de vorige installatie respecteren: starten met Windows en de snelkoppeling niet terugzetten
                             string tasks = "";
                             if (!Autostart.IsOn) tasks += "!autostart";
-                            if (!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Kapture.lnk"))) tasks += (tasks.Length > 0 ? "," : "") + "!desktop";
+                            if (!File.Exists(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), "Kapsure.lnk"))) tasks += (tasks.Length > 0 ? "," : "") + "!desktop";
                             string args = "/SILENT /SUPPRESSMSGBOXES /NORESTART /NOCANCEL /BIJWERKEN" + (tasks.Length > 0 ? " /MERGETASKS=\"" + tasks + "\"" : "");
                             ProcessStartInfo psi = new ProcessStartInfo(file, args);
                             psi.UseShellExecute = true;
@@ -1143,7 +1143,7 @@ namespace Kapture
         void Quit() { Quit(null, null); }
 
         // Stoppen. 'last' draait na het afronden maar voor het opruimen (de installer bij bijwerken);
-        // mislukt 'last', dan blijft Kapture gewoon draaien en krijgt 'failed' de fout.
+        // mislukt 'last', dan blijft Kapsure gewoon draaien en krijgt 'failed' de fout.
         void Quit(Action last, Action<Exception> failed)
         {
             if (quitting) return;   // al bezig met stoppen (bijvoorbeeld twee keer op Afsluiten geklikt)
@@ -1183,7 +1183,7 @@ namespace Kapture
 
     // ------------------------------------------------------------------ Waakhond: het donkere scherm mag nooit blijven hangen
     // Een tikker op de UI-draad houdt een hartslag bij. Staat de overlay open en blijft de hartslag 3 seconden weg
-    // (Kapture zit vast), dan verbergt een aparte draad de overlay en het donkere venster.
+    // (Kapsure zit vast), dan verbergt een aparte draad de overlay en het donkere venster.
     static class Watchdog
     {
         static readonly System.Windows.Forms.Timer beat = new System.Windows.Forms.Timer { Interval = 250 };
@@ -1213,7 +1213,7 @@ namespace Kapture
             armed = false;
             W.ShowWindowAsync(ov, W.SW_HIDE);
             W.ShowWindowAsync(dimH, W.SW_HIDE);
-            Log.Info("Waakhond: overlay verborgen omdat Kapture niet reageerde");
+            Log.Info("Waakhond: overlay verborgen omdat Kapsure niet reageerde");
         }
     }
 }

@@ -1,4 +1,4 @@
-// Overgenomen uit NexusPen (zelfde maker) en aangepast voor Kapture.
+// Overgenomen uit NexusPen (zelfde maker) en aangepast voor Kapsure.
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;

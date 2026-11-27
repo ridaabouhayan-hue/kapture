@@ -30,7 +30,7 @@ namespace Kapture
         public string PendingNote;   // notitie die al getypt is terwijl het bestand nog wordt opgeslagen
     }
 
-    // ------------------------------------------------------------------ Geschiedenis: %APPDATA%\Kapture\geschiedenis.json (laatste 10, alleen op deze pc)
+    // ------------------------------------------------------------------ Geschiedenis: %APPDATA%\Kapsure\geschiedenis.json (laatste 10, alleen op deze pc)
     class History
     {
         public const int Max = 10;
@@ -190,7 +190,7 @@ namespace Kapture
             float fontPx = (float)Math.Round(Math.Max(14f, Math.Min(22f, w / 60f)));
             int pad = (int)Math.Round(fontPx * 0.9f);
             // de strook komt in de afbeelding: altijd Segoe UI (zoals de tekst in de editor), en eigen Font-objecten,
-            // want dit draait op de achtergrond terwijl de rest van Kapture tekent
+            // want dit draait op de achtergrond terwijl de rest van Kapsure tekent
             using (Font f = new Font("Segoe UI", fontPx, FontStyle.Regular, GraphicsUnit.Pixel))
             using (Font fb = new Font("Segoe UI Semibold", fontPx, FontStyle.Regular, GraphicsUnit.Pixel))
                 return WithStrip(img, note, w, fontPx, pad, f, fb);

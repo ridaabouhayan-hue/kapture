@@ -174,7 +174,7 @@ namespace Kapture
         public Overlay()
         {
             FormBorderStyle = FormBorderStyle.None; ShowInTaskbar = false; StartPosition = FormStartPosition.Manual;
-            AutoScaleMode = AutoScaleMode.None; KeyPreview = true; Text = "Kapture";
+            AutoScaleMode = AutoScaleMode.None; KeyPreview = true; Text = "Kapsure";
             SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.Opaque, true);
             DoubleBuffered = false;
             Cursor = Cursors.Cross;
@@ -214,7 +214,7 @@ namespace Kapture
             return true;
         }
 
-        // Tonen en het toetsenbord pakken (de sneltoets geeft Kapture daar het recht toe)
+        // Tonen en het toetsenbord pakken (de sneltoets geeft Kapsure daar het recht toe)
         public void ShowNow()
         {
             active = true;
@@ -271,7 +271,7 @@ namespace Kapture
             again.Start();
         }
 
-        // Alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel. Leeg als het Kapture zelf is
+        // Alleen de programmanaam (bijvoorbeeld SnippingTool), nooit een venstertitel. Leeg als het Kapsure zelf is
         // of als het programma al weg is.
         public static string ProcessName(uint pid)
         {
@@ -291,7 +291,7 @@ namespace Kapture
             if (fg == IntPtr.Zero) return "niets";
             uint pid; W.GetWindowThreadProcessId(fg, out pid);
             string n = ProcessName(pid);
-            return n.Length > 0 ? n : "Kapture of onbekend";
+            return n.Length > 0 ? n : "Kapsure of onbekend";
         }
 
         void SyncShapeButtons()
@@ -656,7 +656,7 @@ namespace Kapture
 
         protected override void OnActivated(EventArgs e) { base.OnActivated(e); if (active) wasActivated = true; }
 
-        // Klikt iemand weg (Alt+Tab, een ander venster), dan stopt Kapture: nooit een donker scherm dat blijft hangen
+        // Klikt iemand weg (Alt+Tab, een ander venster), dan stopt Kapsure: nooit een donker scherm dat blijft hangen
         protected override void OnDeactivate(EventArgs e)
         {
             base.OnDeactivate(e);
@@ -812,7 +812,7 @@ namespace Kapture
             }
         }
 
-        // Kapture sluit af terwijl de notitiebalk openstaat: wat er getypt is, bewaren
+        // Kapsure sluit af terwijl de notitiebalk openstaat: wat er getypt is, bewaren
         public void FinishNoteNow() { FinishNote(true); }
 
         void FinishNote(bool save)

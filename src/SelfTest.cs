@@ -7,7 +7,7 @@ using System.IO;
 
 namespace Kapture
 {
-    // ------------------------------------------------------------------ Zelftest: Kapture.exe --zelftest [map]
+    // ------------------------------------------------------------------ Zelftest: Kapsure.exe --zelftest [map]
     // Tekent elk scherm met een NEP-bureaublad (nooit het echte scherm) in licht en donker, op 100% en 150%,
     // en bewaart de plaatjes in de map, zodat Claude ze kan bekijken. Test ook opslaan en uitsnijden.
     static class SelfTest
@@ -23,7 +23,7 @@ namespace Kapture
         public static int Run(string dir)
         {
             Directory.CreateDirectory(dir);
-            Console.WriteLine("Kapture " + Program.Version + " zelftest");
+            Console.WriteLine("Kapsure " + Program.Version + " zelftest");
             try
             {
                 foreach (int size in new int[] { 256, 48, 32, 16 })
@@ -76,7 +76,7 @@ namespace Kapture
             return fails == 0 ? 0 : 1;
         }
 
-        // Kapture.exe --proef-echt: een echte ronde op dit scherm (donker, vastleggen, overlay tonen) en dan annuleren.
+        // Kapsure.exe --proef-echt: een echte ronde op dit scherm (donker, vastleggen, overlay tonen) en dan annuleren.
         // Bewaart niets en kopieert niets; meet alleen de tijden.
         public static int Live()
         {
@@ -398,7 +398,7 @@ namespace Kapture
             {
                 ToastContent c = new ToastContent();
                 c.Ok = false; c.Icon = "alert"; c.Stay = true;
-                c.Title = "Zet Print Screen vrij voor Kapture";
+                c.Title = "Zet Print Screen vrij voor Kapsure";
                 c.Sub = "Windows opent nu het Knipprogramma met Print Screen. Zet in de instelling \"Print Screen gebruiken om het Knipprogramma te openen\" uit.";
                 c.ActionLabel = "Open instelling"; c.ActionIcon = "settings-2";
                 using (Bitmap tb = toast.RenderForTest(c, t, scale)) Save(dir, name, tb, t);

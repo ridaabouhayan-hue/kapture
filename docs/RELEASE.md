@@ -1,4 +1,10 @@
-# Kapture 0.7.0
+# Kapsure 0.8.0
+
+**Kapture heet nu Kapsure.**
+- Bijwerken gaat zoals altijd. Je instellingen, presets, geschiedenis en "Starten met Windows" gaan vanzelf mee naar de nieuwe naam. Je screenshots blijven waar ze zijn.
+- De oude snelkoppelingen verdwijnen; in het Startmenu staat nu Kapsure.
+
+## Kapture 0.7.0
 
 Nieuw in 0.7:
 - **Meerdere screenshots in één keer naar Claude**: maak je een paar screenshots kort na elkaar (steeds hoogstens 10 minuten ertussen), dan staat in de melding **Alle 3 kopiëren** (of hoeveel het er zijn). Eén klik en ze staan allemaal op je klembord; met één keer Ctrl+V zet je ze samen in Claude, op volgorde. Je hoeft vooraf niets aan te zetten. (Hoogstens de laatste 10.)

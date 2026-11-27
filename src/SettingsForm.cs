@@ -9,7 +9,7 @@ namespace Kapture
 {
     // ------------------------------------------------------------------ Instellingen (Stitch-scherm 6)
     // Een gewoon venster, zelf getekend: bovenaan de zoekbalk, links het menu, rechts één pagina tegelijk.
-    // Wijzigingen staan eerst in een werkkopie; pas met Opslaan gebruikt Kapture ze (met een bevestiging).
+    // Wijzigingen staan eerst in een werkkopie; pas met Opslaan gebruikt Kapsure ze (met een bevestiging).
     // Tekst via Windows zelf (ClearType, zoals NexusPen): scherp en met de normale letterafstand.
     class SettingsForm : Form
     {
@@ -45,7 +45,7 @@ namespace Kapture
         const float TopH = 76, SearchW = 576, SearchH = 42, NavW = 232, NavItemH = 34, NavPad = 12, FootH = 68;
         const float ContentPadX = 32, ContentPadTop = 28, CardPad = 20, CardGap = 16, SectionGap = 40, RowPadY = 14, ControlGap = 20;
 
-        readonly Settings cfg;            // wat Kapture nu gebruikt
+        readonly Settings cfg;            // wat Kapsure nu gebruikt
         Settings work;                    // wat je hier aan het wijzigen bent
         bool autostartNow, autostartWork;
         readonly App app;
@@ -71,7 +71,7 @@ namespace Kapture
         {
             cfg = settings; app = owner;
             Reload();
-            Text = "Kapture · Instellingen";
+            Text = "Kapsure · Instellingen";
             StartPosition = FormStartPosition.CenterScreen;
             AutoScaleMode = AutoScaleMode.None;
             ShowInTaskbar = true;
@@ -102,7 +102,7 @@ namespace Kapture
 
         void Edited() { saved = null; ApplyTheme(); Invalidate(); }
 
-        // Opslaan: de werkkopie wordt wat Kapture gebruikt, met een bevestiging onderaan
+        // Opslaan: de werkkopie wordt wat Kapsure gebruikt, met een bevestiging onderaan
         public void SaveNow()
         {
             if (!Dirty) return;
@@ -131,7 +131,7 @@ namespace Kapture
             Invalidate();
         }
 
-        // Het venster laat het gekozen thema meteen zien (voorbeeld); de rest van Kapture pas na Opslaan
+        // Het venster laat het gekozen thema meteen zien (voorbeeld); de rest van Kapsure pas na Opslaan
         void ApplyTheme()
         {
             t = Program.ForceTheme ?? (work.ThemeMode == 1 ? Theme.Light : work.ThemeMode == 2 ? Theme.DarkTheme : SystemTheme());
@@ -172,7 +172,7 @@ namespace Kapture
         // ---- de inhoud
         void Build()
         {
-            Section algemeen = new Section { Name = "Algemeen", Icon = "sliders-horizontal", Desc = "Hoe Kapture eruitziet en opstart." };
+            Section algemeen = new Section { Name = "Algemeen", Icon = "sliders-horizontal", Desc = "Hoe Kapsure eruitziet en opstart." };
             Card thema = new Card { Title = "Thema", Icon = "palette", Desc = "Licht of donker, of hetzelfde als Windows. De kleur is kobalt." };
             thema.Rows.Add(new Row
             {
@@ -182,11 +182,11 @@ namespace Kapture
                 GetIndex = delegate { return work.ThemeMode; }, SetIndex = delegate(int i) { work.ThemeMode = i; Edited(); }
             });
             algemeen.Cards.Add(thema);
-            Card start = new Card { Title = "Opstarten en meldingen", Icon = "settings", Desc = "Wanneer Kapture start en hoe lang de melding blijft staan." };
+            Card start = new Card { Title = "Opstarten en meldingen", Icon = "settings", Desc = "Wanneer Kapsure start en hoe lang de melding blijft staan." };
             start.Rows.Add(new Row
             {
                 Id = "autostart", Title = "Starten met Windows", Keywords = "opstarten automatisch aanmelden",
-                Sub = delegate { return "Kapture staat dan meteen bij de klok."; },
+                Sub = delegate { return "Kapsure staat dan meteen bij de klok."; },
                 Kind = RowKind.Toggle, Get = delegate { return autostartWork; }, Set = delegate(bool v) { autostartWork = v; Edited(); }
             });
             start.Rows.Add(new Row
@@ -200,11 +200,11 @@ namespace Kapture
             Sections.Add(algemeen);
 
             Section toetsen = new Section { Name = "Sneltoetsen", Icon = "keyboard", Desc = "Elke sneltoets kun je los aan of uit zetten." };
-            Card knip = new Card { Title = "Print Screen en het Knipprogramma", Icon = "info", Desc = "Windows 11 stuurt Print Screen standaard naar het Knipprogramma. Dan krijgt Kapture hem niet." };
+            Card knip = new Card { Title = "Print Screen en het Knipprogramma", Icon = "info", Desc = "Windows 11 stuurt Print Screen standaard naar het Knipprogramma. Dan krijgt Kapsure hem niet." };
             Row knipRow = new Row
             {
-                Id = "knipprogramma", Title = "Print Screen voor Kapture", Keywords = "knipprogramma snipping windows instelling werkt niet prtsc",
-                Sub = delegate { return App.SnippingUsesPrintScreen() ? "Windows vangt Print Screen nu af voor het Knipprogramma. Klik op Zet uit, dan regelt Kapture het." : "In orde: Print Screen is vrij voor Kapture."; },
+                Id = "knipprogramma", Title = "Print Screen voor Kapsure", Keywords = "knipprogramma snipping windows instelling werkt niet prtsc",
+                Sub = delegate { return App.SnippingUsesPrintScreen() ? "Windows vangt Print Screen nu af voor het Knipprogramma. Klik op Zet uit, dan regelt Kapsure het." : "In orde: Print Screen is vrij voor Kapsure."; },
                 Warn = delegate { return App.SnippingUsesPrintScreen(); },
                 Kind = RowKind.Buttons
             };
@@ -212,7 +212,7 @@ namespace Kapture
             knipRow.Buttons.Add(new Btn { Label = "Windows-instelling", Icon = "external-link", Click = delegate { App.OpenSnippingSetting(); } });
             knip.Rows.Add(knipRow);
             toetsen.Cards.Add(knip);
-            Card keys = new Card { Title = "Sneltoetsen", Icon = "keyboard", Desc = "Werkt overal, ook als Kapture op de achtergrond staat." };
+            Card keys = new Card { Title = "Sneltoetsen", Icon = "keyboard", Desc = "Werkt overal, ook als Kapsure op de achtergrond staat." };
             keys.Rows.Add(HotkeyRow("toets-screenshot", "Screenshot", "PrtSc", "print screen prtsc", App.HotkeyCapture, delegate { return work.HotkeyCapture; }, delegate(bool v) { work.HotkeyCapture = v; }));
             keys.Rows.Add(HotkeyRow("toets-notitie", "Screenshot met notitie", "Shift+PrtSc", "notitie shift", App.HotkeyNote, delegate { return work.HotkeyNote; }, delegate(bool v) { work.HotkeyNote = v; }));
             keys.Rows.Add(HotkeyRow("toets-laatste", "Notitie bij de laatste screenshot", "Ctrl+PrtSc", "notitie ctrl laatste achteraf", App.HotkeyLastNote, delegate { return work.HotkeyLastNote; }, delegate(bool v) { work.HotkeyLastNote = v; }));
@@ -275,7 +275,7 @@ namespace Kapture
                     pc.Rows.Add(new Row { Id = "preset-kieszelf-hoe", Title = "Zo kies je", Keywords = "kies zelf bewaren kopieren", Sub = delegate { return "De melding blijft 12 seconden staan met Bewaren en Kopiëren. Bewaren zet hem in je inbox."; }, Kind = RowKind.Info });
                 presets.Cards.Add(pc);
             }
-            Card reset = new Card { Title = "Terug naar standaard", Icon = "rotate-ccw", Desc = "Alle presets weer zoals Kapture ze bedacht." };
+            Card reset = new Card { Title = "Terug naar standaard", Icon = "rotate-ccw", Desc = "Alle presets weer zoals Kapsure ze bedacht." };
             Row resetRow = new Row { Id = "preset-standaard", Title = "Stappen herstellen", Keywords = "standaard herstellen reset presets", Sub = delegate { return "Zet de schakelaars van alle presets terug."; }, Kind = RowKind.Buttons };
             resetRow.Buttons.Add(new Btn { Label = "Herstellen", Icon = "rotate-ccw", Click = delegate { for (int i = 0; i < work.PresetSteps.Length; i++) work.PresetSteps[i] = -1; Edited(); } });
             reset.Rows.Add(resetRow);
@@ -283,7 +283,7 @@ namespace Kapture
             Sections.Add(presets);
 
             Section opslaan = new Section { Name = "Opslaan en mappen", Icon = "folder", Desc = "Waar je screenshots komen en hoe ze heten." };
-            Card inbox = new Card { Title = "Inbox-map", Icon = "folder-open", Desc = "Hier zet Kapture elke screenshot neer. In OneDrive ziet Claude ze ook." };
+            Card inbox = new Card { Title = "Inbox-map", Icon = "folder-open", Desc = "Hier zet Kapsure elke screenshot neer. In OneDrive ziet Claude ze ook." };
             Row inboxRow = new Row
             {
                 Id = "inbox", Title = "Map voor je screenshots", Keywords = "inbox map onedrive pictures screenshots opslaan pad locatie",
@@ -312,7 +312,7 @@ namespace Kapture
                 MonoSub = true, Kind = RowKind.Info
             });
             opslaan.Cards.Add(inbox);
-            Card data = new Card { Title = "Gegevens van Kapture", Icon = "file-text", Desc = "Instellingen, de laatste 10 screenshots en het foutlog. Alleen op deze pc." };
+            Card data = new Card { Title = "Gegevens van Kapsure", Icon = "file-text", Desc = "Instellingen, de laatste 10 screenshots en het foutlog. Alleen op deze pc." };
             Row dataRow = new Row
             {
                 Id = "gegevens", Title = "Map met gegevens", Keywords = "appdata foutlog log geschiedenis instellingen",
@@ -351,8 +351,8 @@ namespace Kapture
             ed.Rows.Add(new Row
             {
                 Id = "miniatuur", Title = "Klik op de miniatuur opent", Keywords = "editor bewerken foto windows miniatuur openen",
-                Sub = delegate { return work.ThumbOpensEditor ? "De editor van Kapture." : "Het programma dat Windows voor afbeeldingen gebruikt, bijvoorbeeld Foto's."; },
-                Kind = RowKind.Segments, Segments = new string[] { "Kapture-editor", "Windows" },
+                Sub = delegate { return work.ThumbOpensEditor ? "De editor van Kapsure." : "Het programma dat Windows voor afbeeldingen gebruikt, bijvoorbeeld Foto's."; },
+                Kind = RowKind.Segments, Segments = new string[] { "Kapsure-editor", "Windows" },
                 GetIndex = delegate { return work.ThumbOpensEditor ? 0 : 1; }, SetIndex = delegate(int i) { work.ThumbOpensEditor = i == 0; Edited(); }
             });
             ed.Rows.Add(new Row
@@ -365,14 +365,14 @@ namespace Kapture
             Sections.Add(bewerken);
 
             Section over = new Section { Name = "Over en bijwerken", Icon = "info", Desc = "Versie, nieuwe versies en privacy." };
-            Card about = new Card { Title = "Kapture " + Program.Version, Icon = "camera", Desc = "Je eigen screenshot-tool voor Windows." };
+            Card about = new Card { Title = "Kapsure " + Program.Version, Icon = "camera", Desc = "Je eigen screenshot-tool voor Windows." };
             Row versie = new Row
             {
                 Id = "versie", Title = "Nieuwe versie", Keywords = "update versie bijwerken github release downloaden",
                 Sub = delegate
                 {
                     if (app != null && app.Updating) return "Bezig met bijwerken...";
-                    if (app != null && app.PendingUpdate != null) return "Versie " + app.PendingUpdate.Version + " staat klaar. Bijwerken duurt een paar seconden; Kapture start daarna vanzelf weer.";
+                    if (app != null && app.PendingUpdate != null) return "Versie " + app.PendingUpdate.Version + " staat klaar. Bijwerken duurt een paar seconden; Kapsure start daarna vanzelf weer.";
                     return updateStatus ?? "Je hebt versie " + Program.Version + ". Klik op Nu zoeken om te kijken of er een nieuwere is.";
                 },
                 Kind = RowKind.Buttons
@@ -404,7 +404,7 @@ namespace Kapture
             about.Rows.Add(new Row
             {
                 Id = "zoeken-auto", Title = "Zelf zoeken naar nieuwe versies", Keywords = "automatisch update bijwerken internet",
-                Sub = delegate { return "Bij het starten kijkt Kapture op GitHub of er een nieuwe versie is. Er gaat niets van jou mee."; },
+                Sub = delegate { return "Bij het starten kijkt Kapsure op GitHub of er een nieuwe versie is. Er gaat niets van jou mee."; },
                 Kind = RowKind.Toggle, Get = delegate { return work.UpdateCheck; }, Set = delegate(bool v) { work.UpdateCheck = v; Edited(); }
             });
             Row page = new Row
@@ -418,7 +418,7 @@ namespace Kapture
             about.Rows.Add(new Row
             {
                 Id = "privacy", Title = "Privacy", Keywords = "privacy internet gegevens",
-                Sub = delegate { return "Kapture stuurt nooit vanzelf iets naar internet; alleen de vraag aan GitHub of er een nieuwe versie is. Het foutlog bevat nooit bestandsnamen, notities of wat er op een screenshot staat."; },
+                Sub = delegate { return "Kapsure stuurt nooit vanzelf iets naar internet; alleen de vraag aan GitHub of er een nieuwe versie is. Het foutlog bevat nooit bestandsnamen, notities of wat er op een screenshot staat."; },
                 Kind = RowKind.Info
             });
             over.Cards.Add(about);
@@ -435,7 +435,7 @@ namespace Kapture
                     if (cfg.HotkeysPaused) return "Op pauze";
                     if (!get()) return "Uit";
                     if (hotkeyId == App.HotkeyCapture && App.SnippingUsesPrintScreen()) return "Gaat nu naar het Knipprogramma. Zie hierboven: Zet uit.";
-                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet. " + App.BusyHelp + " Kapture probeert het zelf opnieuw.";
+                    if (app != null && app.HotkeyTaken.ContainsKey(hotkeyId)) return "Bezet. " + App.BusyHelp + " Kapsure probeert het zelf opnieuw.";
                     return "Aan";
                 },
                 Warn = delegate
@@ -457,7 +457,7 @@ namespace Kapture
                 d.ShowNewFolderButton = true;
                 if (d.ShowDialog(this) != DialogResult.OK) return;
                 string problem = InboxFolder.Check(d.SelectedPath);
-                if (problem != null) { MessageBox.Show(this, problem, "Kapture", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+                if (problem != null) { MessageBox.Show(this, problem, "Kapsure", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
                 work.Inbox = string.Equals(d.SelectedPath.TrimEnd('\\'), InboxFolder.Default().TrimEnd('\\'), StringComparison.OrdinalIgnoreCase) ? "" : d.SelectedPath;
                 inboxChecked = false;
                 Edited();
@@ -633,7 +633,7 @@ namespace Kapture
                 RectangleF dot = new RectangleF(lx, foot.Y + (foot.Height - P(22)) / 2, P(22), P(22));
                 using (SolidBrush db = new SolidBrush(t.PrimaryContainer)) g.FillEllipse(db, dot);
                 Icons.Draw(g, "check", dot, 14 * s, t.Primary, 2.5f);
-                Txt(g, saved + ". Kapture gebruikt ze nu.", Fonts.Ui(13 * s, 2), new RectangleF(lx + P(30), foot.Y, lw - P(30), foot.Height), t.OnSurface, false);
+                Txt(g, saved + ". Kapsure gebruikt ze nu.", Fonts.Ui(13 * s, 2), new RectangleF(lx + P(30), foot.Y, lw - P(30), foot.Height), t.OnSurface, false);
             }
             else if (dirty)
                 Txt(g, "Je hebt wijzigingen die nog niet bewaard zijn.", mf, new RectangleF(lx, foot.Y, lw, foot.Height), t.OnSurface, false);
@@ -1108,7 +1108,7 @@ namespace Kapture
 
         bool quitting;
 
-        // Kapture stopt: sluiten zonder vragen (de vraag over opslaan is dan al gesteld, of niet nodig)
+        // Kapsure stopt: sluiten zonder vragen (de vraag over opslaan is dan al gesteld, of niet nodig)
         public void CloseForQuit() { quitting = true; Close(); }
 
         // Sluiten met wijzigingen die nog niet bewaard zijn: eerst vragen. Daarna verbergen (zoekterm en pagina blijven).
@@ -1119,7 +1119,7 @@ namespace Kapture
             {
                 if (Dirty)
                 {
-                    DialogResult a = MessageBox.Show(this, "Je hebt wijzigingen die nog niet bewaard zijn. Wil je ze opslaan?", "Kapture",
+                    DialogResult a = MessageBox.Show(this, "Je hebt wijzigingen die nog niet bewaard zijn. Wil je ze opslaan?", "Kapsure",
                         MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
                     if (a == DialogResult.Cancel) { e.Cancel = true; return; }
                     if (a == DialogResult.Yes) SaveNow(); else Revert();
@@ -1165,7 +1165,7 @@ namespace Kapture
         public bool AskSaveBeforeQuit()
         {
             if (!Dirty) return true;
-            DialogResult a = MessageBox.Show(Visible ? this : null, "Je hebt wijzigingen in Instellingen die nog niet bewaard zijn. Wil je ze opslaan voor het bijwerken?", "Kapture",
+            DialogResult a = MessageBox.Show(Visible ? this : null, "Je hebt wijzigingen in Instellingen die nog niet bewaard zijn. Wil je ze opslaan voor het bijwerken?", "Kapsure",
                 MessageBoxButtons.YesNoCancel, MessageBoxIcon.Question);
             if (a == DialogResult.Cancel) return false;
             if (a == DialogResult.Yes) SaveNow(); else Revert();

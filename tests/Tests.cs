@@ -96,7 +96,7 @@ namespace Kapture
                 File.WriteAllText(sp, "presetStappen=abc,99,-5,3");
                 Settings bad = Settings.Load(sp);
                 Is(bad.PresetSteps[0] == -1 && bad.PresetSteps[1] == -1 && bad.PresetSteps[2] == -1 && bad.PresetSteps[3] == 3, "onzin in de stappen wordt standaard");
-                Is(Fonts.UsesStitchFonts, "Inter en JetBrains Mono zitten in Kapture");
+                Is(Fonts.UsesStitchFonts, "Inter en JetBrains Mono zitten in Kapsure");
                 // reeks: kort na elkaar (hoogstens 10 minuten ertussen); een gat breekt de reeks
                 DateTime t0 = new DateTime(2026, 11, 27, 10, 0, 0);
                 System.Collections.Generic.List<Shot> hs = new System.Collections.Generic.List<Shot>();
@@ -146,12 +146,12 @@ namespace Kapture
             // bijwerken: versies vergelijken en het antwoord van GitHub lezen
             Is(Updates.IsNewer("0.2.1", "0.2.0") && Updates.IsNewer("v1.0", "0.9.9") && !Updates.IsNewer("0.2.0", "0.2.0") && !Updates.IsNewer("0.1.9", "0.2.0"), "nieuwere versie herkennen");
             string sha = new string('a', 64);
-            string json = "{\"tag_name\":\"v0.2.1\",\"html_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\"assets\":[{\"name\":\"Kapture-Setup.exe\",\"digest\":\"sha256:" + sha + "\",\"browser_download_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapture-Setup.exe\"},{\"name\":\"Kapture.exe\"}]}";
+            string json = "{\"tag_name\":\"v0.2.1\",\"html_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\"assets\":[{\"name\":\"Kapsure-Setup.exe\",\"digest\":\"sha256:" + sha + "\",\"browser_download_url\":\"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapsure-Setup.exe\"},{\"name\":\"Kapsure.exe\"}]}";
             Updates.Info ui = Updates.Parse(json);
-            Is(ui != null && ui.Version == "0.2.1" && ui.Sha256 == sha && ui.SetupUrl.EndsWith("/Kapture-Setup.exe"), "antwoord van GitHub lezen");
+            Is(ui != null && ui.Version == "0.2.1" && ui.Sha256 == sha && ui.SetupUrl.EndsWith("/Kapsure-Setup.exe"), "antwoord van GitHub lezen");
             Is(Updates.Parse(json.Replace("ridaabouhayan-hue/kapture/releases/download", "iemand-anders/kapture/releases/download")).SetupUrl == null, "installer van een ander adres wordt niet gebruikt");
             Is(Updates.Parse("onzin") == null, "raar antwoord: geen versie");
-            string pretty = "{\n  \"tag_name\": \"v0.2.1\",\n  \"html_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\n  \"assets\": [\n    {\n      \"name\": \"Kapture-Setup.exe\",\n      \"digest\": \"sha256:" + sha + "\",\n      \"browser_download_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapture-Setup.exe\"\n    },\n    {\n      \"name\": \"Kapture.exe\"\n    }\n  ]\n}";
+            string pretty = "{\n  \"tag_name\": \"v0.2.1\",\n  \"html_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/tag/v0.2.1\",\n  \"assets\": [\n    {\n      \"name\": \"Kapsure-Setup.exe\",\n      \"digest\": \"sha256:" + sha + "\",\n      \"browser_download_url\": \"https://github.com/ridaabouhayan-hue/kapture/releases/download/v0.2.1/Kapsure-Setup.exe\"\n    },\n    {\n      \"name\": \"Kapsure.exe\"\n    }\n  ]\n}";
             Updates.Info up = Updates.Parse(pretty);
             Is(up != null && up.Sha256 == sha && up.SetupUrl != null, "antwoord van GitHub met spaties en regels lezen");
 
